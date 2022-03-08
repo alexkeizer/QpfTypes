@@ -1,5 +1,6 @@
 import Qpf.PFunctor.Basic
 
+namespace PFunctor
 open PFunctor
 
 variable {P : PFunctor}
@@ -31,3 +32,5 @@ by cases p; rfl
 
 @[simp] theorem W.mk_dest (p : W P) : W.mk (W.dest p).fst (W.dest p).snd = p :=
 by cases p; rfl
+
+end PFunctor

@@ -1,6 +1,7 @@
 
 import Qpf.PFunctor.Basic
 
+namespace PFunctor
 open Nat
 
 -- def M (P : pfunctor.{u}) : Type u
@@ -31,3 +32,5 @@ inductive agree : ∀ {n : Nat}, M_approx P n → M_approx P (n+1) → Prop
 structure M := 
   (approx : ∀ n, M_approx P n) 
   (agrees : ∀ n, agree P (approx n) (approx (n+1)))
+
+end PFunctor
