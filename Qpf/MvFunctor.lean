@@ -56,16 +56,16 @@ theorem of_mem_supp {α : TypeVec n} {x : F α} {p : ∀ ⦃i⦄, α i → Prop}
 λ y hy => hy h
 
 
-class is_lawful {n : Nat} (F : TypeVec n → Type _) [MvFunctor F] : Prop :=
+class Lawful {n : Nat} (F : TypeVec n → Type _) [MvFunctor F] : Prop :=
 (id_map       : ∀ {α : TypeVec n} (x : F α), TypeVec.id <$$> x = x)
 (comp_map     : ∀ {α β γ : TypeVec n} (g : α ⟹ β) (h : β ⟹ γ) (x : F α),
                     (h ⊚ g) <$$> x = h <$$> g <$$> x)
 
-export is_lawful (id_map comp_map)
+export Lawful (id_map comp_map)
 attribute [simp] id_map
 
 variable {n : Nat} {α β γ : TypeVec.{u} n}
-variable {F : TypeVec.{u} n → Type v} [MvFunctor F] [is_lawful F]
+variable {F : TypeVec.{u} n → Type v} [MvFunctor F] [Lawful F]
 
 @[simp]
 theorem id_map' (x : F α) :
