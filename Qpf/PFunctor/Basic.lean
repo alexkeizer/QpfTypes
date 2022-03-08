@@ -125,6 +125,8 @@ end PFunctor
 ## Lifting predicates and relations.
 -/
 
+-- FIXME
+
 -- namespace PFunctor
 -- variable {P : PFunctor.{u}}
 -- open Functor

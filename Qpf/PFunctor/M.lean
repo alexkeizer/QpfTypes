@@ -6,10 +6,10 @@ open Nat
 
 -- def M (P : pfunctor.{u}) : Type u
 
--- def M_dest : M P → P.apply (M P)
+-- def M_dest : M P → P.obj (M P)
 
--- def M_corec : (α → P.apply α) → (α → M P)
--- theorem M_dest_corec (g : α → P.apply α) (x : α) :
+-- def M_corec : (α → P.obj α) → (α → M P)
+-- theorem M_dest_corec (g : α → P.obj α) (x : α) :
 -- M_dest (M_corec g x) = M_corec g <$> g x
 -- theorem M_bisim (r : M P → M P → Prop)
 -- (h : ∀ x y, r x y →
