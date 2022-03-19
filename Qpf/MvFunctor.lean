@@ -40,18 +40,18 @@ namespace MvFunctor
 
 variable {n : Nat} {α β γ : TypeVec.{u} n} {F : TypeVec.{u} n → Type v} [MvFunctor F]
 
-def liftp {α : TypeVec n} (p : ∀ i, α i → Prop) : F α → Prop :=
+def Liftp {α : TypeVec n} (p : ∀ i, α i → Prop) : F α → Prop :=
 λ x => ∃ u : F (λ i => Subtype (p i)), (λ i => @Subtype.val _ (p i)) <$$> u = x
 
-def liftr {α β : TypeVec n} (r : ∀ {i}, α i → β i → Prop) : F α → F β → Prop :=
+def Liftr {α β : TypeVec n} (r : ∀ {i}, α i → β i → Prop) : F α → F β → Prop :=
 λ x y => ∃ u : F (λ i => {p : α i × β i // r p.fst p.snd}),
   (λ i (t : {p : α i × β i // r p.fst p.snd}) => t.val.fst) <$$> u = x ∧
   (λ i (t : {p : α i × β i // r p.fst p.snd}) => t.val.snd) <$$> u = y
 
 def supp {α : TypeVec n} (x : F α) (i : fin' n) : Set (α i) :=
-{ y : α i | ∀ {p}, liftp p x → p i y }
+{ y : α i | ∀ {p}, Liftp p x → p i y }
 
-theorem of_mem_supp {α : TypeVec n} {x : F α} {p : ∀ ⦃i⦄, α i → Prop} (h : liftp p x) (i : fin' n):
+theorem of_mem_supp {α : TypeVec n} {x : F α} {p : ∀ ⦃i⦄, α i → Prop} (h : Liftp p x) (i : fin' n):
   ∀ y, y ∈ supp x i → p y :=
 λ y hy => hy h
 

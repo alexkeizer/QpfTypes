@@ -1,0 +1,7 @@
+-- induction x using invariants
+-- | x : Tree a => height x < 3
+-- | x : List (Tree a) => sum height x < 3
+-- with 
+-- | Tree.node x xs ih => _
+-- | List.nil => _
+-- | List.cons x xs ih => _

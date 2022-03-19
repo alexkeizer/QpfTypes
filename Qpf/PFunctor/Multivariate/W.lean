@@ -5,7 +5,7 @@ Author: Jeremy Avigad
 
 The W construction as a multivariate polynomial functor.
 -/
-import Qpf.MvPFunctor.Basic
+import Qpf.PFunctor.Multivariate.Basic
 import Qpf.PFunctor
 
 universe u v
@@ -64,7 +64,7 @@ by funext i x; cases x; repeat rfl
 def Wp : MvPFunctor n :=
 { A := P.last.W, B := P.W_path }
 
-def W (α : TypeVec n) : Type _ := P.Wp.obj α
+def W (α : TypeVec n) : Type _ := P.Wp.Obj α
 
 /- FIXME: -/
 instance MvFunctor_W : MvFunctor P.W := by delta W; apply inferInstance
@@ -183,7 +183,7 @@ by
 
 @[reducible] def obj_append1 {α : TypeVec n} {β : Type _}
     (a : P.A) (f' : P.drop.B a ⟹ α) (f : P.last.B a → β) :
-  P.obj (append1 α β) :=
+  P.Obj (append1 α β) :=
 ⟨a, split_fun f' f⟩
 
 /- FIXME
@@ -205,10 +205,10 @@ These are needed to use the W-construction to construct a fixed point of a qpf, 
 the qpf axioms are expressed in terms of `map` on `P`.
 -/
 
-def W_mk' {α : TypeVec n} : P.obj (α.append1 (P.W α)) → P.W α
+def W_mk' {α : TypeVec n} : P.Obj (α.append1 (P.W α)) → P.W α
 | ⟨a, f⟩ => P.W_mk a (drop_fun f) (last_fun f)
 
-def W_dest' {α : TypeVec.{u} n} : P.W α → P.obj (α.append1 (P.W α)) :=
+def W_dest' {α : TypeVec.{u} n} : P.W α → P.Obj (α.append1 (P.W α)) :=
 P.W_rec (λ a f' f _ => ⟨a, split_fun f' f⟩)
 
 theorem W_dest'_W_mk {α : TypeVec n}
@@ -216,7 +216,7 @@ theorem W_dest'_W_mk {α : TypeVec n}
   P.W_dest' (P.W_mk a f' f) = ⟨a, split_fun f' f⟩ :=
 by unfold W_dest'; rw [W_rec_eq]
 
-theorem W_dest'_W_mk' {α : TypeVec n} (x : P.obj (α.append1 (P.W α))) :
+theorem W_dest'_W_mk' {α : TypeVec n} (x : P.Obj (α.append1 (P.W α))) :
   P.W_dest' (P.W_mk' x) = x :=
 by cases x; 
    unfold W_mk';

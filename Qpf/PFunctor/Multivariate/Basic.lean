@@ -20,7 +20,7 @@ structure MvPFunctor (n : Nat) :=
 (A : Type u) (B : A → TypeVec.{u} n)
 
 namespace MvPFunctor
-open MvFunctor (liftp liftr)
+open MvFunctor (Liftp Liftr)
 
 variable {n m : Nat} (P : MvPFunctor.{u} n)
 
@@ -28,32 +28,32 @@ variable {n m : Nat} (P : MvPFunctor.{u} n)
     * a 'shape' `a ∈ A`, and
     * an arrow `g: Ba ⟹ X`, which is an n-tuple of functions `(Ba)_i → Xi`
 -/
-def obj (α : TypeVec.{u} n) : Type u 
+def Obj (α : TypeVec.{u} n) : Type u 
   := Σ a : P.A, P.B a ⟹ α
 
 /-- Let `f : X ⟹ Y` be an arrow of `TypeVec`s, then `P(f) : P(X) ⟹ Y` is defined by 
     pre-composition of `f` with the arrow `g` in `P(X)`
 -/
-def map {α β : TypeVec n} (f : α ⟹ β) : P.obj α → P.obj β :=
+def map {α β : TypeVec n} (f : α ⟹ β) : P.Obj α → P.Obj β :=
 λ ⟨a, g⟩ => ⟨a, TypeVec.comp f g⟩
 
 /-- An MvPFunctor is a special case of MvFunctor -/
-instance : MvFunctor P.obj :=
+instance : MvFunctor P.Obj :=
 ⟨@MvPFunctor.map n P⟩
 
 theorem map_eq {α β : TypeVec n} (g : α ⟹ β) (a : P.A) (f : P.B a ⟹ α) :
-  @MvFunctor.map _ P.obj _ _ _ g ⟨a, f⟩ = ⟨a, g ⊚ f⟩ :=
+  @MvFunctor.map _ P.Obj _ _ _ g ⟨a, f⟩ = ⟨a, g ⊚ f⟩ :=
 rfl
 
-theorem id_map {α : TypeVec n} : ∀ x : P.obj α, TypeVec.id <$$> x = x
+theorem id_map {α : TypeVec n} : ∀ x : P.Obj α, TypeVec.id <$$> x = x
 | ⟨a, g⟩ => rfl
 
 theorem comp_map {α β γ : TypeVec n} (f : α ⟹ β) (g : β ⟹ γ) :
-  ∀ x : P.obj α, (g ⊚ f) <$$> x = g <$$> (f <$$> x)
+  ∀ x : P.Obj α, (g ⊚ f) <$$> x = g <$$> (f <$$> x)
 | ⟨a, h⟩ => rfl
 
 /-- To wit, MvPFunctors are always Lawful -/
-instance : MvFunctor.Lawful P.obj := 
+instance : MvFunctor.Lawful P.Obj := 
 ⟨@id_map n P, @comp_map n P⟩
 
 #check @Sigma
@@ -75,7 +75,7 @@ def comp (P : MvPFunctor.{u} n) (Q : fin' n → MvPFunctor.{u} m) : MvPFunctor m
 
 variable {P} {Q : fin' n → MvPFunctor.{u} m} {α β : TypeVec.{u} m}
 
-def comp.mk (x : P.obj (λ i => (Q i).obj α)) : (comp P Q).obj α :=
+def comp.mk (x : P.Obj (λ i => (Q i).Obj α)) : (comp P Q).Obj α :=
 ⟨ ⟨ x.1, λ i a => (x.2 _ a).1  ⟩, 
   λ i a => (x.snd a.fst (a.snd).fst).snd i (a.snd).snd 
 ⟩
@@ -91,7 +91,7 @@ section
   #check B (Q i) (Sigma.snd x.fst i a) ⟹ α
 end
 
-def comp.get (x : (comp P Q).apply α) : P.obj (λ i => (Q i).apply α) :=
+def comp.get (x : (comp P Q).apply α) : P.Obj (λ i => (Q i).apply α) :=
 Sigma.mk x.1.1 (λ i a => ⟨x.fst.snd i a, (λ (i : fin' n) (j : fin' m) => (_ : α j)
   -- ⟨λ (j : fin' m) (b : (Q i).B _ j) => _⟩
   -- ⟨λ  => x.snd j ⟨i, ⟨a, b⟩⟩⟩
@@ -104,7 +104,7 @@ theorem comp.get_map (f : α ⟹ β) (x : (comp P Q).apply α) :
 by cases x; rfl
 
 @[simp]
-theorem comp.get_mk (x : P.obj (λ i => (Q i).apply α)) : comp.get (comp.mk x) = x :=
+theorem comp.get_mk (x : P.Obj (λ i => (Q i).apply α)) : comp.get (comp.mk x) = x :=
 begin
   cases x,
   simp! [comp.get,comp.mk],
@@ -127,8 +127,8 @@ end
 lifting predicates and relations
 -/
 
-theorem liftp_iff {α : TypeVec n} (p : ∀ ⦃i⦄ , α i → Prop) (x : P.obj α) :
-  liftp p x ↔ ∃ a f, x = ⟨a, f⟩ ∧ ∀ i j, p (f i j) :=
+theorem liftp_iff {α : TypeVec n} (p : ∀ ⦃i⦄ , α i → Prop) (x : P.Obj α) :
+  Liftp p x ↔ ∃ a f, x = ⟨a, f⟩ ∧ ∀ i j, p (f i j) :=
 by
   apply Iff.intro
   {
@@ -143,8 +143,8 @@ by
     rfl
   }
 
-theorem liftr_iff {α : TypeVec n} (r : ∀ {i}, α i → α i → Prop) (x y : P.obj α) :
-  liftr r x y ↔ ∃ a f₀ f₁, x = ⟨a, f₀⟩ ∧ y = ⟨a, f₁⟩ ∧ ∀ i j, r (f₀ i j) (f₁ i j) :=
+theorem liftr_iff {α : TypeVec n} (r : ∀ {i}, α i → α i → Prop) (x y : P.Obj α) :
+  Liftr r x y ↔ ∃ a f₀ f₁, x = ⟨a, f₀⟩ ∧ y = ⟨a, f₁⟩ ∧ ∀ i j, r (f₀ i j) (f₁ i j) :=
 by 
   apply Iff.intro
   {
