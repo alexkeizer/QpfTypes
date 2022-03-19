@@ -1,2 +1,4 @@
 build/
+lean_packages/
 Qpf/Scratch.lean
+Qpf/Example
