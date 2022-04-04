@@ -34,4 +34,15 @@ by
 theorem mem_set_of_eq {a : α} {p : α → Prop} : (a ∈ { a | p a }) = p a :=
   rfl
 
+@[ext]
+theorem ext {a b : Set α} (h : ∀ x, x ∈ a ↔ x ∈ b) : a = b :=
+by funext x
+   simp [h]
+   apply h
+
+theorem SubSet.antisymm {a b : Set α} (h₁ : a ⊆ b) (h₂ : b ⊆ a) : a = b :=
+Set.ext $ λ x => ⟨@h₁ _, @h₂ _⟩
+
+
+
 end Set

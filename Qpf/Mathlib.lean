@@ -47,3 +47,8 @@ import Mathlib.Tactic.SudoSetOption
 import Mathlib.Tactic.TryThis
 import Mathlib.Tactic.Use
 
+
+-- Includes `omit` syntax
+import Mathlib.Mathport.Syntax
+
+import Qpf.MathlibPort.Logic

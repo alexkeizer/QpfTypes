@@ -5,7 +5,7 @@ Authors: Simon Hudon
 -/
 import Qpf.PFunctor.Univariate.Basic
 import Qpf.Mathlib
-import Qpf.MathlibPort.SumBind
+import Qpf.MathlibPort.Sum
 
 /-!
 # M-types
@@ -44,7 +44,7 @@ protected def CofixA.default [Inhabited F.A] : ∀ n, CofixA F n
 instance [Inhabited F.A] {n} : Inhabited (CofixA F n) :=
   ⟨CofixA.default F n⟩
 
-  @[simp]
+@[simp]
 theorem cofix_a_zero_uniq (x : CofixA F 0) : x = CofixA.continu
   := by cases x; rfl
 
@@ -301,7 +301,7 @@ protected def mk (x : F.Obj <| M F) : M F where
 /-- `agree' n` relates two trees of type `M F` that
 are the same up to dept `n` -/
 inductive Agree' : Nat → M F → M F → Prop
-  | trivialₓ (x y : M F) : Agree' 0 x y
+  | trivial (x y : M F) : Agree' 0 x y
   | step  {n : Nat} 
           {a} 
           (x y : F.B a → M F) 
@@ -310,6 +310,7 @@ inductive Agree' : Nat → M F → M F → Prop
           x' = M.mk ⟨a, x⟩ → y' = M.mk ⟨a, y⟩
           → (∀ i, Agree' n (x i) (y i))
           → Agree' (succ n) x' y'
+
 
 
 @[simp]
@@ -334,13 +335,14 @@ theorem mk_dest (x : M F) : M.mk (dest x) = x := by
   apply congrArg
   ext a
   simp only [children]
-  sorry 
-  -- h_generalize hh : a = a'';
-  -- revert hh a'';
-  -- rw [h]
-  -- intros
-  -- cases hh
-  -- rfl
+  suffices ∀ (a'' : F.B (head' (x.approx n.succ))), HEq a a'' → children' (x.approx n.succ) a'' = ch a
+    by apply this
+       apply HEq.symm
+       apply cast_heq
+  rw [h]
+  intros a'' hh
+  cases hh
+  rfl
     
 
 theorem mk_inj {x y : F.Obj <| M F} (h : M.mk x = M.mk y) : x = y := by
@@ -416,23 +418,15 @@ theorem agree_iff_agree' {n : Nat} (x y : M F) : Agree (x.approx n) (y.approx <|
         apply n_ih
         simp [*]
       
-
 @[simp]
 theorem cases_mk {r : M F → Sort _} (x : F.Obj <| M F) (f : ∀ x : F.Obj <| M F, r (M.mk x)) :
     PFunctor.M.cases f (M.mk x) = f x := by
   simp only [M.mk, PFunctor.M.cases, dest, head, Approx.s_mk, head']
   cases x
   simp only [Approx.s_mk]
-  apply eq_of_heq
-  sorry
-  -- apply rec_heq_of_heq
-  -- apply HEq.congr
-  -- simp only [children, Approx.s_mk, children']
-  -- cases h : x_snd x
-  -- simp only [head]
-  -- congr with n
-  -- change (x_snd x).approx n = _
-  -- rw [h]
+  simp [Eq.mpr]
+  apply congrFun
+  rfl
 
 @[simp]
 theorem cases_on_mk {r : M F → Sort _} (x : F.Obj <| M F) (f : ∀ x : F.Obj <| M F, r (M.mk x)) :
@@ -461,9 +455,8 @@ theorem is_path_cons {xs : Path F} {a a'} {f : F.B a → M F} {i : F.B a'} (h : 
   cases mk_inj ‹_›
   rfl
 
-theorem is_path_cons' {xs : Path F} {a} {f : F.B a → M F} {i : F.B a} (h : IsPath (⟨a, i⟩ :: xs) (M.mk ⟨a, f⟩)) :
-    IsPath xs (f i) := by
-  revert h
+theorem is_path_cons' {xs : Path F} {a} {f : F.B a → M F} {i : F.B a} :
+    IsPath (⟨a, i⟩ :: xs) (M.mk ⟨a, f⟩) → IsPath xs (f i) := by
   generalize h : M.mk ⟨a, f⟩ = x
   intro h'
   cases h'
@@ -559,54 +552,71 @@ theorem iselect_cons [DecidableEq F.A] [Inhabited (M F)] (ps : Path F) {a} (f : 
     iselect (⟨a, i⟩ :: ps) (M.mk ⟨a, f⟩) = iselect ps (f i) := by
   simp only [iselect, isubtree_cons]
 
+/-- Two M-types are equal whenever their approximations are equal -/
+theorem approx_eq_imp_eq (m₁ m₂ : M F) (h : m₁.approx = m₂.approx) :
+  m₁ = m₂ :=
+by
+  rcases m₁ with ⟨approx₁, _⟩
+  rcases m₂ with ⟨approx₂, _⟩
+  simp at h
+  cases h
+  rfl
+
 theorem corec_def {X} (f : X → F.Obj X) (x₀ : X) : M.corec f x₀ = M.mk (M.corec f <$> f x₀) := by
-  simp only [M.corec, M.mk]
-  sorry
-  -- cases' n with n
-  -- · simp only [s_corec, Approx.s_mk]
-  --   rfl
+  simp only [M.corec, M.mk, Approx.s_mk]
+  apply approx_eq_imp_eq
+  funext n;
+  simp
+  cases' n with n
+  · simp only [sCorec, Approx.s_mk]
+
+  · simp only [sCorec, Approx.s_mk]
+    cases h : f x₀
+    simp only [(· <$> ·), PFunctor.map]
+    apply congrFun
+    rfl
     
-  -- · simp only [s_corec, Approx.s_mk]
-  --   cases h : f x₀
-  --   simp only [(· <$> ·), PFunctor.map]
-  --   congr
     
 
 theorem ext_aux [Inhabited (M F)] [DecidableEq F.A] {n : Nat} (x y z : M F) (hx : Agree' n z x) (hy : Agree' n z y)
     (hrec : ∀ ps : Path F, n = ps.length → iselect ps x = iselect ps y) : x.approx (n + 1) = y.approx (n + 1) := by
-  sorry /-
   induction' n with n generalizing x y z
   · specialize hrec [] rfl
     induction x using PFunctor.M.casesOn'
     induction y using PFunctor.M.casesOn'
     simp only [iselect_nil] at hrec
     subst hrec
-    simp only [approx_mk, eq_self_iff_true, heq_iff_eq, true_and]
-    apply congrArg
-    funext j;
-    
-    
+    simp only [approx_mk, eq_self_iff_true, heq_iff_eq, true_and, cofix_a_zero_uniq]
+            
   · cases hx
     cases hy
     induction x using PFunctor.M.casesOn'
     induction y using PFunctor.M.casesOn'
     subst z
-    iterate 3 
+    iterate 3
       have := mk_inj ‹_›
       repeat'
         cases this
+    rename_i n_ih a f₃ f₂ hAgree₂ _ _ h₂ _ _ f₁ h₁ hAgree₁ clr
+    cases clr
     simp only [approx_mk, true_and, eq_self_iff_true, heq_iff_eq]
-    ext i
-    apply n_ih
+
+    have := mk_inj h₁
+    cases this; clear h₁
+    have := mk_inj h₂
+    cases this; clear h₂
+
+    apply congrArg
+    funext i
+    apply n_ih       
+    · solve_by_elim
     · solve_by_elim
       
-    · solve_by_elim
-      
-    introv h
-    specialize hrec (⟨_, i⟩ :: ps) (congr_argₓ _ h)
+    intro ps h
+    specialize hrec (⟨_, i⟩ :: ps) (congrArg _ h)
     simp only [iselect_cons] at hrec
     exact hrec
-  -/
+  
     
 
 open PFunctor.Approx
@@ -651,6 +661,7 @@ structure IsBisimulation : Prop where
   head : ∀ {a a'} {f f'}, R (M.mk ⟨a, f⟩) (M.mk ⟨a', f'⟩) → a = a'
   tail : ∀ {a} {f f' : F.B a → M F}, R (M.mk ⟨a, f⟩) (M.mk ⟨a, f'⟩) → ∀ i : F.B a, f i ~ f' i
 
+
 theorem nth_of_bisim [Inhabited (M F)] (bisim : IsBisimulation R) s₁ s₂ (ps : Path F) :
     s₁ ~ s₂ →
       IsPath ps s₁ ∨ IsPath ps s₂ →
@@ -668,7 +679,7 @@ theorem nth_of_bisim [Inhabited (M F)] (bisim : IsBisimulation R) s₁ s₂ (ps 
   subst a'
   induction' ps with i ps ps_ih generalizing a f f'
   · apply And.intro; rfl
-    exists a; exists f; exists f'
+    refine ⟨a, f, f', ?_⟩
     repeat (apply And.intro; rfl)
     apply bisim.tail h₀
     
@@ -687,9 +698,12 @@ theorem nth_of_bisim [Inhabited (M F)] (bisim : IsBisimulation R) s₁ s₂ (ps 
     have : a₀ = a₁ := bisim.head h₁
     subst a₁
     apply ps_ih _ _ _ _ _ _ h₁
-    all_goals sorry    
-    -- . rw [← h, ← h']
-    -- apply or_of_or_of_imp_of_imp hh is_path_cons' is_path_cons'
+    rw [← h, ← h']
+    apply or_of_or_of_imp_of_imp hh is_path_cons' is_path_cons'
+    have hh₂ := hh₁'
+    all_goals
+      sorry
+    
 
 theorem eq_of_bisim [Inhabited (M F)] (bisim : IsBisimulation R) : ∀ s₁ s₂, s₁ ~ s₂ → s₁ = s₂ := by
   introv Hr
