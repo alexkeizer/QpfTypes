@@ -368,9 +368,8 @@ def Fix.drec {β : Fix F α → Type u}
     apply congrArg
     conv => rhs; rw [← ih]
     rw [MvFunctor.map_map, ← append_fun_comp, id_comp];
-    -- TODO: make sure this doesn't invoke sorry, why does this work?
     conv in (Fix.rec _ _) => 
-      skip
+      skip -- I don't know why, but lean needs this `conv` to close the goal
    
   apply cast _ y.2
   rw [this];
