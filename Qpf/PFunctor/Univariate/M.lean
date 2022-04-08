@@ -674,7 +674,7 @@ theorem nth_of_bisim [Inhabited (M F)] (bisim : IsBisimulation R) s₁ s₂ (ps 
   rename_i h₁ hh₁
   induction' s₂ using PFunctor.M.casesOn' with a' f'
   rename_i h₁' hh₁' h₂ hh₂
-  clear h₂ hh₂
+  clear h₁ hh₁ h₂ hh₂ hh₁'
   have : a = a' := bisim.head h₀
   subst a'
   induction' ps with i ps ps_ih generalizing a f f'
@@ -697,12 +697,9 @@ theorem nth_of_bisim [Inhabited (M F)] (bisim : IsBisimulation R) s₁ s₂ (ps 
     rw [h, h'] at h₁
     have : a₀ = a₁ := bisim.head h₁
     subst a₁
-    apply ps_ih _ _ _ _ _ _ h₁
+    apply ps_ih _ _ _ h₁
     rw [← h, ← h']
     apply or_of_or_of_imp_of_imp hh is_path_cons' is_path_cons'
-    have hh₂ := hh₁'
-    all_goals
-      sorry
     
 
 theorem eq_of_bisim [Inhabited (M F)] (bisim : IsBisimulation R) : ∀ s₁ s₂, s₁ ~ s₂ → s₁ = s₂ := by

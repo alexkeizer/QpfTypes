@@ -84,15 +84,17 @@ by
 /-- Equivalence relation on W-types that represent the same `fix F`
 value -/
 inductive Wequiv {α : TypeVec n} : q.P.W α → q.P.W α → Prop
-  | ind (a : q.P.A) (f' : q.P.drop.B a ⟹ α) (f₀ f₁ : q.P.last.B a → q.P.W α) :
-    (∀ x, Wequiv (f₀ x) (f₁ x)) → Wequiv (q.P.W_mk a f' f₀) (q.P.W_mk a f' f₁)
+  | ind (a : q.P.A) 
+        (f' : q.P.drop.B a ⟹ α) 
+        (f₀ f₁ : q.P.last.B a → q.P.W α) 
+        : (∀ x, Wequiv (f₀ x) (f₁ x)) 
+        → Wequiv (q.P.W_mk a f' f₀) (q.P.W_mk a f' f₁)
   | abs (a₀ : q.P.A) (f'₀ : q.P.drop.B a₀ ⟹ α) (f₀ : q.P.last.B a₀ → q.P.W α) (a₁ : q.P.A) (f'₁ : q.P.drop.B a₁ ⟹ α)
     (f₁ : q.P.last.B a₁ → q.P.W α) :
     abs ⟨a₀, q.P.append_contents f'₀ f₀⟩ = abs ⟨a₁, q.P.append_contents f'₁ f₁⟩ →
       Wequiv (q.P.W_mk a₀ f'₀ f₀) (q.P.W_mk a₁ f'₁ f₁)
   | trans (u v w : q.P.W α) : Wequiv u v → Wequiv v w → Wequiv u w
 
--- set_option pp.all true
 
 theorem recF_eq_of_Wequiv (α : TypeVec n) {β : Type _} (u : F (α.append1 β) → β) (x y : q.P.W α) :
     Wequiv x y → recF u x = recF u y := by
@@ -101,16 +103,23 @@ theorem recF_eq_of_Wequiv (α : TypeVec n) {β : Type _} (u : F (α.append1 β) 
   apply q.P.W_cases (C:=fun y => Wequiv (MvPFunctor.W_mk (P F) a₀ f'₀ f₀) y → recF u (MvPFunctor.W_mk (P F) a₀ f'₀ f₀) = recF u y) _ y
   intro a₁ f'₁ f₁
   intro h
-  sorry 
-  /-
+  generalize hw₀ : MvPFunctor.W_mk (P F) a₀ f'₀ f₀ = w₀;
+  generalize hw₁ : MvPFunctor.W_mk (P F) a₁ f'₁ f₁ = w₁;
+  rw [hw₀, hw₁] at h
+  clear a₀ f'₀ f₀ hw₀ a₁ f'₁ f₁ hw₁
   induction h
-  case ind a f' f₀ f₁ h =>
-      simp only [recF_eq, Function.comp, ih]
-  | abs a₀ f'₀ f₀ a₁ f'₁ f₁ h =>
-      simp only [recF_eq', abs_map, MvPFunctor.W_dest'_W_mk, h]
-  | trans x y z e₁ e₂ ih₁ ih₂ =>
-      exact Eq.trans ih₁ ih₂
-  -/
+  case ind a f' f₀ f₁ h ih => {
+    simp only [recF_eq, Function.comp]
+    conv in recF u (f₀ x) => {
+      rw [ih]
+    }
+  }
+  case abs a₀ f'₀ f₀ a₁ f'₁ f₁ h => {
+    simp only [recF_eq', abs_map, MvPFunctor.W_dest'_W_mk, h]
+  }
+  case trans x y z e₁ e₂ ih₁ ih₂ => {
+    exact Eq.trans ih₁ ih₂
+  }
 
 theorem Wequiv.abs' {α : TypeVec n} 
                     (x y : q.P.W α) 
@@ -151,21 +160,16 @@ by
 
 theorem Wrepr_equiv {α : TypeVec n} (x : q.P.W α) : Wequiv (Wrepr x) x := 
 by
-  apply q.P.W_ind _ x
+  apply q.P.W_ind (C:=fun x => Wequiv (Wrepr x) x) _ x;
   intro a f' f ih
   apply Wequiv.trans _ (q.P.W_mk' (appendFun id Wrepr <$$> ⟨a, q.P.append_contents f' f⟩))
-  . sorry
-  . sorry
-  /-
-  · apply Wequiv.abs'
-    rw [q.P.W_dest'_W_mk']
-    simp [recF_eq_of_Wequiv, q.P.W_dest'_W_mk', abs_repr, *, map, TypeVec.id];
-    -- recF_eq_of_Wequiv, q.P.W_dest'_W_mk', abs_repr
-    
-  rw [q.P.map_eq, MvPFunctor.W_mk', append_fun_comp_split_fun, id_comp]
-  apply Wequiv.ind
-  exact ih
-  -/
+  rcases x with ⟨ax, fx⟩
+  . apply Wequiv.abs';
+    rw [Wrepr_W_mk, q.P.W_dest'_W_mk', q.P.W_dest'_W_mk', abs_repr];
+  . rw [q.P.map_eq, MvPFunctor.W_mk', append_fun_comp_split_fun, id_comp]
+    apply Wequiv.ind
+    exact ih
+
 
 theorem Wequiv_map {α β : TypeVec n} (g : α ⟹ β) (x y : q.P.W α) : Wequiv x y → Wequiv (g <$$> x) (g <$$> y) := by
   intro h
@@ -241,12 +245,13 @@ theorem Fix.rec_eq {β : Type u} (g : F (append1 α β) → β) (x : F (append1 
     intro x
     apply recF_eq_of_Wequiv
     apply Wrepr_equiv
-  -- conv => lhs; rw [Fix.rec, Fix.mk]; simp
+  conv in rec _ _ => 
+    rw [Fix.rec, Fix.mk]
+    simp
 
-  cases' h : repr x with a f
-  simp [MvPFunctor.map_eq, recF_eq', ← MvPFunctor.map_eq, MvPFunctor.W_dest'_W_mk']
-  simp [← MvPFunctor.comp_map, abs_map, ← h, abs_repr, ← append_fun_comp, id_comp, this]
-  sorry
+  cases' h : repr x with a f;
+  rw [MvPFunctor.map_eq, recF_eq', ← MvPFunctor.map_eq, MvPFunctor.W_dest'_W_mk']
+  rw [← MvPFunctor.comp_map, abs_map, ← h, abs_repr, ← append_fun_comp, id_comp, this]
 
 theorem Fix.ind_aux (a : q.P.A) (f' : q.P.drop.B a ⟹ α) (f : q.P.last.B a → q.P.W α) :
     Fix.mk (abs ⟨a, q.P.append_contents f' fun x => Quotient.mk' (f x)⟩) = Quotient.mk' (q.P.W_mk a f' f) := by
@@ -361,12 +366,15 @@ def Fix.drec {β : Fix F α → Type u}
     simp [Fix.rec_eq]
     simp [append_fun_id_id] at ih
     apply congrArg
-    conv => rhs rw [← ih]
-    simp [MvFunctor.map_map, ← append_fun_comp, id_comp]
-    sorry
+    conv => rhs; rw [← ih]
+    rw [MvFunctor.map_map, ← append_fun_comp, id_comp];
+    -- TODO: make sure this doesn't invoke sorry, why does this work?
+    conv in (Fix.rec _ _) => 
+      skip
    
   apply cast _ y.2
   rw [this];
+
 
 end MvQpf
 
