@@ -220,12 +220,8 @@ theorem M.bisim_lemma {α : TypeVec n}
   revert e₁
   generalize ef : @splitFun n _ (append1 α (M P α)) f' f₁' = ff ;
   intro e₁;
-  unfold Mp at a₁;
-  rename_i a₁_orig;
-  have : a₁ = a₁_orig 
-    := by sorry;
-  rcases e₁' : PFunctor.M.dest a₁ with ⟨a₁', g₁'⟩;
-  cases this
+  let he₁' := PFunctor.M.dest a₁;
+  rcases e₁' : he₁' with ⟨a₁', g₁'⟩;
   rw [M.dest_eq_dest' P e₁'] at e₁
   cases e₁
   exact ⟨_, e₁', split_fun_inj ef⟩
