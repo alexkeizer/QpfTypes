@@ -196,15 +196,15 @@ theorem M.dest_corec' {α : TypeVec.{u} n} {β : Type u} (g₀ : β → P.A) (g�
 
 theorem M.dest_corec {α : TypeVec n} {β : Type u} (g : β → P.Obj (α.append1 β)) (x : β) :
     M.dest P (M.corec P g x) = appendFun id (M.corec P g) <$$> g x := by
-  sorry
-  -- trans
-  -- apply M.dest_corec'
-  -- cases' g x with a f
-  -- dsimp
-  -- rw [MvPFunctor.map_eq]
-  -- congr
-  -- conv => rhs rw [← split_drop_fun_last_fun f, append_fun_comp_split_fun]
-  -- rfl
+  apply Eq.trans
+  apply M.dest_corec'
+  cases' g x with a f
+  simp
+  rw [MvPFunctor.map_eq]
+  apply congrArg
+  conv => rhs rw [← split_drop_fun_last_fun f, append_fun_comp_split_fun]
+
+theorem Mp_A_unfold : (Mp P).A = PFunctor.M (last P) := by rfl
 
 theorem M.bisim_lemma {α : TypeVec n} 
                       {a₁ : (Mp P).A} 
@@ -217,14 +217,18 @@ theorem M.bisim_lemma {α : TypeVec n}
       f' = M.pathDestLeft P e₁' f₁ 
       ∧ f₁' = fun x : (last P).B a' => ⟨g₁' x, M.pathDestRight P e₁' f₁ x⟩ 
 := by
-  let ff : P.B a' ⟹ α ::: P.M α := @splitFun n _ (append1 α (M P α)) f' f₁'
-  have ef : @splitFun n _ (append1 α (M P α)) f' f₁' = ff := by trivial
-  rw [ef] at e₁
-  sorry
-  -- have e₁' : PFunctor.M.dest a₁ := sorry
-  -- rw [M.dest_eq_dest' _ e₁'] at e₁
-  -- cases e₁
-  -- exact ⟨_, e₁', split_fun_inj ef⟩
+  revert e₁
+  generalize ef : @splitFun n _ (append1 α (M P α)) f' f₁' = ff ;
+  intro e₁;
+  unfold Mp at a₁;
+  rename_i a₁_orig;
+  have : a₁ = a₁_orig 
+    := by sorry;
+  rcases e₁' : PFunctor.M.dest a₁ with ⟨a₁', g₁'⟩;
+  cases this
+  rw [M.dest_eq_dest' P e₁'] at e₁
+  cases e₁
+  exact ⟨_, e₁', split_fun_inj ef⟩
 
 
 theorem M.bisim {α : TypeVec n} (R : P.M α → P.M α → Prop)
