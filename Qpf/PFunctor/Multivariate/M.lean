@@ -338,6 +338,7 @@ theorem M.map_dest {α β : TypeVec n} (g : (α ::: P.M α) ⟹ (β ::: P.M β))
   apply congrFun;
   apply congrArg;
   apply eq_of_drop_last_eq <;> simp
+  . intro; constructor;
   ext1
   apply h
 

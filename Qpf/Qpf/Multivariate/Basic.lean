@@ -379,5 +379,17 @@ theorem supp_preservation_iff_liftp_preservation : q.SuppPreservation ↔ q.Lift
 theorem liftp_preservation_iff_uniform : q.LiftpPreservation ↔ q.IsUniform := by
   rw [← supp_preservation_iff_liftp_preservation, supp_preservation_iff_uniform]
 
+
+  /-!
+    ## Show that every polynomial functor is a QPF
+  -/
+
+  instance {n} (P : MvPFunctor n) : MvQpf P.Obj where
+    P         := P
+    abs       := id
+    repr      := id
+    abs_repr  := by intros; rfl;
+    abs_map   := by intros; rfl;
+
 end MvQpf
 

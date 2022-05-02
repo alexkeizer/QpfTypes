@@ -34,11 +34,76 @@ to it, we need support functions and lemmas to mediate between constructions.
 
 universe u v w
 
+-- set_option pp.all true 
+
 /--
 n-tuples, as a category
 -/
-def Vec (α : Type _) (n : Nat)
-  := Fin2 n → α
+abbrev DVec {n : Nat} (αs : Fin2 n → Type u)  : Type _
+  := (i : Fin2 n) → αs i
+
+abbrev Vec (α : Type _) (n : Nat)
+  := @DVec n fun _ => α
+
+namespace Vec
+  def cons {α : Type u} {n} (hd : α) (tl : Vec α n) : Vec α (n+1)
+    | (Fin2.fs i) => tl i
+    | Fin2.fz     => hd
+
+  def constVec {α : Type _} (a : α) (n : Nat) : Vec α n
+    := fun _ => a
+
+  -- def toList : ∀{n}, Vec α n → List α 
+  --   | 0,   _ => []
+  --   | n+1, v => List.cons v.hd (toList v.tl)
+end Vec
+
+unif_hint (n : Nat) where |- Fin2 n → Type u =?= Vec (Type u) n
+unif_hint {α : Type _} (n : Nat) where |- DVec (Vec.constVec α n) =?= Vec α n
+
+namespace DVec
+  def hd (v : @DVec (n+1) αs ) : αs 0
+    := v 0
+
+  def tl (v : Vec α (n+1)) : Vec α n
+    := fun i => v (Fin2.fs i)
+
+  @[reducible]
+  def nil : @DVec 0 αs
+    := fun emp => by contradiction
+
+  @[reducible]
+  def cons {α : Type u} {αs : Vec (Type u) n} (hd : α) (tl : DVec αs) : DVec (Vec.cons α αs)
+    | (Fin2.fs i) => tl i
+    | Fin2.fz     => hd
+
+
+  /-- An abbreviation of `cons` that flips its `hd` and `tl` arguments -/
+  abbrev append1 {α : Type u} {αs : Vec (Type u) n} (tl : DVec αs) (hd : α)
+    := cons hd tl
+
+  -- infixl:67 " ::: " => append1
+  -- infixl:66 " ::: " => DVec.cons
+
+end DVec
+
+namespace Vec
+  export DVec (hd tl nil cons append1)
+
+  abbrev drop (v : Vec α (n+1)) : Vec α n
+    := tl v
+
+  @[simp]
+  theorem cons_zero (hd : α) (tl : Vec α n) :
+    (Vec.cons hd tl) Fin2.fz = hd :=
+  by simp only [Vec.cons]
+
+  @[simp]
+  theorem cons_succ (hd : α) (tl : Vec α n) :
+    (Vec.cons hd tl) (Fin2.fs i) = tl i :=
+  by simp only [Vec.cons]
+
+end Vec
 
 /--
 n-tuples of types, as a category
@@ -52,8 +117,13 @@ namespace TypeVec
 
   variable {n : Nat}
 
+  /-- An empty vector -/
+  def nil : TypeVec 0 := 
+    fun _ => by contradiction
+
   /-- arrow in the category of `typevec` -/
-  def Arrow (α β : TypeVec n) := ∀ i : Fin2 n, α i → β i
+  -- def Arrow (α β : TypeVec n) := ∀ i : Fin2 n, α i → β i
+  abbrev Arrow (α β : TypeVec n) := DVec (fun i => α i → β i)
 
   infixl:40 " ⟹ " => Arrow
 
@@ -76,21 +146,25 @@ namespace TypeVec
 
 
   /-- Appends a single type to a `TypeVec` -/
-  def append1 (α : TypeVec n) (β : Type _) : TypeVec (n+1)
-  | (Fin2.fs i) => α i
-  | Fin2.fz      => β
+  def append1 (α : TypeVec.{u} n) (β : Type u) : TypeVec.{u} (n+1)
+    | (Fin2.fs i) => α i
+    | Fin2.fz     => β
 
   infixl:67 " ::: " => append1
 
   /-- drop the last type from a `TypeVec` -/
-  def drop (α : TypeVec (n.succ)) : TypeVec n := λ i => α i.fs
+  def drop (α : TypeVec (n.succ)) : TypeVec n := 
+    λ i => α i.fs
 
   /-- Return the last type from a `TypeVec` -/
   def last (α : TypeVec (n.succ)) : Type _ := α Fin2.fz
 
-  theorem drop_append1 {α : TypeVec n} {β : Type _} {i : Fin2 n} : drop (append1 α β) i = α i := rfl
+  theorem drop_append1 {α : TypeVec n} {β : Type _} {i : Fin2 n} : 
+      drop (append1 α β) i = α i := 
+    rfl
 
-  theorem drop_append1' {α : TypeVec n} {β : Type _} : drop (append1 α β) = α :=
+  theorem drop_append1' {α : TypeVec n} {β : Type _} : 
+      drop (append1 α β) = α :=
   by funext x; apply drop_append1
 
   theorem last_append1 {α : TypeVec n} {β : Type _} : last (append1 α β) = β := rfl
@@ -114,12 +188,18 @@ namespace TypeVec
   | (Fin2.fs i) => f i
   | Fin2.fz      => g
 
-  def appendFun {α α' : TypeVec n} {β β' : Type _}
-    (f : α ⟹ α') (g : β → β') : append1 α β ⟹ append1 α' β' := splitFun f g
+  def appendFun {α α' : TypeVec n} 
+                {β β' : Type _} 
+                (f : α ⟹ α') 
+                (g : β → β') 
+                  : α ::: β ⟹ α' ::: β' 
+    := splitFun f g
 
-  infixl:66 " ::: " => appendFun
+  infixl:67 " ::: " => appendFun
 
-  def dropFun {α β : TypeVec (n+1)} (f : α ⟹ β) : drop α ⟹ drop β :=
+
+  abbrev dropFun {α β : TypeVec (n+1)} (f : α ⟹ β) : drop α ⟹ drop β 
+    :=
   λ i => f i.fs
 
   def lastFun {α β : TypeVec (n+1)} (f : α ⟹ β) : last α → last β :=
@@ -759,8 +839,6 @@ by
   rename_i α' p' i_ih 
   apply i_ih
 
-#check to_subtype_of_subtype
-
 @[simp]
 theorem to_subtype_of_subtype_assoc {α β : TypeVec n} (p : α ⟹ Repeat n Prop) (f : β ⟹ Subtype_ p) :
     @toSubtype n _ p ⊚ ofSubtype _ ⊚ f = f := 
@@ -797,3 +875,297 @@ theorem mpr_mp {α β : Type _} (h : α = β) (x : α) :
 by induction h; rfl
 
 end Eq
+
+/-
+  ## TypeVec reordering
+-/
+
+namespace TypeVec
+/-- Move the `i`-th element to the end -/
+def permute {n : Nat} (i : Fin2 n) (v : TypeVec n) : TypeVec n
+  := fun j => 
+        match n with
+        | 0 => by contradiction
+        | n+1 =>
+        let j' := match j.strengthen with
+                  | none => i
+                  | some k => if j < i then j
+                              else Fin2.fs k
+        v j'
+              
+
+/-- Move the last element to the `i`-th position -/
+def unpermute {n : Nat} (i : Fin2 n) (v : TypeVec n) : TypeVec n
+  := fun j => 
+      match n with
+      | 0 => by contradiction
+      | n+1 =>
+      let j' := if j < i       then j
+                else if j = i then Fin2.last
+                else                match j with
+                                    | Fin2.fs j' => j'.weaken   -- subtracts one from j
+                                    | 0 => 0  
+                                        -- rcases lt_trichotomy Fin2.fz i with h|h|h;
+                                        -- . contradiction
+                                        -- . contradiction
+                                        -- simp [LT.lt, Nat.lt, Fin2.toNat] at h
+
+                                    
+      v j'
+
+
+
+/-- Proves that `unpermute` is the inverse of `permute` -/
+@[simp]
+theorem unpermute_permute_id {n : Nat} {i : Fin2 n} {v : TypeVec n} :
+  unpermute i (permute i v) = v :=
+by
+  funext j;
+  have not_fz_lt_fz {n : Nat} {i : Fin2 (n+1)} : 
+    ¬i < Fin2.fz := by simp [LT.lt, Nat.lt, Fin2.toNat]
+  have fz_eq_fz {n : Nat} : @Fin2.fz n = Fin2.fz := by rfl
+  have fz_lt_fs {n : Nat} {i : Fin2 n} : Fin2.fz < Fin2.fs i 
+  := by simp [LT.lt, Fin2.toNat]; apply Fin2.IsLt.h
+
+  cases n; 
+  contradiction;
+  simp [permute, unpermute]
+  apply congrArg
+  clear v
+
+  cases j
+  <;> cases i
+  <;> simp [not_fz_lt_fz, fz_eq_fz, fz_lt_fs]
+    
+  case fz.fs n x => 
+    cases n;
+    contradiction;
+    simp [Fin2.strengthen]
+
+  case fs.fs n x y => {
+    by_cases lt : Fin2.fs x < Fin2.fs y
+    <;> simp [*]
+    . have this : ∃k, Fin2.strengthen (Fin2.fs x) = some k
+      := by apply Fin2.strengthen_is_some_of_lt lt;
+      rcases this with ⟨k, h_k⟩;
+      simp [*]
+    .
+      have decidable_eq {n : Nat} : DecidableEq (Fin2 n) := by infer_instance;
+      cases decidable_eq x y 
+      <;> simp [*]
+      case neg neq =>
+        induction n; 
+        case zero => contradiction;    
+        case succ n ih =>           
+          simp [LT.lt, Fin2.toNat, Fin2.weaken_to_nat_eq_to_nat] at lt |-;
+          by_cases Fin2.toNat x < Nat.succ (Fin2.toNat y)
+          <;> simp [*]
+          exfalso
+          apply neq;
+          apply Fin2.eq_of_to_nat_eq;
+          apply Nat.le_antisymm;
+          apply Nat.le_of_succ_le_succ h;
+          apply Nat.le_of_succ_le_succ lt;
+  }
+
+/-- Proves that `permute` is the inverse of `unpermute` -/
+@[simp]
+theorem permute_unpermute_id {n : Nat} {i : Fin2 n} {v : TypeVec n} :
+  permute i (unpermute i v) = v :=
+by
+  funext j;
+
+  cases n;
+  contradiction;
+  simp [permute, unpermute]
+  apply congrArg;
+  clear v;
+  simp
+
+  cases hj : j.strengthen;
+  case none => {
+    have : ¬i<i := by simp [LT.lt];
+    simp [this]
+    apply Eq.symm;
+    apply Fin2.strengthen_is_none_imp_eq_last hj;
+  }
+  case some k => {
+    have j_eq_k := Fin2.strengthen_toNat_eq hj;
+    by_cases lt : j < i
+    <;> simp [*]
+    by_cases lt₂ : (Fin2.fs k) < i
+    <;> simp [*]
+    {
+      exfalso;  
+      simp [LT.lt, Fin2.toNat] at lt lt₂
+      rw [j_eq_k] at lt;          
+      have le₂ : Nat.succ (Fin2.toNat k) ≤ Fin2.toNat i
+        := Nat.le_of_lt lt₂
+      have : Nat.succ (k.toNat) ≤ k.toNat 
+        := Nat.le_trans le₂ lt;
+      apply Nat.not_succ_le_self _ this
+    }
+    {
+      by_cases Fin2.fs k = i
+      <;> simp [*]
+      {
+        exfalso
+        simp [LT.lt, Fin2.toNat] at lt        
+        rw [j_eq_k, ←h] at lt;
+        simp [Fin2.toNat] at lt
+        apply Nat.not_succ_le_self _ lt
+      }
+      { 
+        apply Fin2.weaken_strengthen_of_some;
+        assumption
+      }
+    }
+  }
+
+
+namespace Arrow
+  variable {n : Nat} {α β : TypeVec n} (i : Fin2 n)
+
+  /-- Move the `i`-th element to the end -/
+  def permute (f : α ⟹ β) : (α.permute i) ⟹ (β.permute i)
+    := fun j a => 
+          match n with
+          | 0 => by contradiction
+          | Nat.succ n =>
+          match hj : j.strengthen with
+          | none =>
+            have : ∀ {α : TypeVec (Nat.succ n)}, 
+              α.permute i j = α i :=
+            by  intro α;
+                simp [TypeVec.permute]
+                rw [hj];
+
+            let b' : β i := f i (cast this a)
+            cast (Eq.symm this) b'
+          | some j' =>
+            if lt : j < i then
+              have : ∀ {α : TypeVec (Nat.succ n)},
+                α.permute i j = α j :=
+              by
+                intro α;
+                simp [TypeVec.permute]
+                rw [hj]; 
+                apply congrArg;
+                simp[lt];
+
+              let b' : β _ := f j (cast this a)
+              cast (Eq.symm this) b'  
+            else
+              let fs_j := Fin2.fs j'
+              have : ∀ {α : TypeVec (Nat.succ n)},
+                α.permute i j = α (Fin2.fs j') :=
+              by
+                intro α;
+                simp [TypeVec.permute]
+                rw [hj]; 
+                apply congrArg;
+                simp[lt];
+            let b' : β _ := f fs_j (cast this a)
+            cast (Eq.symm this) b'
+
+  /-- Move the last element to the `i`-th position -/
+  def unpermute (f : α ⟹ β) : (α.unpermute i) ⟹ (β.unpermute i)
+    := fun j a => 
+          match n with
+          | 0 => by contradiction
+          | Nat.succ n =>
+          if h₁ : j < i then
+            have : ∀ {α : TypeVec (Nat.succ n)}, 
+              α.unpermute i j = α j :=
+            by  intro α;
+                simp [TypeVec.unpermute];
+                apply congrArg;
+                simp [h₁];
+
+            let b' : β j := f j (cast this a)
+            cast (Eq.symm this) b'
+
+          else if h₂ : j = i then
+            have : ∀ {α : TypeVec (Nat.succ n)}, 
+              α.unpermute i j = α Fin2.last :=
+            by
+              intro α;
+              simp [TypeVec.unpermute];
+              apply congrArg;
+              have : ¬i<i := by exact gt_irrefl i
+              simp [h₁, h₂, this];
+            
+            let b' : β _ := f Fin2.last (cast this a)
+            cast (Eq.symm this) b'
+
+          else
+            match j with
+            | 0 => False.elim $ by 
+                rcases lt_trichotomy Fin2.fz i with h|h|h;
+                . contradiction
+                . contradiction
+                simp [LT.lt, Nat.lt, Fin2.toNat] at h
+            | Fin2.fs j' =>
+            have : ∀ {α : TypeVec (Nat.succ n)}, 
+              α.unpermute i (Fin2.fs j') = α j'.weaken :=
+            by
+              intro α;
+              simp [TypeVec.unpermute];
+              apply congrArg;
+              have : ¬i<i := by exact gt_irrefl i
+              simp [h₁, h₂, this];
+
+            let b' : β _ := f j'.weaken (cast this a)
+            cast (Eq.symm this) b'
+
+
+  /-- Move the last element to the `i`-th position -/
+  def unpermute' (f : (α.permute i) ⟹ (β.permute i)) : α ⟹ β
+    := fun j a => 
+          let f' := f.unpermute i;
+          let b' := f' j $ cast (by simp) a
+          cast (by simp) b'
+
+  theorem cast_cast {α β : Type _} (a : α) {h₁ : α = β} {h₂ : β = α} :
+    (cast h₂ $ cast h₁ a) = a :=
+  by
+    apply eq_of_heq;
+    apply HEq.trans (b:=cast h₁ a)
+    <;> apply cast_heq
+    
+
+  theorem unpermute_eq_unpermute' (f : (α.permute i) ⟹ (β.permute i)) :
+    ∀ j a, HEq (f.unpermute i j a) (f.unpermute' i j (cast (by simp) a)) :=
+  by
+    intros j a;
+    match n with
+    | 0 => contradiction
+    | Nat.succ n =>
+    simp [unpermute', cast_cast];
+    apply HEq.symm;
+    apply cast_heq
+
+  -- TODO
+  theorem unpermute_permute_id (f : α ⟹ β) :
+    ∀ j a, unpermute' i (permute i f) j a = f j a :=
+  by
+    intro j a;
+    match n with
+    | 0 => contradiction
+    | Nat.succ n =>
+    simp [unpermute', unpermute, permute];
+    by_cases h₁ : j < i
+    <;> simp [*];
+    sorry
+    sorry
+
+
+
+      
+  
+end Arrow
+
+
+
+
+end TypeVec

@@ -25,13 +25,13 @@ variable {n m : ℕ}
          [fF : MvFunctor F] 
          [q : MvQpf F] 
          (G : Fin2 n → TypeVec.{u} m → Type u)
-         [fG : ∀ i, MvFunctor <| G i] 
+         [fG : ∀ i, (MvFunctor <| G i)] 
          [q' : ∀ i, MvQpf <| G i]
 
 /-- Composition of an `n`-ary functor with `n` `m`-ary
 functors gives us one `m`-ary functor -/
 def Comp (v : TypeVec.{u} m) : Type _ :=
-  F fun i : Fin2 n => G i v
+  F (fun i => G i v)
 
 namespace Comp
 
@@ -69,8 +69,6 @@ include fF
 protected def map : (Comp F G) α → (Comp F G) β :=
   (map fun i => map f : (F fun i => G i α) → F fun i => G i β)
 
-#check Comp.mk
-#check @Comp.mk
 
 instance : MvFunctor (Comp F G) where
   map := @fun α β => Comp.map
