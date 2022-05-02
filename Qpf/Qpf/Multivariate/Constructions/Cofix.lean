@@ -49,7 +49,7 @@ namespace MvQpf
 
 open TypeVec MvPFunctor
 
-open MvFunctor (Liftp Liftr)
+open MvFunctor (Liftp Liftr Liftr')
 
 section Cofix
 variable {n : ℕ} {F : TypeVec.{u} (n + 1) → Type u} [MvFunctor F] [q : MvQpf F]
@@ -282,8 +282,6 @@ theorem Cofix.bisim {α : TypeVec n}
     apply h' _ j
   -/
 
-open MvFunctor
-
 /- FIXME
 /-- Bisimulation principle using `liftr'` to match and relate children of two trees. -/
 theorem Cofix.bisim₂ {α : TypeVec n} (r : Cofix F α → Cofix F α → Prop)
@@ -356,6 +354,8 @@ the induction step in bisimulation proofs.
 
 
 section LiftrMap
+
+open MvFunctor
 
 theorem liftr_map {α β : TypeVec n} {F' : TypeVec n → Type u} [MvFunctor F'] [LawfulMvFunctor F']
     (R : β ⊗ β ⟹ Repeat n Prop) 

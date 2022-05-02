@@ -18,7 +18,7 @@ universe u
 
 namespace MvQpf
 
-open_locale MvFunctor
+-- open_locale MvFunctor
 
 variable {n m : ℕ} 
          (F : TypeVec.{u} n → Type _) 

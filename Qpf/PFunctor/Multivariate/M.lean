@@ -59,9 +59,12 @@ variable {n : Nat} (P : MvPFunctor.{u} (n + 1))
 
 /-- A path from the root of a tree to one of its node -/
 inductive M.Path : P.last.M → Fin2 n → Type u
-  | root (x : P.last.M) (a : P.A) (f : P.last.B a → P.last.M) (h : PFunctor.M.dest x = ⟨a, f⟩) 
-      (i : Fin2 n)
-      (c : P.drop.B a i) : Path x i
+  | root (x : P.last.M) 
+         (a : P.A) 
+         (f : P.last.B a → P.last.M) 
+         (h : PFunctor.M.dest x = ⟨a, f⟩) 
+         (i : Fin2 n)
+         (c : P.drop.B a i) : Path x i
   | child (x : P.last.M) (a : P.A) (f : P.last.B a → P.last.M) (h : PFunctor.M.dest x = ⟨a, f⟩) 
       (j : P.last.B a)
       (i : Fin2 n) (c : Path (f j) i) : Path x i
@@ -71,7 +74,7 @@ instance M.Path.inhabited (x : P.last.M) {i} [Inhabited (P.drop.B x.head i)] :
 :=  let a := PFunctor.M.head x
     let f := PFunctor.M.children x
     ⟨M.Path.root 
-      x a f
+      x _ a f
       (PFunctor.M.casesOn'
         (r:=fun _ => PFunctor.M.dest x = ⟨a, f⟩) 
         x 
@@ -79,7 +82,7 @@ instance M.Path.inhabited (x : P.last.M) {i} [Inhabited (P.drop.B x.head i)] :
             intros a f
             simp [PFunctor.M.dest_mk, PFunctor.M.dest]
         )
-      _ default⟩
+      default⟩
 
 /-- Polynomial functor of the M-type of `P`. `A` is a data-less
 possibly infinite tree whereas, for a given `a : A`, `B a` is a valid
@@ -117,16 +120,17 @@ def M.corecContents {α : TypeVec.{u} n} {β : Type u}
                     (g₀ : β → P.A) 
                     (g₁ : ∀ b : β, P.drop.B (g₀ b) ⟹ α)
                     (g₂ : ∀ b : β, P.last.B (g₀ b) → β)
-                    (x b)
+                    (x : _)
+                    (b : β)
                     (h: x = M.corecShape P g₀ g₂ b)
                   : M.Path P x ⟹ α
-  | _, M.Path.root _ a f h' i c =>
+  | _, M.Path.root _ i a f h' c =>
     have : a = g₀ b := by
       rw [h, M.corecShape, PFunctor.M.dest_corec] at h'
       cases h'
       rfl
     g₁ b i (P.castDropB this i c)
-  | _, M.Path.child _ a f h' j i c =>
+  | _, M.Path.child _ i a f h' j c =>
     have h₀ : a = g₀ b := by
       rw [h, M.corecShape, PFunctor.M.dest_corec] at h'
       cases h'
@@ -148,12 +152,12 @@ def M.corec {α : TypeVec n} {β : Type u} (g : β → P.Obj (α.append1 β)) : 
 
 /-- Implementation of destructor for M-type of `P` -/
 def M.pathDestLeft {α : TypeVec n} {x : P.last.M} {a : P.A} {f : P.last.B a → P.last.M} (h : PFunctor.M.dest x = ⟨a, f⟩)
-    (f' : M.Path P x ⟹ α) : P.drop.B a ⟹ α := fun i c => f' i (M.Path.root x a f h i c)
+    (f' : M.Path P x ⟹ α) : P.drop.B a ⟹ α := fun i c => f' i (M.Path.root x i a f h c)
 
 /-- Implementation of destructor for M-type of `P` -/
 def M.pathDestRight {α : TypeVec n} {x : P.last.M} {a : P.A} {f : P.last.B a → P.last.M}
     (h : PFunctor.M.dest x = ⟨a, f⟩) (f' : M.Path P x ⟹ α) : ∀ j : P.last.B a, M.Path P (f j) ⟹ α := fun j i c =>
-  f' i (M.Path.child x a f h j i c)
+  f' i (M.Path.child x i a f h j c)
 
 /-- Destructor for M-type of `P` -/
 def M.dest' {α : TypeVec n} {x : P.last.M} {a : P.A} {f : P.last.B a → P.last.M} (h : PFunctor.M.dest x = ⟨a, f⟩)
@@ -198,9 +202,11 @@ theorem M.dest_corec {α : TypeVec n} {β : Type u} (g : β → P.Obj (α.append
     M.dest P (M.corec P g x) = appendFun id (M.corec P g) <$$> g x := by
   apply Eq.trans
   apply M.dest_corec'
-  cases' g x with a f
-  simp
-  rw [MvPFunctor.map_eq]
+  have : (fun b => (g b).fst) x = (g x).fst := by rfl;
+  simp [this]; clear this;
+
+  cases' g x with a f;
+  rw [MvPFunctor.map_eq];
   apply congrArg
   conv => rhs rw [← split_drop_fun_last_fun f, append_fun_comp_split_fun]
 
@@ -246,15 +252,15 @@ theorem M.bisim {α : TypeVec n} (R : P.M α → P.M α → Prop)
   subst this
   apply congrArg
   funext i p;
-  induction' p with x a f h' i c x a f h' i c p IH <;>
+  induction' p with x i a f h' c x a f h' i c p IH <;>
     try
       rcases h _ _ r with ⟨a', f', f₁', f₂', e₁, e₂, h''⟩
       rcases M.bisim_lemma P e₁ with ⟨g₁', e₁', rfl, rfl⟩
       rcases M.bisim_lemma P e₂ with ⟨g₂', e₂', e₃, rfl⟩
       cases h'.symm.trans e₁'
       cases h'.symm.trans e₂'
-  · let f' := fun (c : B (drop P) a i) => f₁ i (Path.root x a f h' i c)
-    let g' := fun (c : B (drop P) a i) => f₂ i (Path.root x a f h' i c)
+  · let f' := fun (c : B (drop P) a i) => f₁ i (Path.root x i a f h' c)
+    let g' := fun (c : B (drop P) a i) => f₂ i (Path.root x i a f h' c)
     show f' c = g' c
     apply congrFun _ c
     sorry

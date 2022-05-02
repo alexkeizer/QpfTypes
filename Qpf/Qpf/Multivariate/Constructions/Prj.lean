@@ -16,7 +16,7 @@ universe u v
 
 namespace MvQpf
 
-open_locale MvFunctor
+-- open_locale MvFunctor
 
 variable {n : ℕ} (i : Fin2 n)
 
@@ -31,8 +31,6 @@ instance Prj.inhabited {v : TypeVec.{u} n} [Inhabited (v i)] : Inhabited (Prj i 
 def Prj.map ⦃α β : TypeVec n⦄ (f : α ⟹ β) : Prj i α → Prj i β :=
   f _
 
-#check @Prj.map
-#check @MvFunctor.map
 
 instance Prj.MvFunctor : MvFunctor (Prj i) where
   map := fun {α β} => @Prj.map n i α β
