@@ -10,6 +10,7 @@ Note: eventually the W and M constructions as multivariate polynomial functors w
 import Qpf.MvFunctor
 import Qpf.PFunctor.Univariate.Basic
 import Qpf.Mathlib
+import Qpf.Util.HEq
 
 universe u v
 
@@ -255,50 +256,11 @@ splitFun f' f
 
 end MvPFunctor
 
-
 /-
-## Permuting the argument to a pfunctor
+## Merging arguments
 -/
 namespace MvPFunctor
   variable {n : Nat} (P : MvPFunctor n)
 
-  def permute (i : Fin2 n) : MvPFunctor n :=
-    ⟨P.A, fun a => (P.B a).permute i⟩
-
-  variable {P}
-
-  theorem permute_to_P {α : TypeVec n} {i : Fin2 n} : 
-    (P.permute i).Obj α → P.Obj (α.unpermute i) :=
-  fun ⟨a, f⟩ => 
-    ⟨a, cast (by simp [permute]) $ f.unpermute i⟩
-
-  theorem P_to_permute {α : TypeVec n} (i : Fin2 n) : 
-    P.Obj α → (P.permute i).Obj (α.permute i)  :=
-  fun ⟨a, f⟩ => 
-    ⟨a, cast (by simp [permute]) $ f.permute i⟩
-
-  @[simp]
-  theorem permute_to_P_to_permute_id_fst {α : TypeVec n} {i : Fin2 n} {a : P.A} {f : P.B a ⟹ α} :
-    (permute_to_P (P_to_permute i ⟨a, f⟩)).fst = a :=
-  by
-    unfold P_to_permute;
-    unfold permute_to_P;
-    simp;
-
-  -- @[simp]
-  -- theorem permute_to_P_to_permute_id_snd {α : TypeVec n} {i : Fin2 n} {a : P.A} {f : P.B a ⟹ α} :
-  --   (permute_to_P (P_to_permute i ⟨a, f⟩)).snd = cast (by simp) f :=
-  -- by
-  --   unfold P_to_permute;
-  --   unfold permute_to_P;
-  --   simp [cast_eq];
-  --   funext j a;
-  --   apply eq_of_heq;
-  --   suffices HEq ((f.permute i).unpermute i)
-  --   from by sorry
-    
-    
-    
-
-
 end MvPFunctor
+

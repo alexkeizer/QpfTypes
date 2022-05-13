@@ -35,7 +35,6 @@ variable {FG_abs : ∀ {α}, F α → G α}
 
 variable {FG_repr : ∀ {α}, G α → F α}
 
-#check abs_repr
 
 /-- If `F` is a QPF then `G` is a QPF as well. Can be used to
 construct `mvqpf` instances by transporting them across
@@ -69,13 +68,11 @@ variable (Hfunc : ∀ ⦃α β⦄ (a b : F α) (f : α ⟹ β), R a b → R (f <
 def Quot1.map ⦃α β⦄ (f : α ⟹ β) : Quot1.{u} R α → Quot1.{u} R β :=
   (Quot.lift fun x : F α => Quot.mk _ (f <$$> x : F β)) fun a b h => Quot.sound <| Hfunc a b _ h
 
-#check @Quot1.map
 
 /-- `MvFunctor` instance for `quot1` with well-behaved `R` -/
 def Quot1.MvFunctor : MvFunctor (Quot1 R) where
   map := @(Quot1.map R Hfunc)
 
-#check Quot.out
 
 /-- `quot1` is a qpf -/
 noncomputable def relQuot : @MvQpf _ (Quot1 R) (MvQpf.Quot1.MvFunctor R Hfunc) :=

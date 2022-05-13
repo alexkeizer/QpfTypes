@@ -17,7 +17,7 @@ and take a fixed point again.
 ## Main definitions
 
  * `Fix.mk`     - constructor
- * `Fix.dest    - destructor
+ * `Fix.dest`    - destructor
  * `Fix.rec`    - recursor: basis for defining functions by structural recursion on `fix F α`
  * `Fix.drec`   - dependent recursor: generalization of `Fix.rec` where
                   the result type of the function is allowed to depend on the `fix F α` value
@@ -26,7 +26,7 @@ and take a fixed point again.
 
 ## Implementation notes
 
-For `F` a QPF`, we define `fix F α` in terms of the W-type of the polynomial functor `P` of `F`.
+For `F` a `QPF`, we define `fix F α` in terms of the W-type of the polynomial functor `P` of `F`.
 We define the relation `Wequiv` and take its quotient as the definition of `fix F α`.
 
 ```lean
@@ -210,8 +210,6 @@ def Fix {n : ℕ} (F : TypeVec (n + 1) → Type _) [MvFunctor F] [q : MvQpf F] (
 
 attribute [nolint has_inhabited_instance] Fix
 
-#check @Quotient.mk'
-
 /-- `fix F` is a functor -/
 def Fix.map {α β : TypeVec n} (g : α ⟹ β) : Fix F α → Fix F β :=
   Quotient.lift (fun x : q.P.W α => Quotient.mk' (q.P.W_map g x)) fun a b h => Quot.sound (Wequiv_map _ _ _ h)
@@ -313,7 +311,6 @@ theorem Fix.dest_mk (x : F (append1 α (Fix F α))) : Fix.dest (Fix.mk x) = x :=
     apply Fix.mk_dest
   rw [this, append_fun_id_id]
 
-#check pred_last
 
 theorem Fix.ind {α : TypeVec n} (p : Fix F α → Prop)
     (h : ∀ x : F (α.append1 (Fix F α)), Liftp (pred_last α p) x → p (Fix.mk x)) : ∀ x, p x := by
@@ -347,7 +344,6 @@ instance mvqpfFix : MvQpf (Fix F) where
     intro α β g x
     conv => rhs simp [MvFunctor.map]
 
-#check Fix.ind_rec
 
 /-- Dependent recursor for `fix F` -/
 def Fix.drec {β : Fix F α → Type u} 

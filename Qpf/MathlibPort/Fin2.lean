@@ -310,6 +310,12 @@ def lt_trichotomy {n : Nat}  :
   ∀(a b : Fin2 n), a < b ∨ a = b ∨ b < a
 := _root_.lt_trichotomy
 
+def zero_le {n : Nat} (i : Fin2 (n+1)) :
+  Fin2.fz ≤ i :=
+by
+  simp [LE.le, toNat];
+  apply Nat.zero_le
+
 
 theorem last_is_maximal {n : Nat} (i : Fin2 (n+1)) :
   i ≤ last :=
@@ -322,7 +328,7 @@ by
   case succ n ih =>
     cases i;
     . simp [LE.le, toNat]
-      apply zero_le 
+      apply Nat.zero_le 
     . simp [LE.le, toNat] at ih
       apply Nat.succ_le_succ
       apply ih

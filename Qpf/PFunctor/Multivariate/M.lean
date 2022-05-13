@@ -240,8 +240,9 @@ theorem M.bisim {α : TypeVec n} (R : P.M α → P.M α → Prop)
     x y (r : R x y) : x = y := by
   cases' x with a₁ f₁
   cases' y with a₂ f₂
-  simp [Mp]  at *
+  dsimp [Mp]  at f₁ f₂
   have : a₁ = a₂ := by
+    simp at *
     refine' PFunctor.M.bisim (fun a₁ a₂ => ∃ x y, R x y ∧ x.1 = a₁ ∧ y.1 = a₂) _ _ _ ⟨⟨a₁, f₁⟩, ⟨a₂, f₂⟩, r, rfl, rfl⟩
     rintro _ _ ⟨⟨a₁, f₁⟩, ⟨a₂, f₂⟩, r, rfl, rfl⟩
     rcases h _ _ r with ⟨a', f', f₁', e₁, f₂', e₂, h'⟩
@@ -251,70 +252,82 @@ theorem M.bisim {α : TypeVec n} (R : P.M α → P.M α → Prop)
     exact ⟨_, _, _, rfl, rfl, fun b => ⟨_, _, h' b, rfl, rfl⟩⟩
   subst this
   apply congrArg
-  funext i p;
-  induction' p with x i a f h' c x a f h' i c p IH <;>
-    try
-      rcases h _ _ r with ⟨a', f', f₁', f₂', e₁, e₂, h''⟩
-      rcases M.bisim_lemma P e₁ with ⟨g₁', e₁', rfl, rfl⟩
-      rcases M.bisim_lemma P e₂ with ⟨g₂', e₂', e₃, rfl⟩
-      cases h'.symm.trans e₁'
-      cases h'.symm.trans e₂'
-  · let f' := fun (c : B (drop P) a i) => f₁ i (Path.root x i a f h' c)
-    let g' := fun (c : B (drop P) a i) => f₂ i (Path.root x i a f h' c)
-    show f' c = g' c
-    apply congrFun _ c
-    sorry
-    -- exact (congrFun (congrFun _ i) c : _)
-  · sorry
-    -- exact IH _ _ (h'' _)
+  funext i p;  
+  induction' p
+  case root x i a f h' c =>
+    rcases h _ _ r with ⟨a', f', f₁', f₂', e₁, e₂, h''⟩
+    rcases M.bisim_lemma P e₁ with ⟨g₁', e₁', rfl, rfl⟩
+    rcases M.bisim_lemma P e₂ with ⟨g₂', e₂', e₃, rfl⟩
+    cases h'.symm.trans e₁'
+    cases h'.symm.trans e₂'
+
+    exact (congrFun (congrFun e₃ i) c : _)  
+
+  case child x i a f h' j c IH =>
+    rcases h _ _ r with ⟨a', f', f₁', f₂', e₁, e₂, h''⟩
+    rcases M.bisim_lemma P e₁ with ⟨g₁', e₁', rfl, rfl⟩
+    rcases M.bisim_lemma P e₂ with ⟨g₂', e₂', e₃, rfl⟩
+    cases h'.symm.trans e₁'
+    cases h'.symm.trans e₂'
+
+    apply IH _ _ (h'' _)
     
+
+#check Quot.mk
+#print prefix Quot
+#check Quotient.mk
+#check Quotient.exact
+-- #check Quot.EqvGen
 
 theorem M.bisim₀ {α : TypeVec n} (R : P.M α → P.M α → Prop) (h₀ : Equivalence R)
     (h : ∀ x y, R x y → (id ::: Quot.mk R) <$$> M.dest _ x = (id ::: Quot.mk R) <$$> M.dest _ y) x y (r : R x y) :
-    x = y := by
+    x = y := 
+by
   apply M.bisim P R _ _ _ r
   clear r x y
   introv Hr
   specialize h _ _ Hr
   clear Hr
-  let ax := (M.dest P x).1
-  let fx := (M.dest P x).2
-  have : M.dest P x = ⟨ax, fx⟩
-    := by trivial
-  rw [this] at h; clear this
-  let ay := (M.dest P y).1
-  let fy := (M.dest P y).2
-  have : M.dest P y = ⟨ay, fy⟩
-    := by trivial
-  rw [this] at h; clear this
+
+  revert h;
+  rcases M.dest P x with ⟨ax, fx⟩
+  rcases M.dest P y with ⟨ay, fy⟩
+  intro h;
+
   rw [map_eq, map_eq] at h
   injection h with h₂ h₁
-  rw [←h₂] at *
-  clear h₂
-  sorry
-  /- FIXME
+  subst ay;
   simp only [heq_iff_eq] at h₁
-  -- clear h
-  have Hdrop : dropFun fx = dropFun fy := by
-    replace h₁ := congr_argₓ dropFun h₁
+
+  have Hdrop : dropFun fx = dropFun fy := 
+  by
+    replace h₁ := congrArg dropFun h₁
     simpa using h₁
   exists ax, dropFun fx, lastFun fx, lastFun fy
   rw [split_drop_fun_last_fun, Hdrop, split_drop_fun_last_fun]
   simp
   intro i
-  replace h₁ := congr_funₓ (congr_funₓ h₁ Fin2.fz) i
+  replace h₁ := congrFun (congrFun h₁ Fin2.fz) i
   simp [(· ⊚ ·), appendFun, splitFun] at h₁
-  replace h₁ := Quot.exact _ h₁
+
+  simp [Quot.mk] at h₁
+  
+
+  
+
+  -- rw [←Quotient.mk] at h₁
+  sorry; 
+  stop
+
+  replace h₁ := Quotient.exact _ h₁
   rw [h₀.eqv_gen_iff] at h₁
   exact h₁
-  -/
 
+/- FIXME TODO
 theorem M.bisim' {α : TypeVec n} (R : P.M α → P.M α → Prop)
     (h : ∀ x y, R x y → (id ::: Quot.mk R) <$$> M.dest _ x = (id ::: Quot.mk R) <$$> M.dest _ y) x y (r : R x y) :
     x = y := 
 by
-  sorry
-  /-
   have := M.bisim₀ P (EqvGen R) _ _
   · solve_by_elim [EqvGen.rel]
     
@@ -329,7 +342,7 @@ by
       
     all_goals
       cc
-  -/
+-/
     
 
 theorem M.dest_map {α β : TypeVec n} (g : α ⟹ β) (x : P.M α) :
