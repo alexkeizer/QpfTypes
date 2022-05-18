@@ -147,9 +147,17 @@ namespace TypeVec
 
 
   /-- Appends a single type to a `TypeVec` -/
+  @[reducible]
   def append1 (α : TypeVec.{u} n) (β : Type u) : TypeVec.{u} (n+1)
     | (Fin2.fs i) => α i
     | Fin2.fz     => β
+
+  infixl:67 " ::: " => append1
+
+  theorem append1_fz (α : TypeVec.{u} n) (β : Type u) :
+    (α ::: β) Fin2.fz = β :=
+  by simp only [append1]
+
 
   /-- Inserts a single type into a `TypeVec` at a specified position, pushing all elements after it
       by one.
@@ -170,7 +178,6 @@ namespace TypeVec
         | none    => append1 α β
         | some i  => insertAt' α β i
 
-  infixl:67 " ::: " => append1
 
   /-- drop the last type from a `TypeVec` -/
   def drop (α : TypeVec (n.succ)) : TypeVec n := 
@@ -893,44 +900,3 @@ by induction h; rfl
 
 end Eq
 
-
-namespace TypeVec
-/-- 
-  Extend a `TypeVec` by duplicating an earlier element 
--/
-def duplicate {n : Nat} (i : Fin2 n) (α : TypeVec n) : TypeVec (n+1)
-  := α ::: (α i)
-
-@[simp]
-theorem duplicate_drop_id {n : Nat} (i : Fin2 n) (α : TypeVec n) :
-  (α.duplicate i).drop = α :=
-by
-  simp [duplicate]
-
-
-namespace Arrow
-  def duplicate (i : Fin2 n) (f : α ⟹ β) : (α.duplicate i) ⟹ (β.duplicate i) 
-    :=  match n with
-        | 0 => by contradiction
-        | n+1 => 
-          fun j a => by sorry
-            -- match h : j.strengthen with
-            -- | none    =>  have h' : j = Fin2.last := Fin2.strengthen_is_none_imp_eq_last h;
-            --               have eq {α : TypeVec (n+1)} : TypeVec.duplicate i α j = α Fin2.last
-            --               := by cases h'; simp [duplicate, append1];
-            --               cast (by sorry) $ f Fin2.last $ cast (by sorry) a 
-            --               by  
-            --                   simp [TypeVec.duplicate, append1, h'] at a |-;
-            --                   simp [Fin2.last] at a |-;
-            -- | some j' => by sorry
-    -- f ::: (f i)
-
-  @[simp]
-  theorem duplicate_drop_id (i : Fin2 n) (f : α ⟹ β) :
-    dropFun (f.duplicate i) = f :=
-  by
-    simp [duplicate]
-    sorry
-    
-end Arrow
-end TypeVec

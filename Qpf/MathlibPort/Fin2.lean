@@ -146,11 +146,18 @@ def strengthen : ∀{n}, Fin2 (succ n) → Option (Fin2 n)
 
 
 /--
-  Weakens the bound on a `Fin2`
+  Weakens the bound on a `Fin2`, without changing the value
 -/
 def weaken : Fin2 n → Fin2 (succ n)
   | fz   => fz
   | fs k => fs $ weaken k
+
+/--
+  Decrements a `Fin2` by one, simultaneously lowering the bound
+-/
+def decr : Fin2 (Nat.succ $ Nat.succ n) → Fin2 (Nat.succ n)
+  | fz    => fz
+  | fs j  => j
 
 /--
   The maximal element of `Fin2 (n+1)`, i.e., `n`
