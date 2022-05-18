@@ -256,11 +256,3 @@ splitFun f' f
 
 end MvPFunctor
 
-/-
-## Merging arguments
--/
-namespace MvPFunctor
-  variable {n : Nat} (P : MvPFunctor n)
-
-end MvPFunctor
-
