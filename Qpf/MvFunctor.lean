@@ -143,5 +143,34 @@ theorem liftr_def (x y : F α) :
 
 end Liftp'
 
+section
+  variable {α : Type _} {Class : α → Type _}
+
+  instance {f : Fin2 0 → α} : 
+    ∀ i : Fin2 0, Class (f i) := 
+  by intro i; contradiction
+
+  set_option checkBinderAnnotations false
+  instance {n : Nat} {f : Fin2 (n.succ) → α} [rec : ∀ i : Fin2 n, Class (f i.weaken)] [Class (f Fin2.last)] : 
+    ∀ i : Fin2 n.succ, Class (f i) := 
+  by 
+    intro i
+    cases h : i.strengthen
+    case none => {
+      have : i = Fin2.last := Fin2.strengthen_is_none_imp_eq_last h;
+      cases this;
+      assumption
+    }
+    case some i' => {
+      have : i = i'.weaken;
+      {
+        apply Eq.symm;
+        apply Fin2.weaken_strengthen_of_some h;
+      }
+      cases this;
+      apply rec;
+    }
+
+end
 
 end MvFunctor

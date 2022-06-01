@@ -61,7 +61,7 @@ namespace MvPFunctor
           if h : j = i 
           then match cast (merge_B_i' h) x with
                 | Sum.inl x => f _ x
-                | Sum.inr x => cast (by cases h; simp) $ f _ x                  
+                | Sum.inr x => cast (by cases h; simp[Vec.append1]) $ f _ x
           else 
               f j.fs $ cast (by simp[merge, TypeVec.merge, h]) x
     ⟩

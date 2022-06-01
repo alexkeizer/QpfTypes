@@ -5,7 +5,7 @@ namespace TypeVec
 /-- 
   Extend a `TypeVec` by duplicating an earlier element 
 -/
-@[reducible]
+@[reducible, simp]
 abbrev duplicate {n : Nat} (i : Fin2 n) (α : TypeVec n) : TypeVec (Nat.succ n)
   := α ::: (α i)
 
@@ -18,7 +18,7 @@ by
 theorem duplicate_j_weaken_eq_α_j {n : Nat} (i j : Fin2 n) (α : TypeVec n)  :
   (α.duplicate i) (j.add 1) = α j :=
 by
-  simp [duplicate, Fin2.weaken, append1, Fin2.add]
+  simp [duplicate, Fin2.weaken, append1, Fin2.add, Vec.append1]
 
 
 namespace Arrow

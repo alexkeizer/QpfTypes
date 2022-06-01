@@ -6,6 +6,7 @@ Authors: Jeremy Avigad, Mario Carneiro, Simon Hudon
 
 import Qpf.MathlibPort.Fin2
 import Qpf.Util.HEq
+import Qpf.Util.Vec
 import Lean.Elab.Tactic.Conv
 
 
@@ -37,74 +38,7 @@ universe u v w
 
 -- set_option pp.all true 
 
-/--
-n-tuples, as a category
--/
-abbrev DVec {n : Nat} (αs : Fin2 n → Type u)  : Type _
-  := (i : Fin2 n) → αs i
 
-abbrev Vec (α : Type _) (n : Nat)
-  := @DVec n fun _ => α
-
-namespace Vec
-  def cons {α : Type u} {n} (hd : α) (tl : Vec α n) : Vec α (n+1)
-    | (Fin2.fs i) => tl i
-    | Fin2.fz     => hd
-
-  def constVec {α : Type _} (a : α) (n : Nat) : Vec α n
-    := fun _ => a
-
-  -- def toList : ∀{n}, Vec α n → List α 
-  --   | 0,   _ => []
-  --   | n+1, v => List.cons v.hd (toList v.tl)
-end Vec
-
-unif_hint (n : Nat) where |- Fin2 n → Type u =?= Vec (Type u) n
-unif_hint {α : Type _} (n : Nat) where |- DVec (Vec.constVec α n) =?= Vec α n
-
-namespace DVec
-  def hd (v : @DVec (n+1) αs ) : αs 0
-    := v 0
-
-  def tl (v : Vec α (n+1)) : Vec α n
-    := fun i => v (Fin2.fs i)
-
-  @[reducible]
-  def nil : @DVec 0 αs
-    := fun emp => by contradiction
-
-  @[reducible]
-  def cons {α : Type u} {αs : Vec (Type u) n} (hd : α) (tl : DVec αs) : DVec (Vec.cons α αs)
-    | (Fin2.fs i) => tl i
-    | Fin2.fz     => hd
-
-
-  /-- An abbreviation of `cons` that flips its `hd` and `tl` arguments -/
-  abbrev append1 {α : Type u} {αs : Vec (Type u) n} (tl : DVec αs) (hd : α)
-    := cons hd tl
-
-  -- infixl:67 " ::: " => append1
-  -- infixl:66 " ::: " => DVec.cons
-
-end DVec
-
-namespace Vec
-  export DVec (hd tl nil cons append1)
-
-  abbrev drop (v : Vec α (n+1)) : Vec α n
-    := tl v
-
-  @[simp]
-  theorem cons_zero (hd : α) (tl : Vec α n) :
-    (Vec.cons hd tl) Fin2.fz = hd :=
-  by simp only [Vec.cons]
-
-  @[simp]
-  theorem cons_succ (hd : α) (tl : Vec α n) :
-    (Vec.cons hd tl) (Fin2.fs i) = tl i :=
-  by simp only [Vec.cons]
-
-end Vec
 
 /--
 n-tuples of types, as a category
@@ -115,12 +49,12 @@ instance {n} : Inhabited (TypeVec.{u} n) :=
   ⟨fun _ => PUnit⟩
 
 namespace TypeVec
+  export Vec (last)
 
   variable {n : Nat}
 
   /-- An empty vector -/
-  def nil : TypeVec 0 := 
-    fun _ => by contradiction
+  abbrev nil : TypeVec 0 := Vec.nil
 
   /-- arrow in the category of `typevec` -/
   -- def Arrow (α β : TypeVec n) := ∀ i : Fin2 n, α i → β i
@@ -147,44 +81,14 @@ namespace TypeVec
 
 
   /-- Appends a single type to a `TypeVec` -/
-  @[reducible]
-  def append1 (α : TypeVec.{u} n) (β : Type u) : TypeVec.{u} (n+1)
-    | (Fin2.fs i) => α i
-    | Fin2.fz     => β
+  @[simp]
+  abbrev append1 : TypeVec n → Type _ → TypeVec (n+1)
+    := Vec.append1
 
   infixl:67 " ::: " => append1
 
-  theorem append1_fz (α : TypeVec.{u} n) (β : Type u) :
-    (α ::: β) Fin2.fz = β :=
-  by simp only [append1]
-
-
-  /-- Inserts a single type into a `TypeVec` at a specified position, pushing all elements after it
-      by one.
-      Note that it is impossible to insert into the final position, `append1` should be used for that
-    -/
-  def insertAt' {n : Nat} (α : TypeVec.{u} n) (β : Type u) : Fin2 n → TypeVec.{u} (n+1)
-    | Fin2.fz, Fin2.fz      => β                          -- i = j
-    | Fin2.fz, Fin2.fs j    => α 0                        -- i < j
-    | Fin2.fs i, Fin2.fz    => α i.weaken                 -- i > j
-    | Fin2.fs i, Fin2.fs j  => insertAt' (Vec.tl α) β i j  -- recursive case
-
-  /-- Inserts a single type into a `TypeVec` at a specified position, pushing all elements after it
-      by one.
-      Also supports inserting into the final position.
-    -/
-  def insertAt {n : Nat} (α : TypeVec.{u} n) (β : Type u) (i : Fin2 (n+1)) : TypeVec.{u} (n+1)
-    :=  match i.strengthen with
-        | none    => append1 α β
-        | some i  => insertAt' α β i
-
-
   /-- drop the last type from a `TypeVec` -/
-  def drop (α : TypeVec (n.succ)) : TypeVec n := 
-    λ i => α i.fs
-
-  /-- Return the last type from a `TypeVec` -/
-  def last (α : TypeVec (n.succ)) : Type _ := α Fin2.fz
+  abbrev drop : TypeVec (n.succ) → TypeVec n := Vec.drop
 
   theorem drop_append1 {α : TypeVec n} {β : Type _} {i : Fin2 n} : 
       drop (append1 α β) i = α i := 
@@ -200,7 +104,7 @@ namespace TypeVec
   theorem append1_drop_last (α : TypeVec (n+1)) : append1 (drop α) (last α) = α :=
   funext $ λ i => by cases i; rfl; rfl
 
-  -- @[elab_as_eliminator] 
+  
   def append1_cases
     {C : TypeVec (n+1) → Sort u} (H : ∀ α β, C (append1 α β)) (γ) : C γ :=
   by rw [← @append1_drop_last _ γ]; apply H
@@ -258,10 +162,10 @@ namespace TypeVec
     lastFun (splitFun f g) = g := rfl
 
   @[simp] theorem drop_fun_append_fun {α α' : TypeVec n} {β β' : Type _} (f : α ⟹ α') (g : β → β') :
-    dropFun (f ::: g) = f := rfl
+    dropFun (f ::: g : α ::: β ⟹ _) = f := rfl
 
   @[simp] theorem last_fun_append_fun {α α' : TypeVec n} {β β' : Type _} (f : α ⟹ α') (g : β → β') :
-    lastFun (f ::: g) = g := rfl
+    lastFun (f ::: g : α ::: β ⟹ _) = g := rfl
 
   theorem split_drop_fun_last_fun {α α' : TypeVec (n+1)} (f : α ⟹ α') :
     splitFun (dropFun f) (lastFun f) = f :=
@@ -284,7 +188,8 @@ namespace TypeVec
   by funext i; cases i
 
   theorem append_fun_inj {α α' : TypeVec n} {β β' : Type _} {f f' : α ⟹ α'} {g g' : β → β'} :
-    f ::: g = f' ::: g' →  f = f' ∧ g = g' :=
+    (f ::: g : α ::: β ⟹ _) = (f' ::: g' : α ::: β ⟹ _)
+    → f = f' ∧ g = g' :=
   split_fun_inj
 
   theorem split_fun_comp {α₀ α₁ α₂ : TypeVec (n+1)}
@@ -305,7 +210,8 @@ namespace TypeVec
 
   theorem append_fun_comp {α₀ α₁ α₂ : TypeVec n} {β₀ β₁ β₂ : Type _}
       (f₀ : α₀ ⟹ α₁) (f₁ : α₁ ⟹ α₂) (g₀ : β₀ → β₁) (g₁ : β₁ → β₂) :
-    f₁ ⊚ f₀ ::: g₁ ∘ g₀ = (f₁ ::: g₁) ⊚ (f₀ ::: g₀) :=
+    (f₁ ⊚ f₀ ::: g₁ ∘ g₀  :   α₀ ::: β₀ ⟹ α₂ ::: β₂)
+    = (f₁ ::: g₁  : α₁ ::: β₁ ⟹ α₂ ::: β₂) ⊚ (f₀ ::: g₀ : α₀ ::: β₀ ⟹ α₁ ::: β₁) :=
   eq_of_drop_last_eq (λ _ => rfl) rfl
 
   theorem append_fun_comp' {α₀ α₁ α₂ : TypeVec n} {β₀ β₁ β₂ : Type _}
@@ -899,4 +805,3 @@ theorem mpr_mp {α β : Type _} (h : α = β) (x : α) :
 by induction h; rfl
 
 end Eq
-

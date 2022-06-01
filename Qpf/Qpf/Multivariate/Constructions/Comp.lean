@@ -28,8 +28,13 @@ variable {n m : ℕ}
          [fG : ∀ i, (MvFunctor <| G i)] 
          [q' : ∀ i, MvQpf <| G i]
 
-/-- Composition of an `n`-ary functor with `n` `m`-ary
-functors gives us one `m`-ary functor -/
+/-- Composition of an `n`-ary functor `F` with `n` `m`-ary
+functors `G₁, ..., Gₙ` gives us one `m`-ary functor `F.Comp G` such that 
+
+`F.Comp G (a₁, ..., aₘ) = F ( G₁(a₁, ..., aₘ), ..., Gₙ(a₁, ..., aₘ))`
+
+That is, each argument is broadcasted to each functor
+-/
 def Comp (v : TypeVec.{u} m) : Type _ :=
   F (fun i => G i v)
 
@@ -70,7 +75,7 @@ protected def map : (Comp F G) α → (Comp F G) β :=
   (map fun i => map f : (F fun i => G i α) → F fun i => G i β)
 
 
-instance : MvFunctor (Comp F G) where
+instance instMvFunctor : MvFunctor (Comp F G) where
   map := @fun α β => Comp.map
 
 theorem map_mk (x : F fun i => G i α) : 
@@ -81,7 +86,7 @@ theorem get_map (x : Comp F G α) :
 
 include q q'
 
-instance : MvQpf (Comp F G) where
+instance instQpf : MvQpf (Comp F G) where
   P := MvPFunctor.Comp (P F) fun i => P <| G i
   abs := @fun α => Comp.mk ∘ (map fun i => abs) ∘ abs ∘ MvPFunctor.Comp.get
   repr := @fun α =>

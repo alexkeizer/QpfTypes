@@ -1,6 +1,11 @@
 import Qpf.Qpf.Multivariate.Basic
+
 import Qpf.Qpf.Multivariate.Constructions.Fix
 import Qpf.Qpf.Multivariate.Constructions.Comp
+import Qpf.Qpf.Multivariate.Constructions.Prj
+
+import Qpf.Qpf.Multivariate.Constructions.Permute.Qpf
+import Qpf.Qpf.Multivariate.Constructions.Merge.Qpf
 
 set_option pp.rawOnError true
 
@@ -130,8 +135,7 @@ namespace QpfStruct
   --   fun recurse t =>
   --     let g := fun ⟨a, f⟩ =>
   --       by cases a
-  --          let a := f 1 ()
-  --          simp [TypeVec.append1, Vec.cons] at a;
+  --          let a := f 1(a₁, ..., aₘ).append1, Vec.cons] at a;
   --          apply recurse a
   --     Fix.drec (β := motive) g t
 
@@ -154,33 +158,54 @@ open QpfStruct (QpfStruct)
 
 
 
+#check QpfList.QpfList'
+
+#reduce MvQpf.Prj 0 (TypeVec.nil ::: ℕ ::: ℤ)
+
+
 -- inductive QpfTree (α : Type)
---   | nil
---   | cons : α → QpfList (QpfTree α) → QpfList α
+--   | leaf
+--   | node : α → QpfTree α → QpfList (QpfTree α) → QpfTree α
 namespace QpfTree
-  namespace Base
+
+  /-
+    First, the shape functor
+
+    inductive QpfTree.Shape (α β γ : Type)
+    | leaf
+    | node : α → β → γ → QpfTree.Shape α β γ
+  -/
+  namespace Shape
     inductive HeadT
-      | nil
-      | cons
+      | leaf
+      | node
 
     abbrev ChildT : HeadT → TypeVec 3
-      | HeadT.nil, _ => Empty
-      | HeadT.cons, 0 => Unit
-      | HeadT.cons, 1 => Unit
-      | HeadT.cons, 2 => Empty
+      | HeadT.leaf, _ => Empty
+      | HeadT.node, 0 => Unit
+      | HeadT.node, 1 => Unit
+      | HeadT.node, 2 => Unit
 
     abbrev P := MvPFunctor.mk HeadT ChildT
-  end Base
+  end Shape
 
-  def Id {n : Nat} := MvPFunctor.mk Unit (fun _ (_ : Fin2 n) => Unit)
+  def Proj {n : Nat} (i : Fin2 n) := MvPFunctor.mk Unit (fun _ (j : Fin2 n) => Unit)
 
-  #check MvQpf.Comp Base.P.Obj
-  abbrev Base'.P 
-    := MvQpf.Comp Base.P.Obj (fun i => match i with
-        | 0 => Id.Obj
-        | 1 => QpfList.QpfList'
-        | 2 => Id.Obj
+  abbrev F : TypeVec 2 → Type _
+    := MvQpf.Comp Shape.P.Obj (fun
+                                | 0 => MvQpf.Prj 0
+                                | 1 => MvQpf.Prj 1
+                                | 2 => MvQpf.Comp QpfList.QpfList' (fun _ => @MvQpf.Prj 2 1)
     )
+
+  #check (inferInstance : MvFunctor $ MvQpf.Comp QpfList.QpfList' (fun _ => @MvQpf.Prj 2 1))
+  #check (inferInstance : MvFunctor $ MvQpf.Prj 0)
+  #check (inferInstance : MvFunctor $ MvQpf.Prj 1)
+  #check (MvQpf.Comp.instMvFunctor : MvFunctor F)
+  #check (MvQpf.Comp.instQpf : MvQpf F)
+
+  abbrev QpfTree (α : Type) 
+    := Fix F (fun _ => α)
   
 end QpfTree
 

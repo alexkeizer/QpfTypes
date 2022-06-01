@@ -273,10 +273,10 @@ theorem M.bisim {α : TypeVec n} (R : P.M α → P.M α → Prop)
     apply IH _ _ (h'' _)
     
 
-#check Quot.mk
-#print prefix Quot
-#check Quotient.mk
-#check Quotient.exact
+-- #check Quot.mk
+-- #print prefix Quot
+-- #check Quotient.mk
+-- #check Quotient.exact
 -- #check Quot.EqvGen
 
 theorem M.bisim₀ {α : TypeVec n} (R : P.M α → P.M α → Prop) (h₀ : Equivalence R)
