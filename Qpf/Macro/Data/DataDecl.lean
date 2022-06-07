@@ -39,7 +39,6 @@ structure DataDecl where
   (type     : DataType)
   (view     : InductiveView)
   (isUnsafe : Bool)
-  (deadParams: List Param)
   deriving Inhabited
 
 
