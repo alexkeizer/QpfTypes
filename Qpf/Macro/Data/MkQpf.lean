@@ -32,8 +32,6 @@ def Name.stripPrefix (pref: Name) : Name → Name
 -/
 private def mkHeadT (decl : DataDecl) : CommandElabM Unit := 
 do
-  let binders ← runTermElabM none $ fun _ =>
-    decl.deadParams.mapM Param.to_binder_syntax; 
   let modifiers : Modifiers := {
     isUnsafe := decl.isUnsafe
   }
@@ -43,7 +41,6 @@ do
   let ctors := decl.type.ctors.map fun ctor => { 
     ref := Syntax.missing
     modifiers 
-    inferMod := false
     declName := Name.replacePrefix orig_name head_t_name ctor.name
     binders := mkNullNode
     type? := none
@@ -53,11 +50,12 @@ do
   
   let head_t : InductiveView := {
     ref := Syntax.missing
+    declId := Syntax.missing
     modifiers := modifiers
     shortDeclName := `HeadT
     declName := head_t_name
     levelNames := []
-    binders := mkGroupNode binders.toArray
+    binders := mkNullNode
     type? := none
     ctors := ctors.toArray
     derivingClasses := #[]
