@@ -19,7 +19,7 @@ namespace MvQpf
 
       (F.merge i) (a₁, ..., aₙ) = F (a₁, ..., aₙ, aₙ₋ᵢ)
    -/
-  def merge {n : Nat} (i : Fin2 n) (F : TypeVec.{u} (Nat.succ n) → Type _) : TypeVec.{u} n → Type _
+  def merge {n : Nat} (i : Fin2 n) (F : TypeVec.{u} (Nat.succ n) → Type _) : TypeFun.{u,_} n
     := fun v => F (v.duplicate i)
 
   namespace merge

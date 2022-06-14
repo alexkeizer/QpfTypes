@@ -357,7 +357,7 @@ section LiftrMap
 
 open MvFunctor
 
-theorem liftr_map {α β : TypeVec n} {F' : TypeVec n → Type u} [MvFunctor F'] [LawfulMvFunctor F']
+theorem liftr_map {α β : TypeVec n} {F' : TypeFun.{_,u} n} [MvFunctor F'] [LawfulMvFunctor F']
     (R : β ⊗ β ⟹ Repeat n Prop) 
     (x : F' α) 
     (f g : α ⟹ β) 

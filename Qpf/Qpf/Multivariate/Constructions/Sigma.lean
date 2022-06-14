@@ -19,7 +19,7 @@ namespace MvQpf
 
 variable {n : ℕ} {A : Type u}
 
-variable (F : A → TypeVec.{u} n → Type u)
+variable (F : A → TypeFun.{u,u} n)
 
 /-- Dependent sum of of an `n`-ary functor. The sum can range over
 data types like `ℕ` or over `Type.{u-1}` -/

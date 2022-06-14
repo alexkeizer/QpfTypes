@@ -21,10 +21,10 @@ namespace MvQpf
 -- open_locale MvFunctor
 
 variable {n m : ℕ} 
-         (F : TypeVec.{u} n → Type _) 
+         (F : TypeFun n) 
          [fF : MvFunctor F] 
          [q : MvQpf F] 
-         (G : Fin2 n → TypeVec.{u} m → Type u)
+         (G : Vec (TypeFun m) n)
          [fG : ∀ i, (MvFunctor <| G i)] 
          [q' : ∀ i, MvQpf <| G i]
 

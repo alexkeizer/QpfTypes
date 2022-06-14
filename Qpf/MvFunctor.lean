@@ -33,7 +33,7 @@ universe u v w
 
 /-- multivariate functors, i.e. functor between the category of type vectors
 and the category of Type -/
-class MvFunctor {n : Nat} (F : TypeVec n → Type _) :=
+class MvFunctor {n : Nat} (F : TypeFun n) :=
 (map : ∀ {α β : TypeVec n}, (α ⟹ β) → (F α → F β))
 
 infixr:100 " <$$> " => MvFunctor.map
@@ -42,7 +42,7 @@ variable {n : Nat}
 
 namespace MvFunctor
 
-variable {α β γ : TypeVec.{u} n} {F : TypeVec.{u} n → Type v} [MvFunctor F]
+variable {α β γ : TypeVec.{u} n} {F : TypeFun.{u,v} n} [MvFunctor F]
 
 /-- predicate lifting over multivariate functors -/
 def Liftp {α : TypeVec n} (p : ∀ i, α i → Prop) : F α → Prop :=
@@ -65,7 +65,7 @@ theorem of_mem_supp {α : TypeVec n} {x : F α} {p : ∀ ⦃i⦄, α i → Prop}
 
 end MvFunctor
 
-class LawfulMvFunctor {n : Nat} (F : TypeVec n → Type _) [MvFunctor F] : Prop :=
+class LawfulMvFunctor {n : Nat} (F : TypeFun n) [MvFunctor F] : Prop :=
 (id_map       : ∀ {α : TypeVec n} (x : F α), TypeVec.id <$$> x = x)
 (comp_map     : ∀ {α β γ : TypeVec n} (g : α ⟹ β) (h : β ⟹ γ) (x : F α),
                     (h ⊚ g) <$$> x = h <$$> g <$$> x)
@@ -80,7 +80,7 @@ open LawfulMvFunctor
 attribute [simp] id_map
 
 variable {n : Nat} {α β γ : TypeVec.{u} n}
-variable {F : TypeVec.{u} n → Type v} [MvFunctor F] [LawfulMvFunctor F]
+variable {F : TypeFun.{u,v} n} [MvFunctor F] [LawfulMvFunctor F]
 
 
 variable (p : α ⟹ Repeat n Prop) (r : α ⊗ α ⟹ Repeat n Prop)

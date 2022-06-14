@@ -81,7 +81,7 @@ open_locale MvFunctor
 
 /-- Multivariate quotients of polynomial functors.
 -/
-class MvQpf {n : ℕ} (F : TypeVec.{u} n → Type _) [MvFunctor F] where
+class MvQpf {n : ℕ} (F : TypeFun.{u,_} n) [MvFunctor F] where
   P : MvPFunctor.{u} n
   abs : ∀ {α}, P.Obj α → F α
   repr : ∀ {α}, F α → P.Obj α
@@ -90,7 +90,7 @@ class MvQpf {n : ℕ} (F : TypeVec.{u} n → Type _) [MvFunctor F] where
 
 namespace MvQpf
 
-variable {n : ℕ} {F : TypeVec.{u} n → Type _} [MvFunctor F] [q : MvQpf F]
+variable {n : ℕ} {F : TypeFun.{u,_} n} [MvFunctor F] [q : MvQpf F]
 
 include q
 

@@ -36,14 +36,14 @@ end Param
 structure DataDecl where
   (lparams  : List Name) 
   (nparams  : Nat) 
-  (type     : DataType)
+  (inner    : DataType)
   (view     : InductiveView)
   (isUnsafe : Bool)
   deriving Inhabited
 
 
 def DataDecl.asInductDecl (self : DataDecl) : Declaration :=
-  Declaration.inductDecl self.lparams self.nparams [self.type.toInductiveType] self.isUnsafe
+  Declaration.inductDecl self.lparams self.nparams [self.inner.toInductiveType] self.isUnsafe
 
 
 

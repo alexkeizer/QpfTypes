@@ -18,7 +18,7 @@ namespace MvQpf
 
       `F (a₁, ..., aₙ) = (Permute i F) (aᵢ, a₁, ..., a_ᵢ₋₁, a_ᵢ₊₁, ..., aₙ)`
    -/
-  def Permute {n : Nat} (i : Fin2 n) (F : TypeVec.{u} n → Type _) : TypeVec.{u} n → Type _
+  def Permute {n : Nat} (i : Fin2 n) (F : TypeFun.{u,_} n) : TypeFun.{u,_} n
     -- Note that to permute the functor, we *unpermute* its argument
     := fun v => F (v.unpermute i)
 
@@ -26,11 +26,11 @@ namespace MvQpf
 
       `F (a₁, ..., aₙ) = (Unpermute i F) (a₂, ..., a_ᵢ₋₁, a₁, a_ᵢ₊₁, ..., aₙ₋₁, aₙ)`
   -/
-  def Unpermute {n : Nat} (i : Fin2 n) (F : TypeVec.{u} n → Type _) : TypeVec.{u} n → Type _
+  def Unpermute {n : Nat} (i : Fin2 n) (F : TypeFun.{u,_} n) : TypeFun.{u,_} n
     := fun v => F (v.permute i)
 
   namespace Permute
-    variable {n : Nat} {i : Fin2 n} {F : TypeVec.{u} n → Type _}
+    variable {n : Nat} {i : Fin2 n} {F : TypeFun.{u,_} n}
 
     /-- Proves that `Unpermute` is the inverse of `Permute` -/
     theorem Unpermute_Permute_id :

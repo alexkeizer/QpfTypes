@@ -50,15 +50,18 @@ def elabDataViews (views : Array InductiveView) : CommandElabM Unit := do
   let view := views[0]
   let ref := view.ref
   let decl ← runTermElabM view.declName fun vars => withRef ref do
-    trace[Meta.debug] s!"vars = {vars}"
+    trace[Meta.debug] "vars = {vars}"
     let decl ← mkDataDecl vars view
+    trace[Meta.debug] "type = {decl.inner.type}"
+    trace[Meta.debug] "nparams = {decl.nparams}"
+    trace[Meta.debug] "lparams = {decl.lparams}"
     if decl.isUnsafe then
       throwError "Unsafe data declarations are not supported"      
     pure decl
+  
   mkQpf decl
 end
 
-#check elabCommand
 
 /-- Top-level elaboration -/
 @[commandElab «data»]

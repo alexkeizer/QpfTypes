@@ -23,13 +23,13 @@ namespace MvQpf
 
 variable {n : ℕ}
 
-variable {F : TypeVec.{u} n → Type u}
+variable {F : TypeFun.{u,v} n}
 
 section repr
 
 variable [MvFunctor F] [q : MvQpf F]
 
-variable {G : TypeVec.{u} n → Type u} [MvFunctor G]
+variable {G : TypeFun.{u,v} n} [MvFunctor G]
 
 variable {FG_abs : ∀ {α}, F α → G α}
 

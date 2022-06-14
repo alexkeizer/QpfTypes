@@ -697,7 +697,7 @@ def mkDataDecl  (vars : Array Expr) (view0 : InductiveView) : TermElabM DataDecl
                               pure $ {
                                 lparams   := levelParams,
                                 nparams   := numParams,
-                                type      := (DataType.mk indType)
+                                inner     := (DataType.mk indType)
                                 view      := view0,
                                 isUnsafe  := isUnsafe,
                               }

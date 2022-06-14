@@ -64,20 +64,30 @@ do
   elabInductiveViews #[head_t]
 
 
-private def mkHeadT2 (decl : DataDecl) : CommandElabM Unit := 
+/-
+private def mkHeadT (decl : DataDecl) : CommandElabM Unit := 
 do
-  let stx ← `(inductive MyList (α β : Type u) where
-                | Nil  : MyList α β
-                | Cons : {a : α} → (as : MyList α β) → MyList α β
-            );
-  
-  let stx ← `(bla a)
-  let orig_name := decl.inner.name
-  let head_t_name := Name.mkStr decl.inner.name "HeadT"
+  let binders := decl.deadParams.map fun p => (f!"({p.name} : {p.type})").pretty;
+  let binders := String.intercalate " " binders
 
-  let ctors := decl.inner.ctors.map fun ctor => 
+  let orig_name := decl.type.name
+  let head_t_name := Name.mkStr decl.type.name "HeadT"
+
+  let ctors := decl.type.ctors.map fun ctor => 
     let ctor_name := Name.stripPrefix orig_name ctor.name
     s!"\n  | {ctor_name}"
+  let ctors := String.join ctors
+  
+  let input := s!"inductive {head_t_name} {binders} {ctors}"
+  trace[Meta.debug] input
+
+  let (env, _) ← runFrontend 
+                    input
+                    Options.empty
+                    "<input>"
+                    ""
+  setEnv env
+-/
 
 
 /--
