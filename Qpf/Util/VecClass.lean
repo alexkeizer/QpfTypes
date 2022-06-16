@@ -1,111 +1,110 @@
 import Qpf.Qpf.Multivariate.Basic
 
-section
+/-
+  # Type Classes on Vecs
+  Since a `Vec` contains finitely many elements, statements of the form `∀i, Class (v i)`
+  can be inferred using induction on the length of `Vec`s.
+
+
+  A reasonable first attempt could be as follows
+  ```lean4
+  instance VecClass_nil' (v : Vec α 0) : VecClass' Class v
+    := by intro i; cases i
+
+  -- We have to set this option because `Class` might not be a type class
+  set_option checkBinderAnnotations false in
+  instance VecClass_succ'  (v : Vec α (.succ n)) 
+                              [zero : Class (v .fz)]
+                              [succ : VecClass' Class (fun i => v i.fs)] : 
+                          VecClass' Class v := 
+  by intro i; 
+      cases i; 
+      exact zero;
+      apply succ
+  ```
+
+  And this is accepted by lean, but fails to correctly infer for vectors with more than one element
+  ```lean4
+
+  /-- The vector `![Nat]` -/
+  abbrev v₁ : Vec Type 1 := fun i => Nat
+
+  /-- The vector `![Nat, Int]` -/
+  abbrev v₂ : Vec Type 2 
+    | .fz     => Nat
+    | .fs .fz => Int
+
+  /-- Works! -/
+  example : ∀i, Inhabited (v₁ i) :=
+    by infer_instance
+
+  /-- Failed to syntesize instance -/
+  example : ∀i, Inhabited (v₂ i) :=
+    by infer_instance
+  ```
+
+  Instead, we "box" these universally quantified statements in a new type class `VecClass`
+  -/
+namespace Vec
     -- `Class` is intended to range over (unary) typeclasses, but there is nothing preventing
     -- users to instantiate it with non-typeclass functions
-    variable {α : Type _}
+    variable {α : Type _} {n : Nat}
+  
+  /-- A custom type class to express that all elements of `v` implement some typeclass `Class` -/
+  class VecClass (Class : α → Type _) (v : Vec α n) where
+    prop : ∀ i, Class (v i)
 
-    /-- `VecClassAux k Class v` means that all but the last `k` 
-        elements of `v` implement `Class` -/
-    class VecClassAux (k : Nat) (Class : α → Type) {n : Nat} (v : Vec α (n+k)) where
-      inst : ∀i : Fin2 n, Class (v <| i.add k)
-
-    /-- `VecClass Class v` means that all element of `v` implement `Class` -/
-    abbrev VecClass (Class : α → Type) {n : Nat} (v : Vec α n)
-      := @VecClassAux α 0 Class n v
-
-    variable {Class : α → Type _}
+  variable {α : Type _} {Class : α → Type} {n : Nat}
 
 
-    /-- Base case, all element of a en empty vec vacuosly implement every typeclass -/
-    -- Does not work
-    -- instance instVecNil {v : Fin2 k → α}  : 
-    --   ∀ i : Fin2 0, Class (v <| i.add' k) := 
-    -- by intro i; contradiction
+  /-- In case of an empty `Vec`, the statement is vacuous -/
+  instance VecClass_nil (v : Vec α 0) : VecClass Class v
+    := ⟨by intro i; cases i⟩
 
-    instance instVecNil₂ {v : Fin2 0 → α}  : 
-      ∀ i : Fin2 0, Class (v i) := 
-    by intro i; contradiction;
+  -- Since `Class` might not be a typeclass, Lean will complain we're putting
+  -- it in the `[...]` inference binder, the following option turns this warning off.
+  -- If a user tries to instantiate this definition in the case that `Class` is *not*
+  -- a typeclass, Lean will throw an `type class instance expected` error
+  set_option checkBinderAnnotations false in
+  /-- 
+    The recursive step, if the head and all elements in the tail of a vector implement `Class`,
+    then all elements implement `Class`. 
+    Requires that `v` is reducible by type class inference.
 
-    -- instance instVecNil' {v : Fin2 k → α}  : 
-    --   VecClass Class v := 
-    -- by constructor; intro i; contradiction
-
-    example (fF' : Vec (TypeFun 2) 0) : 
-      ∀i, MvFunctor (fF' i) := 
-    by 
-      infer_instance
-
-    -- Since `Class` might not be a typeclass, Lean will complain we're putting
-    -- it in the `[...]` inference binder, the following option turns this warning off.
-    -- If a user tries to instantiate this definition in the case that `Class` is *not*
-    -- a typeclass, Lean will throw an `type class instance expected` error
-    set_option checkBinderAnnotations false
-
-    -- open Lean Lean.Meta Lean.Tactic
-    -- elab "infer_vec_zero" : tactic => do
-    --   evalTactic
-
-    #check Lean.Parser.Tactic.simp
-
-    -- #check Lean.Elab.Tactic.
-
-    open Lean Lean.Parser.Tactic Lean.Elab.Tactic Lean.Meta in
-    elab "whnf_infer_instance" : tactic => do 
-        match <- getMainTarget with
-          | Expr.app tc arg@(Expr.app v i ..) .. => do
-              let target := mkApp tc (<-whnf arg);
-              liftMetaTactic fun mvarId => do
-                let target_mvar ← mkFreshExprMVar (some target)
-                assignExprMVar mvarId target_mvar
-                pure [target_mvar.mvarId!]
-              evalTactic <|<- `(tactic| infer_instance)
-          | _ => do
-            evalTactic <|<- `(tactic| infer_instance)
-            <|> throwError "Goal is not in the expected format:\n Class (v i) "
-   
-    -- instance instVecAppend1 
-    --           {n : Nat} 
-    --           {v : Fin2 n.succ → α} 
-    --           [succ: ∀ i : Fin2 n, Class (v ∘ Fin2.fs <| i)] 
-    --           (zero: Class (v Fin2.fz) := by zero_infer) : 
-    --   ∀ i, Class (v i)
-    -- | Fin2.fz   => zero
-    -- | Fin2.fs i => succ i
-
-    instance instVecAppend1MvFunctor  
-        {n : Nat} 
-        {v : Fin2 n.succ → (TypeFun m)}
-        [succ: ∀ i : Fin2 n, MvFunctor (v ∘ Fin2.fs <| i)] 
-        -- (zero: MvFunctor (v Fin2.fz) := by zero_infer) : 
-        (zero: MvFunctor (v Fin2.fz) := by zero_infer) : 
-      ∀i, MvFunctor (v i)
-    | Fin2.fz   => zero
-    | Fin2.fs i => succ i
+    It is important that the vector used in the recursive step (`succ`) remains reducible, or the
+    inference system will not find the appropriate instance. That is why we spell out the composition,
+    rather than use the more concise `v ∘ .fs`
+  -/
+  instance VecClass_succ  (v : Vec α (.succ n)) 
+                              [zero : Class (v .fz)]
+                              [succ : VecClass Class (fun i => v i.fs)] : 
+                          VecClass Class v := 
+  ⟨by intro i; 
+      cases i; 
+      exact zero;
+      apply succ.prop
+    ⟩
 
 
-    set_option pp.rawOnError true
+  set_option checkBinderAnnotations false in
+  /-- 
+    Alternative recursive step. Since `Vec.append1` is not reducible, we explicitly provide an
+    instance
+  -/
+  instance VecClass_append1 (tl : Vec α n) (hd : α)
+                              [zero : Class hd]
+                              [succ : VecClass Class tl] : 
+                          VecClass Class (tl.append1 hd) := 
+  ⟨by intro i; 
+      cases i; 
+      exact zero;
+      apply succ.prop
+    ⟩
 
-    example (F : TypeFun m) [MvFunctor F] :
-      let v := Vec.append1 Vec.nil F;
-      ∀i : Fin2 1, MvFunctor <| v i :=
-    by
-      -- infer_instance
-      exact instVecAppend1MvFunctor;
 
-    example (F₁ F₂ : TypeFun m) [MvFunctor F₁] [MvFunctor F₁] :
-      let v := ((Vec.append1 Vec.nil F₂).append1 F₁);
-      ∀i : Fin2 2, MvFunctor <| v i :=
-    by
-      exact instVecAppend1MvFunctor;
-      infer_instance
-
-
-    -- instance instVecAppend1 {n : Nat} (k : Nat := 0)
-    --           {v : Fin2 (n + 1 + k) → α} 
-    --           [succ: ∀ i : Fin2 n, Class (v <| (i.fs).add k)] 
-    --           [zero: Class (v <| (@Fin2.fz n).add k)] : 
-    --   ∀ i : Fin2 (n + 1) , Class (v <| i.add k)
-    -- | Fin2.fz   => zero
-    -- | Fin2.fs i => succ i
-  end
+  /-- Users need not be aware of `VecClass`, they can simply write universally quantified type class 
+      constraints  -/
+  instance VecClass_unbox [inst : VecClass Class v] : 
+    ∀i, Class (v i) :=
+  inst.prop
+end Vec
