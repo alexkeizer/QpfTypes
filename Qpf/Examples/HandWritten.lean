@@ -4,9 +4,6 @@ import Qpf.Qpf.Multivariate.Constructions.Fix
 import Qpf.Qpf.Multivariate.Constructions.Comp
 import Qpf.Qpf.Multivariate.Constructions.Prj
 
-import Qpf.Qpf.Multivariate.Constructions.Permute.Qpf
-import Qpf.Qpf.Multivariate.Constructions.Merge.Qpf
-
 set_option pp.rawOnError true
 
 open MvQpf
