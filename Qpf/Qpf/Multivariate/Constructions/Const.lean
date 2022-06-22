@@ -67,7 +67,7 @@ theorem map_mk (x : A) : f <$$> Const.mk x = Const.mk x :=
 theorem get_map (x : (Const n A) α) : Const.get (f <$$> x) = Const.get x :=
   rfl
 
-instance mvqpf : @MvQpf _ (Const n A) MvQpf.Const.instMvFunctor where
+instance mvqpf : MvQpf (Const n A) where
   P := MvPFunctor.Const n A
   abs := @fun α x => MvPFunctor.Const.get x
   repr := @fun α x => MvPFunctor.Const.mk n x

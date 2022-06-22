@@ -81,7 +81,7 @@ open_locale MvFunctor
 
 /-- Multivariate quotients of polynomial functors.
 -/
-class MvQpf {n : ℕ} (F : TypeFun.{u,_} n) [MvFunctor F] where
+class MvQpf {n : ℕ} (F : TypeFun.{u,_} n) extends MvFunctor F  where
   P : MvPFunctor.{u} n
   abs : ∀ {α}, P.Obj α → F α
   repr : ∀ {α}, F α → P.Obj α
@@ -90,7 +90,7 @@ class MvQpf {n : ℕ} (F : TypeFun.{u,_} n) [MvFunctor F] where
 
 namespace MvQpf
 
-variable {n : ℕ} {F : TypeFun.{u,_} n} [MvFunctor F] [q : MvQpf F]
+variable {n : ℕ} {F : TypeFun.{u,_} n} [q : MvQpf F]
 
 include q
 
@@ -115,8 +115,8 @@ theorem comp_map {α β γ : TypeVec n} (f : α ⟹ β) (g : β ⟹ γ) (x : F �
   rfl
 
 instance (priority := 100) is_lawful_mvfunctor : LawfulMvFunctor F where
-  id_map := @MvQpf.id_map n F _ _
-  comp_map := @comp_map n F _ _
+  id_map := MvQpf.id_map 
+  comp_map := MvQpf.comp_map
 
 -- Lifting predicates and relations
 theorem liftp_iff {α : TypeVec n} (p : ∀ ⦃i⦄, α i → Prop) (x : F α) :
@@ -383,7 +383,6 @@ theorem liftp_preservation_iff_uniform : q.LiftpPreservation ↔ q.IsUniform := 
   /-!
     ## Show that every polynomial functor is a QPF
   -/
-
   instance {n} (P : MvPFunctor n) : MvQpf P.Obj where
     P         := P
     abs       := id
@@ -392,4 +391,3 @@ theorem liftp_preservation_iff_uniform : q.LiftpPreservation ↔ q.IsUniform := 
     abs_map   := by intros; rfl;
 
 end MvQpf
-

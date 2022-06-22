@@ -21,26 +21,20 @@ open_locale MvFunctor
 
 namespace MvQpf
 
-variable {n : ℕ}
-
-variable {F : TypeFun.{u,v} n}
+variable {n : ℕ} {F : TypeFun.{u,v} n}
 
 section repr
-
-variable [MvFunctor F] [q : MvQpf F]
-
-variable {G : TypeFun.{u,v} n} [MvFunctor G]
-
-variable {FG_abs : ∀ {α}, F α → G α}
-
-variable {FG_repr : ∀ {α}, G α → F α}
-
-
 /-- If `F` is a QPF then `G` is a QPF as well. Can be used to
 construct `mvqpf` instances by transporting them across
 surjective functions -/
-def quotientQpf (FG_abs_repr : ∀ {α} x : G α, FG_abs (FG_repr x) = x)
-    (FG_abs_map : ∀ {α β} (f : α ⟹ β) (x : F α), FG_abs (f <$$> x) = f <$$> FG_abs x) : MvQpf G where
+def quotientQpf 
+    [q : MvQpf F]
+    {G : TypeFun.{u,v} n} [MvFunctor G]
+    {FG_abs : ∀ {α}, F α → G α}
+    {FG_repr : ∀ {α}, G α → F α}
+    (FG_abs_repr : ∀ {α} x : G α, FG_abs (FG_repr x) = x)
+    (FG_abs_map : ∀ {α β} (f : α ⟹ β) (x : F α), FG_abs (f <$$> x) = f <$$> FG_abs x) : 
+      MvQpf G where
   P := q.P
   abs := @fun α p         => FG_abs (abs p)
   repr := @fun α x        => repr (FG_repr x)
@@ -60,27 +54,30 @@ def Quot1 (α : TypeVec n) :=
 instance Quot1.inhabited {α : TypeVec n} [Inhabited <| F α] : Inhabited (Quot1 R α) :=
   ⟨Quot.mk _ default⟩
 
-variable [MvFunctor F] [q : MvQpf F]
+section 
+  variable [MvFunctor F]
+           (Hfunc : ∀ ⦃α β⦄ (a b : F α) (f : α ⟹ β), R a b → R (f <$$> a) (f <$$> b))
 
-variable (Hfunc : ∀ ⦃α β⦄ (a b : F α) (f : α ⟹ β), R a b → R (f <$$> a) (f <$$> b))
-
-/-- `map` of the `quot1` functor -/
-def Quot1.map ⦃α β⦄ (f : α ⟹ β) : Quot1.{u} R α → Quot1.{u} R β :=
-  (Quot.lift fun x : F α => Quot.mk _ (f <$$> x : F β)) fun a b h => Quot.sound <| Hfunc a b _ h
+  /-- `map` of the `quot1` functor -/
+  def Quot1.map ⦃α β⦄ (f : α ⟹ β) : Quot1.{u} R α → Quot1.{u} R β :=
+    (Quot.lift fun x : F α => Quot.mk _ (f <$$> x : F β)) fun a b h => Quot.sound <| Hfunc a b _ h
 
 
-/-- `MvFunctor` instance for `quot1` with well-behaved `R` -/
-def Quot1.MvFunctor : MvFunctor (Quot1 R) where
-  map := @(Quot1.map R Hfunc)
+  /-- `MvFunctor` instance for `quot1` with well-behaved `R` -/
+  def Quot1.MvFunctor : MvFunctor (Quot1 R) where
+    map := @(Quot1.map R Hfunc)
+end
 
 
 /-- `quot1` is a qpf -/
-noncomputable def relQuot : @MvQpf _ (Quot1 R) (MvQpf.Quot1.MvFunctor R Hfunc) :=
-  @quotientQpf n F _ q _ (MvQpf.Quot1.MvFunctor R Hfunc) 
-                         (@fun α x => Quot.mk _ x) 
-                         (@fun α => Quot.out)
-                         (@fun α x => Quot.out_eq _) 
-                         (@fun α β f x => rfl)
+noncomputable def relQuot [q : MvQpf F] 
+                          (Hfunc : ∀ ⦃α β⦄ (a b : F α) (f : α ⟹ β), R a b → R (f <$$> a) (f <$$> b)) : 
+    MvQpf (Quot1 R) :=
+  @quotientQpf n F q _ (MvQpf.Quot1.MvFunctor R Hfunc) 
+                       (@fun α x => Quot.mk _ x) 
+                       (@fun α => Quot.out)
+                       (@fun α x => Quot.out_eq _) 
+                       (@fun α β f x => rfl)
 
 end Rel
 

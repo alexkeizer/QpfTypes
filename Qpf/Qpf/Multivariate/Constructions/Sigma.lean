@@ -37,11 +37,9 @@ instance Sigma.inhabited {α} [Inhabited A] [Inhabited (F default α)] : Inhabit
 instance Pi.inhabited {α} [∀ a, Inhabited (F a α)] : Inhabited (Pi F α) :=
   ⟨fun a => default⟩
 
-variable [∀ α, MvFunctor <| F α]
-
 namespace Sigma
 
-instance : MvFunctor (Sigma F) where
+instance [∀ α, MvFunctor <| F α] : MvFunctor (Sigma F) where
   map := @fun α β f ⟨a, x⟩ => ⟨a, f <$$> x⟩
 
 variable [∀ α, MvQpf <| F α]
@@ -81,7 +79,7 @@ end Sigma
 
 namespace Pi
 
-instance : MvFunctor (Pi F) where
+instance [∀ α, MvFunctor <| F α] : MvFunctor (Pi F) where
   map := @fun α β f x a => f <$$> x a
 
 variable [instMvQpf : ∀ α, MvQpf <| F α]
@@ -98,7 +96,9 @@ protected def abs ⦃α⦄ : (Pi.P F).Obj α → Pi F α
 
 /-- representation function for dependent products -/
 protected def repr ⦃α⦄ : Pi F α → (Pi.P F).Obj α
-  | f => ⟨fun a => (MvQpf.repr (f a)).1, fun i a => (@MvQpf.repr _ _ _ (instMvQpf _) _ (f _)).2 _ a.2⟩
+  | f => ⟨fun a => (MvQpf.repr (f a)).1, fun i a => (@MvQpf.repr _ _ (instMvQpf _) _ (f _)).2 _ a.2⟩
+
+#check MvQpf.abs_map
 
 instance : MvQpf (Pi F) where
   P := Pi.P F
@@ -119,7 +119,8 @@ instance : MvQpf (Pi F) where
     simp only [Pi.abs, MvPFunctor.map_eq]
     ext x
     simp only [(· <$$> ·)] 
-    simp only [← abs_map, MvPFunctor.map_eq]
+    rw [←abs_map f]
+    simp only [abs_map, MvPFunctor.map_eq]
     rfl
 
 end Pi
