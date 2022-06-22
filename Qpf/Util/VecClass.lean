@@ -1,4 +1,4 @@
-import Qpf.Qpf.Multivariate.Basic
+import Qpf.Util.Vec
 
 /-
   # Type Classes on Vecs
@@ -45,20 +45,21 @@ import Qpf.Qpf.Multivariate.Basic
 
   Instead, we "box" these universally quantified statements in a new type class `VecClass`
   -/
-namespace Vec
-    -- `Class` is intended to range over (unary) typeclasses, but there is nothing preventing
+
+-- `Class` is intended to range over (unary) typeclasses, but there is nothing preventing
     -- users to instantiate it with non-typeclass functions
     variable {α : Type _} {n : Nat}
-  
-  /-- A custom type class to express that all elements of `v` implement some typeclass `Class` -/
+
+/-- A custom type class to express that all elements of `v` implement some typeclass `Class` -/
   class VecClass (Class : α → Type _) (v : Vec α n) where
     prop : ∀ i, Class (v i)
 
+namespace VecClass
   variable {α : Type _} {Class : α → Type} {n : Nat}
 
 
   /-- In case of an empty `Vec`, the statement is vacuous -/
-  instance VecClass_nil (v : Vec α 0) : VecClass Class v
+  instance instNil (v : Vec α 0) : VecClass Class v
     := ⟨by intro i; cases i⟩
 
   -- Since `Class` might not be a typeclass, Lean will complain we're putting
@@ -75,7 +76,7 @@ namespace Vec
     inference system will not find the appropriate instance. That is why we spell out the composition,
     rather than use the more concise `v ∘ .fs`
   -/
-  instance VecClass_succ  (v : Vec α (.succ n)) 
+  instance instSucc  (v : Vec α (.succ n)) 
                               [zero : Class (v .fz)]
                               [succ : VecClass Class (fun i => v i.fs)] : 
                           VecClass Class v := 
@@ -91,7 +92,7 @@ namespace Vec
     Alternative recursive step. Since `Vec.append1` is not reducible, we explicitly provide an
     instance
   -/
-  instance VecClass_append1 (tl : Vec α n) (hd : α)
+  instance instAppend1 (tl : Vec α n) (hd : α)
                               [zero : Class hd]
                               [succ : VecClass Class tl] : 
                           VecClass Class (tl.append1 hd) := 
@@ -104,7 +105,8 @@ namespace Vec
 
   /-- Users need not be aware of `VecClass`, they can simply write universally quantified type class 
       constraints  -/
-  instance VecClass_unbox [inst : VecClass Class v] : 
+  instance instUnbox [inst : VecClass Class v] : 
     ∀i, Class (v i) :=
   inst.prop
-end Vec
+
+end VecClass

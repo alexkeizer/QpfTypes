@@ -160,8 +160,6 @@ open QpfStruct (QpfStruct)
 
 #check QpfList.QpfList'
 
-#reduce MvQpf.Prj 0 (TypeVec.nil ::: ℕ ::: ℤ)
-
 
 -- inductive QpfTree (α : Type)
 --   | leaf
@@ -191,41 +189,38 @@ namespace QpfTree
 
   def Proj {n : Nat} (i : Fin2 n) := MvPFunctor.mk Unit (fun _ (j : Fin2 n) => Unit)
 
-  abbrev F : TypeFun 2
-    := MvQpf.Comp Shape.P.Obj (fun
-                                | 0 => MvQpf.Prj 0
-                                | 1 => MvQpf.Prj 1
-                                | 2 => MvQpf.Comp QpfList.QpfList' (fun _ => @MvQpf.Prj 2 1)
-    )
+  abbrev comp_G : Fin2 3 → TypeFun 2
+      | 0 => MvQpf.Prj 0
+      | 1 => MvQpf.Prj 1
+      | 2 => MvQpf.Comp QpfList.QpfList' (fun _ => @MvQpf.Prj 2 1)
 
-  #check (inferInstance : MvFunctor $ MvQpf.Comp QpfList.QpfList' (fun _ => @MvQpf.Prj 2 1))
-  #check (inferInstance : MvFunctor $ MvQpf.Prj 0)
-  #check (inferInstance : MvFunctor $ MvQpf.Prj 1)
-
-  def fF' : Vec (TypeFun 2) 1 
-    := Vec.append1 Vec.nil (MvQpf.Prj 0)
-
-  example (fF' : Vec (TypeFun 2) 0) : ∀i, MvFunctor (fF' i) := 
+  example : VecMvFunctor comp_G :=
     by infer_instance
 
+  abbrev P_Obj := Shape.P.Obj
+
+  abbrev F : TypeFun 2
+    := MvQpf.Comp P_Obj comp_G
+    
+
   example : MvFunctor F :=
-    by 
-      apply @MvQpf.Comp.instMvFunctor (fG := ?_)
-      infer_instance
-      apply Vec.instVecAppend1 (Class:=MvFunctor) (succ := ?_) (n:=2)
-      apply Vec.instVecAppend1 (Class:=MvFunctor) (succ := ?_)
-      apply Vec.instVecAppend1 (Class:=MvFunctor) (succ := ?_)
-      infer_instance
+    by infer_instance
+
+  set_option pp.explicit true
+  example : MvQpf F :=
+    by
+      unfold F
+      -- apply MvQpf.Comp.instQpf (G := comp_G) (F := P_Obj) (fF := _) (fG := ?_) (q' := ?_)
+      -- infer_instance
+      sorry
 
 
   -- #check ( : MvFunctor F)
-  #check (MvQpf.Comp.instQpf : MvQpf F)
+  -- #check (MvQpf.Comp.instQpf : MvQpf F)
 
-  abbrev QpfTree (α : Type) 
-    := Fix F (fun _ => α)
+  -- abbrev QpfTree (α : Type) 
+  --   := Fix F (fun _ => α)
 
-  set_option checkBinderAnnotations false
-  def foo [n : Nat] : Nat := n
   
 end QpfTree
 

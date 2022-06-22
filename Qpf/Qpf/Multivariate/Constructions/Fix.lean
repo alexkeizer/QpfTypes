@@ -60,7 +60,7 @@ open MvFunctor (Liftp Liftr)
 -- open_locale MvFunctor
 
 variable {n : ℕ}
-variable {F : TypeVec.{u} (n + 1) → Type u} [MvFunctor F] [q : MvQpf F]
+variable {F : TypeFun.{u} (n + 1)} [MvFunctor F] [q : MvQpf F]
 
 include q
 
@@ -110,9 +110,12 @@ theorem recF_eq_of_Wequiv (α : TypeVec n) {β : Type _} (u : F (α.append1 β) 
   induction h
   case ind a f' f₀ f₁ h ih => {
     simp only [recF_eq, Function.comp]
-    conv in recF u (f₀ x) => {
-      rw [ih]
+    have : (fun (x : last (MvPFunctor.B (P F) a)) => recF u (f₀ x)) = (fun x => recF u (f₁ x));
+    {
+      funext x; exact ih x;
     }
+    simp only [this]
+    rfl
   }
   case abs a₀ f'₀ f₀ a₁ f'₁ f₁ h => {
     simp only [recF_eq', abs_map, MvPFunctor.W_dest'_W_mk, h]

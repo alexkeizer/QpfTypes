@@ -142,35 +142,70 @@ theorem liftr_def (x y : F α) :
       simp only [map_map, comp_assoc, subtype_val_to_subtype'] <;> simp [comp])
 
 end Liftp'
-
-section
-  variable {α : Type _} {Class : α → Type _}
-
-  instance {f : Fin2 0 → α} : 
-    ∀ i : Fin2 0, Class (f i) := 
-  by intro i; contradiction
-
-  set_option checkBinderAnnotations false
-  instance {n : Nat} {f : Fin2 (n.succ) → α} [rec : ∀ i : Fin2 n, Class (f i.weaken)] [Class (f Fin2.last)] : 
-    ∀ i : Fin2 n.succ, Class (f i) := 
-  by 
-    intro i
-    cases h : i.strengthen
-    case none => {
-      have : i = Fin2.last := Fin2.strengthen_is_none_imp_eq_last h;
-      cases this;
-      assumption
-    }
-    case some i' => {
-      have : i = i'.weaken;
-      {
-        apply Eq.symm;
-        apply Fin2.weaken_strengthen_of_some h;
-      }
-      cases this;
-      apply rec;
-    }
-
-end
-
 end MvFunctor
+
+
+
+/-!
+  The following is mostly a specialization of `VecClass`, since `MvFunctor` does not fit in the
+  `Class : α → Type` signature (it takes an implicit argument). 
+-/
+
+/-- A "boxed" type class to express that all elements of `G` implement `MvFunctor` -/
+class VecMvFunctor (G : Vec (TypeFun m) n) where
+  prop : ∀ i, MvFunctor (G i)
+
+namespace VecMvFunctor
+
+
+  /-- In case of an empty `Vec`, the statement is vacuous -/
+  instance instNil (G : Vec (TypeFun m) 0) : VecMvFunctor G
+    := ⟨by intro i; cases i⟩
+
+  /-- 
+    The recursive step, if the head and all elements in the tail of a vector implement `Class`,
+    then all elements implement `Class`. 
+    Requires that `v` is reducible by type class inference.    
+  -/
+  instance instSucc  (G : Vec (TypeFun m) (.succ n)) 
+                              [zero : MvFunctor (G .fz)]
+                              /-  It is important that the vector used in the recursive step remains 
+                                  reducible, or the inference system will not find the appropriate 
+                                  instance. That is why we spell out the composition, rather than 
+                                  use the more concise `v ∘ .fs`                              
+                              -/
+                              [succ : VecMvFunctor (fun i => G i.fs)] : 
+                          VecMvFunctor G := 
+  ⟨by intro i; 
+      cases i; 
+      exact zero;
+      apply succ.prop
+    ⟩
+
+
+  /-- 
+    Alternative recursive step. Since `Vec.append1` is not reducible, we explicitly provide an
+    instance
+  -/
+  instance instAppend1 (tl : Vec (TypeFun m) n) (hd : TypeFun m)
+                              [zero : MvFunctor hd]
+                              [succ : VecMvFunctor tl] : 
+                          VecMvFunctor (tl.append1 hd) := 
+  ⟨by intro i; 
+      cases i; 
+      exact zero;
+      apply succ.prop
+    ⟩
+
+
+  -- /-- Users need not be aware of `VecMvFunctor`, they can simply write universally quantified type class 
+  --     constraints  -/
+  instance instUnbox [inst : VecMvFunctor G] : 
+    ∀i, MvFunctor (G i) :=
+  inst.prop
+
+  instance instBox [inst : ∀i, MvFunctor (G i)] :
+    VecMvFunctor G := ⟨inst⟩
+
+end VecMvFunctor
+

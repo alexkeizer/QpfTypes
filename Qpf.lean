@@ -16,3 +16,6 @@ import Qpf.Qpf.Multivariate.Constructions.Sigma
 
 import Qpf.Qpf.Multivariate.Constructions.Permute.Qpf
 import Qpf.Qpf.Multivariate.Constructions.Merge.Qpf
+
+
+import Qpf.Examples.HandWritten
