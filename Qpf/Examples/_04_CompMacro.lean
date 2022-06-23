@@ -1,6 +1,5 @@
 import Qpf
-import Qpf.Examples._02_Tree
-
+import Qpf.Examples._01_List
       
 -- Projections
 
@@ -34,12 +33,12 @@ import Qpf.Examples._02_Tree
 
 #reduce F_int Nat Nat
 
-#qpf F_tree α β := QpfTree Nat
+#qpf F_list α β := QpfList Nat
 
-#print F_tree
-#print F_tree.typefun
+#print F_list
+#print F_list.typefun
 
-#reduce F_tree Nat Nat
+#reduce F_list Nat Nat
 
 
 -- Composition
@@ -50,4 +49,5 @@ example : MvQpf (TypeFun.ofCurried F₁) := inferInstance
 
 #print F₃.typefun
 #reduce F₃ Nat Int
+
 

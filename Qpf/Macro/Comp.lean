@@ -35,20 +35,42 @@ def parseApp : Expr → TermElabM (Expr × (List Expr))
     throwError "expected application:\n  {ex}"
 
 
+#check List.indexOf
+
+
+def List.indexOf' {α : Type} [inst : BEq α] :  α → (as : List α) → Option (Fin2 (as.length))
+  | _, []       =>  none
+  | a, b :: bs  =>  if a == b then
+                      some .fz
+                    else
+                      match indexOf' a bs with
+                      | none   => none
+                      | some i => some <| .fs i
+
+
+def mkFin2Lit [Monad m] [MonadQuotation m] : Fin2 n → m Syntax
+  | .fz   => `( Fin2.fz )
+  | .fs i => do
+    let i_stx ← mkFin2Lit i
+    `( Fin2.fs $i_stx:term )
+
+
 
 open PrettyPrinter in
 partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Syntax := none) : TermElabM Syntax := do
-  let arity := vars.size;
+  let vars' := vars.toList;
+  let arity := vars'.length;
   let arity_stx := mkNumLit arity.repr;
-
-  
-  -- normalize to get rid of `let` and similar constructs
-  -- let expr ← whnfR expr;
 
   if target.isFVar then
     dbg_trace f!"target {target} is a free variable"
-    let ind := vars.toList.indexOf target;        
-    let ind_stx   := mkNumLit (arity - ind - 1).repr;
+    let ind ← match List.indexOf' target vars' with
+    | none      => throwError "Free variable {target} is not one of the qpf arguments"
+    | some ind  => pure ind
+
+    dbg_trace "ind: {ind.toNat}"
+
+    let ind_stx ← mkFin2Lit ind.inv;
     `(@Prj $arity_stx $ind_stx)
 
   else if !target.hasFVar then
@@ -88,7 +110,6 @@ def withBinders [MonadControlT MetaM n] [Monad n] [MonadLiftT MetaM n]
 
   withLocalDeclsD decls f
   
-
 
 -- elab "qpf " F:ident dead_binders:bracketedBinder* live_binders:binderIdent+ " := " target:term : command => do  
 elab "#qpf " F:ident live_binders:binderIdent+ " := " target:term : command => do  
