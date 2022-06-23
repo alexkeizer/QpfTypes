@@ -91,10 +91,14 @@ namespace QpfTree
             fun i _ => match i with
             | 0 => cast (
                     by
-                      simp [TypeFun.curried, Vec.append1, Prj]
+                      unfold QpfList; unfold QpfTree
+                      unfold TypeFun.curried
+                      simp only [TypeFun.curriedAux, TypeFun.reverseArgs]
+                      simp only [Vec.append1, Vec.reverse]
+                      simp only [Prj, Comp]
                       apply congrArg
                       funext j; cases j;
-                      . simp
+                      . simp [Fin2.inv, Fin2.last, Vec.append1, Vec.reverse_involution]
                       . contradiction
                     ) children 
             | 1 => a

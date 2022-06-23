@@ -4,6 +4,7 @@ import Qpf.PFunctor.Univariate.W
 
 import Qpf.Qpf.Multivariate.Basic
 import Qpf.Qpf.Multivariate.VecMvQpf
+import Qpf.Qpf.Multivariate.ToMvQpf
 
 import Qpf.MathlibPort.Logic
 

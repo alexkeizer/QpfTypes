@@ -1,7 +1,7 @@
 import Qpf.Qpf.Multivariate.Basic
 
 
-class ToMvQpf (F : CurriedTypeFun n) where
+class ToMvQpf {n} (F : CurriedTypeFun n) where
   q : MvQpf (TypeFun.ofCurried F)
 
 
@@ -14,7 +14,7 @@ namespace ToMvQpf
     apply cast ?_ q
     apply congrArg
     apply Eq.symm
-    apply TypeFun.ofCurried_curried_rfl
+    apply TypeFun.ofCurried_curried_involution
   
 
 end ToMvQpf

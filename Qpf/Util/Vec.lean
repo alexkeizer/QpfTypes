@@ -61,6 +61,19 @@ namespace Vec
 
   abbrev nil  : Vec α 0           := DVec.nil
   abbrev last : Vec α n.succ → α  := DVec.last
+
+  def reverse (v : Vec α n) : Vec α n :=
+    fun i => v i.inv
+
+
+  @[simp]
+  theorem reverse_involution {v : Vec α n} :
+    v.reverse.reverse = v :=
+  by
+    funext i;
+    simp[reverse]
+    apply congrArg;
+    exact Fin2.inv_involution
 end Vec
 
 

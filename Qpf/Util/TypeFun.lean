@@ -22,48 +22,73 @@ abbrev TypeFun (n : Nat) : Type ((max u v) + 1) :=
   TypeVec.{u} n → Type v
 
 namespace TypeFun
-  def curried : {n : Nat} → TypeFun n → CurriedTypeFun n
+  def reverseArgs : TypeFun n → TypeFun n :=
+    fun v α => v (α.reverse)
+
+  @[simp]
+  theorem reverseArgs_involution (F : TypeFun n) :
+    F.reverseArgs.reverseArgs = F :=
+  by
+    simp only [reverseArgs, Vec.reverse_involution]
+
+
+  def curriedAux : {n : Nat} → TypeFun n → CurriedTypeFun n
     | 0,    F => fun _ => F ![]
     | 1,    F => fun a => F ![a] 
-    | n+2,  F => fun a => curried fun αs => F (αs ::: a)
+    | n+2,  F => fun a => curriedAux fun αs => F (αs ::: a)
 
-  def ofCurried : {n : Nat} → CurriedTypeFun n → TypeFun n
+  def curried (F : TypeFun n) : CurriedTypeFun n
+    := curriedAux (F.reverseArgs)
+
+
+  def ofCurriedAux : {n : Nat} → CurriedTypeFun n → TypeFun n
     | 0,    F, _ => F PUnit.unit
     | 1,    F, α => F (α 0)
-    | n+2,  F, α => ofCurried (F α.last) α.drop
+    | n+2,  F, α => ofCurriedAux (F α.last) α.drop
+
+  def ofCurried (F : CurriedTypeFun n) : TypeFun n
+    := (ofCurriedAux F).reverseArgs
 
 
 
   @[simp]
-  theorem curried_ofCurried_rfl {F : CurriedTypeFun n} :
-    curried (ofCurried F) = F :=
+  theorem curriedAux_ofCurriedAux_involution {F : CurriedTypeFun n} :
+    curriedAux (ofCurriedAux F) = F :=
   by    
     cases n
-    case zero => simp [curried, ofCurried]
+    case zero => simp [curriedAux, ofCurriedAux]
     case succ n => {
       induction n
-      <;> simp [curried, ofCurried, Vec.append1]
+      <;> simp [curriedAux, ofCurriedAux, Vec.append1]
 
       case succ _ ih => {
         funext a;
+        simp[reverseArgs_involution]
         apply @ih (F a);
       }
     } 
 
+  @[simp]
+  theorem curried_ofCurried_involution {F : CurriedTypeFun n} :
+    curried (ofCurried F) = F :=
+  by    
+    simp only [curried, ofCurried, reverseArgs_involution]
+    apply curriedAux_ofCurriedAux_involution
+
 
 
   @[simp]
-  theorem ofCurried_curried_rfl {F : TypeFun n} :
-    ofCurried (curried F) = F :=
+  theorem ofCurriedAux_curriedAux_involution {F : TypeFun n} :
+    ofCurriedAux (curriedAux F) = F :=
   by    
     cases n
     case zero => 
-      funext x; simp [curried, ofCurried]
+      funext x; simp [curriedAux, ofCurriedAux]
     case succ n => {
       induction n;
       case zero => {
         funext x;
-        simp [curried, ofCurried];
+        simp [curriedAux, ofCurriedAux];
         apply congrArg;
         funext i;
         cases i;
@@ -73,7 +98,7 @@ namespace TypeFun
 
       case succ _ ih => {
         funext x;
-        simp [ofCurried, curried];
+        simp [ofCurriedAux, curriedAux];
         let F' := fun α => F (α ::: x.last);
         have : F x = F' x.drop;
         . simp
@@ -81,4 +106,11 @@ namespace TypeFun
         rw [@ih F']
       }
     }
+
+  @[simp]
+  theorem ofCurried_curried_involution {F : TypeFun n} :
+    ofCurried (curried F) = F :=
+  by    
+    simp only [ofCurried, curried, ofCurriedAux_curriedAux_involution]
+    apply reverseArgs_involution
 end TypeFun

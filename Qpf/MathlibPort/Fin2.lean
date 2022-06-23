@@ -166,6 +166,15 @@ def last : {n : Nat} → Fin2 (n+1)
   | 0   => fz
   | n+1 => fs (@last n)
 
+/--
+  The inverse of `i` w.r.t. addition modulo `n`, i.e., .last - i
+-/
+def inv : {n : Nat} → Fin2 n → Fin2 n
+  | 0,    _     => by contradiction
+  | 1,    .fs _ => by contradiction
+  | n+1,  .fz   => .last
+  | n+2,  .fs i => i.inv.weaken
+
 
 @[simp]
 theorem strengthen_last_is_none {n : Nat} :
@@ -241,6 +250,45 @@ by
   case fs x ih y  => {
     apply ih;
   }
+
+
+theorem inv_last_eq_fz {n : Nat} :
+  (@Fin2.last n).inv = .fz :=
+by
+  induction n <;> simp [inv, last, weaken, *]
+
+theorem inv_weaken_eq_fs_inv {n : Nat} (i : Fin2 n):
+  inv (weaken  i) = .fs (inv i) :=
+by
+  induction i
+  <;> simp[inv, weaken, last]
+  case fs n i ih =>
+    simp[ih]
+    cases n
+    . contradiction
+    . simp[inv, weaken]
+    
+
+@[simp]
+theorem inv_involution {i : Fin2 n} :
+  i.inv.inv = i :=
+by
+    induction i
+    <;> simp[inv]
+    case fz => apply inv_last_eq_fz
+    case fs n i ih => {
+      cases n;
+      case zero => contradiction
+      case succ n =>
+        simp[inv]
+        rw[inv_weaken_eq_fs_inv i.inv]
+        apply congrArg
+        apply ih
+    }
+
+
+    -- case zero.fs => contradiction
+    -- case succ.fs => simp[inv_last_eq_fz, weaken]
 
 
 /--
