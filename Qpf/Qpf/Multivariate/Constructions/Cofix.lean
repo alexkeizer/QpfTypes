@@ -258,6 +258,7 @@ theorem Cofix.bisim_rel {α : TypeVec n} (r : Cofix F α → Cofix F α → Prop
   exact rxy
 
 #check rel_last
+#print axioms Cofix.bisim_rel
 
 /-- Bisimulation principle using `liftr` to match and relate children of two trees. -/
 theorem Cofix.bisim {α : TypeVec n} 

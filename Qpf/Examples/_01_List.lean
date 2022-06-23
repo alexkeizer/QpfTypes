@@ -49,11 +49,14 @@ namespace QpfList
   -/
   abbrev P := MvPFunctor.mk HeadT ChildT
 
+  /- The `MvFunctor` instance is defined on `P` action on objects-/
+  abbrev F := P.Obj
+
   /-
     Of course, each polynomial functor is a (multivariate) quotient of a polynomial functor, and
     this is automatically inferred
   -/
-  example : MvQpf P.Obj := 
+  example : MvQpf F := 
     by infer_instance
 
 
@@ -61,7 +64,7 @@ namespace QpfList
     We define `QpfList'` as the fixpoint of `P` in the last argument
   -/
   abbrev QpfList' : TypeFun 1
-    := Fix QpfList.P.Obj
+    := Fix QpfList.F
 
   /-
     And define a curried version for final use
