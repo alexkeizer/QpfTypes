@@ -31,8 +31,8 @@ variable {n m : Nat} (P : MvPFunctor.{u} n)
     * a 'shape' `a ∈ A`, and
     * an arrow `g: Ba ⟹ X`, which is an n-tuple of functions `(Ba)_i → Xi`
 -/
-def Obj (α : TypeVec.{u} n) : Type u 
-  := Σ a : P.A, P.B a ⟹ α
+def Obj : TypeFun.{u,u} n
+  := fun α => Σ a : P.A, P.B a ⟹ α
 
 /-- Let `f : X ⟹ Y` be an arrow of `TypeVec`s, then `P(f) : P(X) ⟹ Y` is defined by 
     pre-composition of `f` with the arrow `g` in `P(X)`

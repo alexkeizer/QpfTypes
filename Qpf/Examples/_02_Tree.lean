@@ -36,13 +36,15 @@ namespace QpfTree
       | _, _ => Unit
 
     abbrev P := MvPFunctor.mk HeadT ChildT
+
+    abbrev F := P.Obj.curried
   end Shape
 
   /-
     Before we can take the fixpoint, we need to compose this shape functor with QpfList in the second 
     argument. Effectively, we want to define
     ```
-      F α β := Shape.P.Obj α (QpfList β)
+      F α β := Shape.F α (QpfList β)
     ```
 
     Note that we don't care too much about whether `F` is a polynomial functor, we just require it
@@ -62,11 +64,26 @@ namespace QpfTree
     ```
   -/
 
-  abbrev F : TypeFun 2
+  def F_manual : TypeFun 2
     := Comp Shape.P.Obj ![
         Prj 1,
         MvQpf.Comp QpfList' ![Prj 0]
-    ]    
+    ]
+
+  /-
+    There is also a `#qpf` command, which will define the right projections and compositions for us!
+  -/
+  #qpf F_curried α β := Shape.F α (QpfList β)
+
+  /-
+    The command will give us a curried type function, the internal, uncurried, function can be found
+    under `.typefun`
+  -/
+  #check (F_curried : Type _ → Type _ → Type _)
+
+  abbrev F := F_curried.typefun
+
+  #check (F : TypeFun 2)
 
 
   /-
@@ -86,11 +103,11 @@ namespace QpfTree
   which is not definitionally equal, so we'll have to massage the types a bit
   -/
 
+
   def node (a : α) (children : QpfList (QpfTree α)) : QpfTree α :=
     Fix.mk ⟨Shape.HeadT.node, 
             fun i _ => match i with
-            | 0 => cast (
-                    by                     
+            | 0 => cast (by
                       unfold QpfList; unfold QpfTree
                       unfold TypeFun.curried
                       simp only [TypeFun.curriedAux, TypeFun.reverseArgs]
@@ -102,8 +119,8 @@ namespace QpfTree
                       match j with
                       | .fs _ => contradiction
                       | .fz =>
-                        simp only [Fin2.inv, Fin2.last, Vec.append1, TypeVec.append1]
-                    ) children 
+                        simp only [Fin2.inv, Fin2.last, Vec.append1, TypeVec.append1, Vec.reverse]
+                    ) children                    
             | 1 => a
     ⟩
 
