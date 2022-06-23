@@ -79,8 +79,8 @@ than the input. For `F a b c` a ternary functor, fix F is a binary functor such 
 Cofix F a b = F a b (Cofix F a b)
 ```
 -/
-def Cofix (F : TypeVec (n + 1) → Type u) [q : MvQpf F] (α : TypeVec n) :=
-  Quot (@Mcongr _ F q α)
+def Cofix (F : TypeVec (n + 1) → Type u) [q : MvQpf F] : TypeFun n :=
+  fun α => Quot (@Mcongr _ F q α)
 
 instance {α : TypeVec n} [Inhabited q.P.A] [∀ i : Fin2 n, Inhabited (α i)] : Inhabited (Cofix F α) :=
   ⟨Quot.mk _ default⟩

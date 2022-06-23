@@ -90,20 +90,29 @@ namespace QpfTree
     Fix.mk ⟨Shape.HeadT.node, 
             fun i _ => match i with
             | 0 => cast (
-                    by
+                    by                     
                       unfold QpfList; unfold QpfTree
                       unfold TypeFun.curried
                       simp only [TypeFun.curriedAux, TypeFun.reverseArgs]
                       simp only [Vec.append1, Vec.reverse]
                       simp only [Prj, Comp]
                       apply congrArg
-                      funext j; cases j;
-                      . simp [Fin2.inv, Fin2.last, Vec.append1, Vec.reverse_involution]
-                      . contradiction
+
+                      funext j; 
+                      match j with
+                      | .fs _ => contradiction
+                      | .fz =>
+                        simp only [Fin2.inv, Fin2.last, Vec.append1, TypeVec.append1]
                     ) children 
             | 1 => a
     ⟩
 
+  /-
+    Even though there are some `sorry`s left in the formalization codebase, all of the machinery
+    for inductive types is fully proven, and indeed, we can construct `QpfTree` without depending
+    on `sorryAx`
+  -/
+  #print axioms node
   
 end QpfTree
 

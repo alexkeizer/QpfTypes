@@ -6,32 +6,47 @@ open MvQpf
 
 -- syntax "qpf " ident ident,+ " := " term : command
 
-open Lean Elab Term Command Meta Syntax
+open Lean Elab Term Command Meta
 open Parser (termParser)
 
--- #check Term.app
+#check Lean.throwError
 
 
-def parseApp : Expr → Option (Expr × (List Expr))
-  | Expr.app F a _ =>
-    match parseApp a with
-    | some (G, args) => some (G, args ++ [a])
-    | none =>
-      none
-  | _ => none
+open Lean in
+def parseApp : Expr → TermElabM (Expr × Expr × (List Expr))
+  | Expr.app F a _ => do
+    try
+      let (q, G, args) ← parseApp F;
+      pure (q, G, args ++ [a])
+    catch e₁ =>
+      try
+        let n_mvar ← mkFreshExprMVar (mkConst ``Nat)
+        let us ← mkFreshLevelMVars 2
 
-elab "qpf " F:ident αs:ident+ " := " target:term : command => do  
+        -- let F_type := mkApp (mkConst ``CurriedTypeFun us) n_mvar;
+        -- let F ← elabTermEnsuringType F F_type;
+
+        let inst ← synthesizeInst <|← mkAppM ``ToMvQpf #[F]
+
+        pure (inst, F, [a])
+      catch e₂ =>
+        throw e₁
+    
+
+  | ex => throwError "expression should be an application: {ex}"
+
+
+open Syntax in
+def elabQpf (αs : Array Syntax) (target : Syntax) : TermElabM Syntax := do
   let arity := αs.size;
   let arity_stx := mkNumLit arity.repr;
 
-  let body ← liftTermElabM none $ do
-    let u := mkLevelSucc <|← mkFreshLevelMVar;
-    -- let v := mkLevelSucc <|← mkFreshLevelMVar;
+  let u := mkLevelSucc <|← mkFreshLevelMVar;
+  let decls := αs.map fun α => (α.getId, fun _ => pure (mkSort u))
 
-    let decls := αs.map fun α => (α.getId, fun _ => pure (mkSort u))
-
-    withLocalDeclsD decls fun vars => do
+  withLocalDeclsD decls fun vars => do
       let expr ← elabTerm target none;
+
       if expr.isFVar then
         dbg_trace f!"target {expr} is a free variable"
         let ind := vars.toList.indexOf expr;        
@@ -44,35 +59,49 @@ elab "qpf " F:ident αs:ident+ " := " target:term : command => do
 
       else if expr.isApp then
         dbg_trace f!"target {expr} is an application"
-        match parseApp expr with
-        | none => throwError f!"No QPF found in {target}"
-        | some (F, args) => 
-          `(by sorry)
+        let (inst, F, args) ← (parseApp expr)  -- <|> throwError f!"No QPF found in {expr}"
+        `(by sorry)
 
-      
       else
         dbg_trace f!"Not FVar : {expr}"
         `(by sorry)
+
+open Syntax in
+elab "qpf " F:ident αs:ident+ " := " target:term : command => do  
+  let arity := αs.size;
+  let arity_stx := mkNumLit arity.repr;
+
+  let body ← liftTermElabM none $ elabQpf αs target
   
   let F_internal := mkIdent $ Name.mkStr F.getId "typefun";
-  elabCommand <|<- `(def $F_internal : TypeFun $arity_stx := $body:term)
-  elabCommand <|<- `(def $F := TypeFun.curried $F_internal)
+  elabCommand <|<- `(
+      def $F_internal : TypeFun $arity_stx := $body:term
 
+      def $F := TypeFun.curried $F_internal
 
+      instance : MvQpf $F_internal := by unfold $F_internal; infer_instance
 
+      instance : ToMvQpf $F := by unfold $F; infer_instance
+  )
 
-class ToMvQpf (F : CurriedTypeFun n) where
-  q : MvQpf (TypeFun.ofCurried F)
 
 
 
 -- Projections
 qpf F₁ α β γ := γ
+qpf F₂ α β γ := α
 
 #print F₁
 #print F₁.typefun
 
+#print F₂
+#print F₂.typefun
+
+#reduce F₁.typefun ![Nat, Int, (List Nat)]
 #reduce F₁ Nat Int (List Nat)
+
+
+#reduce F₂ Nat Int (List Nat)
 
 
 -- Constants
@@ -92,10 +121,23 @@ qpf F_tree α β := QpfTree Nat
 
 
 -- Composition
-#check F₁
+qpf F₃ α β := F₁ α α β
 
-qpf F₂ α β := (F₁ α) α β
+-- #print F₁
+-- #reduce F₁ ![Nat, Nat]
 
-#print F₁
-#reduce F₁ ![Nat, Nat]
-end Comp
+
+#check mkAppM
+#check mkAppN
+
+-- elab "impl_mvqpf " F:ident : term => do
+  
+
+
+#check (inferInstance : MvQpf F₁.typefun)
+#check (inferInstance : ToMvQpf F₁)
+
+#check impl_mvqpf F₁
+#check impl_mvqpf Nat
+
+#check (inferInstance : ToMvQpf F₁)
