@@ -6,6 +6,8 @@ import Qpf.Qpf.Multivariate.Basic
 import Qpf.Qpf.Multivariate.VecMvQpf
 import Qpf.Qpf.Multivariate.ToMvQpf
 
+import Qpf.MvFunctor.VecMvFunctor
+
 import Qpf.MathlibPort.Logic
 
 import Qpf.Qpf.Multivariate.Constructions.Cofix

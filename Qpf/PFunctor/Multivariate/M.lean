@@ -273,11 +273,6 @@ theorem M.bisim {α : TypeVec n} (R : P.M α → P.M α → Prop)
     apply IH _ _ (h'' _)
     
 
--- #check Quot.mk
--- #print prefix Quot
--- #check Quotient.mk
--- #check Quotient.exact
--- #check Quot.EqvGen
 
 theorem M.bisim₀ {α : TypeVec n} (R : P.M α → P.M α → Prop) (h₀ : Equivalence R)
     (h : ∀ x y, R x y → (id ::: Quot.mk R) <$$> M.dest _ x = (id ::: Quot.mk R) <$$> M.dest _ y) x y (r : R x y) :
@@ -310,20 +305,22 @@ by
   replace h₁ := congrFun (congrFun h₁ Fin2.fz) i
   simp [(· ⊚ ·), appendFun, splitFun] at h₁
 
-  simp [Quot.mk] at h₁
-  
+  let setoid : Setoid (P.M α) := {
+    r     := R
+    iseqv := h₀
+  }
+  exact Quotient.exact h₁
 
-  
 
-  -- rw [←Quotient.mk] at h₁
-  sorry; 
-  stop
 
-  replace h₁ := Quotient.exact _ h₁
-  rw [h₀.eqv_gen_iff] at h₁
-  exact h₁
 
-/- FIXME TODO
+/-
+  FIXME: 
+    The following theorem depends on `EqvGen` (used to be `eqv_gen`), which seems to not exists in 
+    Lean4's standard library.
+    It could be ported, but since no other constructions actually use this theorem, we leave that
+    for a later time
+
 theorem M.bisim' {α : TypeVec n} (R : P.M α → P.M α → Prop)
     (h : ∀ x y, R x y → (id ::: Quot.mk R) <$$> M.dest _ x = (id ::: Quot.mk R) <$$> M.dest _ y) x y (r : R x y) :
     x = y := 

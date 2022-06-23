@@ -316,7 +316,7 @@ theorem Fix.dest_mk (x : F (append1 α (Fix F α))) : Fix.dest (Fix.mk x) = x :=
 
 
 theorem Fix.ind {α : TypeVec n} (p : Fix F α → Prop)
-    (h : ∀ x : F (α.append1 (Fix F α)), Liftp (pred_last α p) x → p (Fix.mk x)) : ∀ x, p x := by
+    (h : ∀ x : F (α.append1 (Fix F α)), Liftp (predLast α p) x → p (Fix.mk x)) : ∀ x, p x := by
   apply Quot.ind
   intro x
   apply q.P.W_ind (C:=p ∘ Quotient.mk') _ x

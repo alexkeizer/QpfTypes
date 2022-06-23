@@ -187,9 +187,6 @@ A bisimulation relation `R` for values `x y : Cofix F α`:
 
 -/
 
-#check Quot.ind
--- #check Quot.ind_On
-
 private theorem Cofix.bisim_aux {α : TypeVec n} (r : Cofix F α → Cofix F α → Prop) (h' : ∀ x, r x x)
     (h : ∀ x y, r x y → appendFun id (Quot.mk r) <$$> Cofix.dest x = appendFun id (Quot.mk r) <$$> Cofix.dest y) :
     ∀ x y, r x y → x = y := by
@@ -200,37 +197,43 @@ private theorem Cofix.bisim_aux {α : TypeVec n} (r : Cofix F α → Cofix F α 
   intro rxy
   apply Quot.sound
   let r' := fun x y => r (Quot.mk _ x) (Quot.mk _ y)
-  sorry
-  /-
-  have : IsPrecongr r' := by
+  have hr' : r' = fun x y => r (Quot.mk _ x) (Quot.mk _ y) := by rfl;
+
+  have : IsPrecongr r';
+  {
     intro a b r'ab
     have h₀ :
-      appendFun id (Quot.mk r ∘ Quot.mk Mcongr) <$$> abs (M.dest q.P a) =
-        appendFun id (Quot.mk r ∘ Quot.mk Mcongr) <$$> abs (M.dest q.P b) :=
+      appendFun id (Quot.mk r ∘ Quot.mk Mcongr) <$$> MvQpf.abs (M.dest q.P a) =
+        appendFun id (Quot.mk r ∘ Quot.mk Mcongr) <$$> MvQpf.abs (M.dest q.P b) :=
       by
       rw [append_fun_comp_id, comp_map, comp_map] <;> exact h _ _ r'ab
     have h₁ : ∀ u v : q.P.M α, Mcongr u v → Quot.mk r' u = Quot.mk r' v := by
       intro u v cuv
       apply Quot.sound
-      simp [r']
+      simp [hr']
       rw [Quot.sound cuv]
       apply h'
     let f : Quot r → Quot r' :=
       Quot.lift (Quot.lift (Quot.mk r') h₁)
         (by
-          intro c
-          apply Quot.induction_on c
+          intro c;
+          apply Quot.inductionOn 
+                  (motive := fun c => ∀b, r c b → Quot.lift (Quot.mk r') h₁ c = Quot.lift (Quot.mk r') h₁ b) 
+                  c;
           clear c
           intro c d
-          apply Quot.induction_on d
+          apply Quot.inductionOn 
+                  (motive := fun d => r (Quot.mk Mcongr c) d → Quot.lift (Quot.mk r') h₁ (Quot.mk Mcongr c) = Quot.lift (Quot.mk r') h₁ d)
+                  d
           clear d
           intro d rcd
           apply Quot.sound
           apply rcd)
-    have : f ∘ Quot.mk r ∘ Quot.mk Mcongr = Quot.mk r' := rfl
+    have : f ∘ Quot.mk r ∘ Quot.mk Mcongr = Quot.mk r' := by simp; rfl
     rw [← this, append_fun_comp_id, q.P.comp_map, q.P.comp_map, abs_map, abs_map, abs_map, abs_map, h₀]
+  }
   refine' ⟨r', this, rxy⟩
-  -/
+
 
 /-- Bisimulation principle using `map` and `quot.mk` to match and relate children of two trees. -/
 theorem Cofix.bisim_rel {α : TypeVec n} (r : Cofix F α → Cofix F α → Prop)
@@ -257,39 +260,44 @@ theorem Cofix.bisim_rel {α : TypeVec n} (r : Cofix F α → Cofix F α → Prop
   apply Or.inr
   exact rxy
 
-#check rel_last
-#print axioms Cofix.bisim_rel
 
 /-- Bisimulation principle using `liftr` to match and relate children of two trees. -/
 theorem Cofix.bisim {α : TypeVec n} 
                     (r : Cofix F α → Cofix F α → Prop)
-                    (h : ∀ x y, r x y → Liftr @(rel_last α r) (Cofix.dest x) (Cofix.dest y)) : 
+                    (h : ∀ x y, r x y → Liftr (relLast α r) (Cofix.dest x) (Cofix.dest y)) : 
     ∀ x y, r x y → x = y := by
   apply Cofix.bisim_rel
   intro x y rxy
-  sorry
-  /-
-  rcases(liftr_iff (rel_last α r) _ _).mp (h x y rxy) with ⟨a, f₀, f₁, dxeq, dyeq, h'⟩  
+
+  rcases (liftr_iff (fun a b => relLast α r a b) (dest x) (dest y)).mp (h x y rxy)
+    with ⟨a, f₀, f₁, dxeq, dyeq, h'⟩  
+  
   rw [dxeq, dyeq, ← abs_map, ← abs_map, MvPFunctor.map_eq, MvPFunctor.map_eq]
   rw [← split_drop_fun_last_fun f₀, ← split_drop_fun_last_fun f₁]
   rw [append_fun_comp_split_fun, append_fun_comp_split_fun]
   rw [id_comp, id_comp]
-  congr 2 with i j
+  
+  apply congrArg
+  apply congrArg
+  funext i j
   cases' i with _ i <;> simp
   · apply Quot.sound
     apply h' _ j
     
   · change f₀ _ j = f₁ _ j
     apply h' _ j
-  -/
 
-/- FIXME
 /-- Bisimulation principle using `liftr'` to match and relate children of two trees. -/
 theorem Cofix.bisim₂ {α : TypeVec n} (r : Cofix F α → Cofix F α → Prop)
-    (h : ∀ x y, r x y → Liftr' (rel_last' α r) (Cofix.dest x) (Cofix.dest y)) : 
+    (h : ∀ x y, r x y → Liftr' (relLast' α r) (Cofix.dest x) (Cofix.dest y)) : 
     ∀ x y, r x y → x = y :=
-  Cofix.bisim _ <| by
-    intros <;> rw [← liftr_last_rel_iff] <;> apply h <;> assumption
+  Cofix.bisim r <| by
+    intros;
+    rw [← MvFunctor.liftr_last_rel_iff];
+    apply h;
+    assumption
+
+  /- FIXME
 
 
 /-- Bisimulation principle the values `⟨a,f⟩` of the polynomial functor representing
@@ -431,8 +439,9 @@ end LiftrMap
 variable {F: TypeVec (n + 1) → Type u} [MvFunctor F] [LawfulMvFunctor F] [q : MvQpf F]
 
 theorem Cofix.abs_repr {α} (x : Cofix F α) : Quot.mk _ (Cofix.repr x) = x := by
-  sorry 
-/- FIXME
+  sorry
+
+  stop
   let R := fun x y : Cofix F α => Cofix.abs (Cofix.repr y) = x
   refine' Cofix.bisim₂ R _ _ _ rfl
   clear x
@@ -445,7 +454,7 @@ theorem Cofix.abs_repr {α} (x : Cofix F α) : Quot.mk _ (Cofix.repr x) = x := b
   conv => congr skip rw [Cofix.dest]
   simp
   rw [MvFunctor.map_map, MvFunctor.map_map, ← append_fun_comp_id, ← append_fun_comp_id]
-  let f : (α ::: (P F).M α) ⟹ subtype_ (α.rel_last' R) :=
+  let f : (α ::: (P F).M α) ⟹ subtype_ (α.relLast' R) :=
     split_fun diag_sub fun x => ⟨(Cofix.abs (Cofix.abs x).repr, Cofix.abs x), _⟩
   refine' liftr_map _ _ _ _ f _
   · simp only [← append_prod_append_fun, prod_map_id]
@@ -457,12 +466,11 @@ theorem Cofix.abs_repr {α} (x : Cofix F α) : Quot.mk _ (Cofix.repr x) = x := b
     ext1
     simp only [Cofix.abs, Prod.mk.inj_iffₓ, prod_mapₓ, Function.comp_app, last_fun_append_fun, last_fun_subtype_val,
       last_fun_comp, last_fun_split_fun]
-    simp [drop_fun_rel_last, last_fun, prod.diag]
+    simp [drop_fun_relLast, last_fun, prod.diag]
     constructor <;> rfl
     
-  simp [rel_last', split_fun, Function.uncurry, R]
+  simp [relLast', split_fun, Function.uncurry, R]
   rfl
--/
 
 section Tactic
 

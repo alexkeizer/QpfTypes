@@ -146,66 +146,111 @@ end MvFunctor
 
 
 
-/-!
-  The following is mostly a specialization of `VecClass`, since `MvFunctor` does not fit in the
-  `Class : α → Type` signature (it takes an implicit argument). 
--/
 
-/-- A "boxed" type class to express that all elements of `G` implement `MvFunctor` -/
-class VecMvFunctor (G : Vec (TypeFun m) n) where
-  prop : ∀ i, MvFunctor (G i)
+open Nat
 
-namespace VecMvFunctor
+namespace MvFunctor
 
+open TypeVec
 
-  /-- In case of an empty `Vec`, the statement is vacuous -/
-  instance instNil (G : Vec (TypeFun m) 0) : VecMvFunctor G
-    := ⟨by intro i; cases i⟩
+section LiftpLastPredIff
 
-  /-- 
-    The recursive step, if the head and all elements in the tail of a vector implement `Class`,
-    then all elements implement `Class`. 
-    Requires that `v` is reducible by type class inference.    
-  -/
-  instance instSucc  (G : Vec (TypeFun m) (.succ n)) 
-                              [zero : MvFunctor (G .fz)]
-                              /-  It is important that the vector used in the recursive step remains 
-                                  reducible, or the inference system will not find the appropriate 
-                                  instance. That is why we spell out the composition, rather than 
-                                  use the more concise `v ∘ .fs`                              
-                              -/
-                              [succ : VecMvFunctor (fun i => G i.fs)] : 
-                          VecMvFunctor G := 
-  ⟨by intro i; 
-      cases i; 
-      exact zero;
-      apply succ.prop
-    ⟩
+variable {F : TypeFun (n + 1)} [_inst_1 : MvFunctor F] [_inst_2 : LawfulMvFunctor F] {α : TypeVec.{u} n}
 
+variable (p : α ⟹ Repeat n Prop) (r : α ⊗ α ⟹ Repeat n Prop)
 
-  /-- 
-    Alternative recursive step. Since `Vec.append1` is not reducible, we explicitly provide an
-    instance
-  -/
-  instance instAppend1 (tl : Vec (TypeFun m) n) (hd : TypeFun m)
-                              [zero : MvFunctor hd]
-                              [succ : VecMvFunctor tl] : 
-                          VecMvFunctor (tl.append1 hd) := 
-  ⟨by intro i; 
-      cases i; 
-      exact zero;
-      apply succ.prop
-    ⟩
+variable {β : Type u}
+variable (pp : β → Prop)
 
+private def f :
+    ∀ n α,
+      (fun i : Fin2 (n + 1) => { p_1 // ofRepeat (predLast' α pp i p_1) }) ⟹ fun i : Fin2 (n + 1) =>
+        { p_1 : (α ::: β) i // predLast α pp p_1 }
+  | _, α, Fin2.fs i, x =>
+    ⟨x.val,
+      cast
+        (by
+          simp only [predLast] <;> erw [const_iff_true])
+        x.property⟩
+  | _, α, Fin2.fz, x => ⟨x.val, x.property⟩
 
-  -- /-- Users need not be aware of `VecMvFunctor`, they can simply write universally quantified type class 
-  --     constraints  -/
-  instance instUnbox [inst : VecMvFunctor G] : 
-    ∀i, MvFunctor (G i) :=
-  inst.prop
+private def g :
+    ∀ n α,
+      (fun i : Fin2 (n + 1) => { p_1 : (α ::: β) i // predLast α pp p_1 }) ⟹ fun i : Fin2 (n + 1) =>
+        { p_1 // ofRepeat (predLast' α pp i p_1) }
+  | _, α, Fin2.fs i, x =>
+    ⟨x.val,
+      cast
+        (by
+          simp only [predLast] <;> erw [const_iff_true])
+        x.property⟩
+  | _, α, Fin2.fz, x => ⟨x.val, x.property⟩
 
-  instance instBox [inst : ∀i, MvFunctor (G i)] :
-    VecMvFunctor G := ⟨inst⟩
+theorem liftp_last_pred_iff {β} (p : β → Prop) (x : F (α ::: β)) : Liftp' (predLast' _ p) x ↔ Liftp (predLast _ p) x :=
+  by
+  dsimp only [Liftp, Liftp']
+  apply exists_iff_exists_of_mono F (f _ n α) (g _ n α)
+  · ext i ⟨x, _⟩
+    cases i <;> rfl
+    
+  · intros u;
+    rw [MvFunctor.map_map]
+    simp [(· ⊚ ·)];
+    suffices (fun i => Subtype.val) = (fun i x => (MvFunctor.f p n α i x).val)
+    by rw[this];
+    
+    ext i ⟨x, _⟩;
+    cases i
+    <;> rfl
+    
 
-end VecMvFunctor
+open Function
 
+variable (rr : β → β → Prop)
+
+private def f' :
+    ∀ n α,
+      (fun i : Fin2 (n + 1) => { p_1 : _ × _ // ofRepeat (relLast' α rr i (TypeVec.Prod.mk _ p_1.fst p_1.snd)) }) ⟹
+        fun i : Fin2 (n + 1) => { p_1 : (α ::: β) i × _ // relLast α rr p_1.fst p_1.snd }
+  | _, α, Fin2.fs i, x =>
+    ⟨x.val,
+      cast
+        (by
+          simp only [relLast] <;> erw [repeat_eq_iff_eq])
+        x.property⟩
+  | _, α, Fin2.fz, x => ⟨x.val, x.property⟩
+
+private def g' :
+    ∀ n α,
+      (fun i : Fin2 (n + 1) => { p_1 : (α ::: β) i × _ // relLast α rr p_1.fst p_1.snd }) ⟹ fun i : Fin2 (n + 1) =>
+        { p_1 : _ × _ // ofRepeat (relLast' α rr i (TypeVec.Prod.mk _ p_1.1 p_1.2)) }
+  | _, α, Fin2.fs i, x =>
+    ⟨x.val,
+      cast
+        (by
+          simp only [relLast] <;> erw [repeat_eq_iff_eq])
+        x.property⟩
+  | _, α, Fin2.fz, x => ⟨x.val, x.property⟩
+
+theorem liftr_last_rel_iff (x y : F (α ::: β)) : Liftr' (relLast' _ rr) x y ↔ Liftr (relLast _ rr) x y := by
+  dsimp only [Liftr, Liftr']
+  apply exists_iff_exists_of_mono F (f' rr _ _) (g' rr _ _)
+  · ext i ⟨x, _⟩
+    cases i <;> rfl
+    
+  · intros u;
+    simp [MvFunctor.map_map, (· ⊚ ·)]
+    suffices  (fun i t => t.val.fst) = ((fun i x => (MvFunctor.f' rr n α i x).val.fst))
+            ∧ (fun i t => t.val.snd) = ((fun i x => (MvFunctor.f' rr n α i x).val.snd))
+    by  rcases this with ⟨left, right⟩
+        simp[left, right];
+
+    constructor
+    <;> ext i ⟨x, _⟩
+    <;> cases i 
+    <;> rfl
+    
+
+end LiftpLastPredIff
+
+end MvFunctor

@@ -325,14 +325,14 @@ namespace TypeVec
 
   /- for lifting predicates and relations -/
 
-  /-- `pred_last α p x` predicates `p` of the last element of `x : α.append1 β`. -/
-  def pred_last (α : TypeVec n) {β : Type _} (p : β → Prop) : ∀ ⦃i⦄, (α.append1 β) i → Prop
+  /-- `predLast α p x` predicates `p` of the last element of `x : α.append1 β`. -/
+  def predLast (α : TypeVec n) {β : Type _} (p : β → Prop) : ∀ ⦃i⦄, (α.append1 β) i → Prop
   | (Fin2.fs i) => λ x => true
   | Fin2.fz      => p
 
-  /-- `rel_last α r x y` says that `p` the last elements of `x y : α.append1 β` are related by `r` and all the other elements are equal. -/
-  def rel_last (α : TypeVec n) {β γ : Type _} (r : β → γ → Prop) :
-    ∀ ⦃i⦄, (α.append1 β) i → (α.append1 γ) i → Prop
+  /-- `relLast α r x y` says that `p` the last elements of `x y : α.append1 β` are related by `r` and all the other elements are equal. -/
+  def relLast (α : TypeVec n) {β γ : Type _} (r : β → γ → Prop) :
+    ∀ {i}, (α.append1 β) i → (α.append1 γ) i → Prop
   | (Fin2.fs i) => Eq
   | Fin2.fz      => r
 
@@ -682,7 +682,7 @@ theorem last_fun_of_subtype {α} (p : α ⟹ Repeat (n + 1) Prop) : lastFun (ofS
   simp [dropFun, lastFun, ofSubtype, *]
 
 @[simp]
-theorem drop_fun_rel_last {α : TypeVec n} {β} (R : β → β → Prop) : dropFun (relLast' α R) = repeatEq α :=
+theorem drop_fun_relLast {α : TypeVec n} {β} (R : β → β → Prop) : dropFun (relLast' α R) = repeatEq α :=
   rfl
 
 attribute [simp] drop_append1'
