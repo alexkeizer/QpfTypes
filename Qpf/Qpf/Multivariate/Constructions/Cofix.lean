@@ -438,24 +438,26 @@ end LiftrMap
 
 variable {F: TypeVec (n + 1) → Type u} [MvFunctor F] [LawfulMvFunctor F] [q : MvQpf F]
 
-theorem Cofix.abs_repr {α} (x : Cofix F α) : Quot.mk _ (Cofix.repr x) = x := by
-  sorry
+#check prod_map
 
-  stop
+theorem Cofix.abs_repr {α} (x : Cofix F α) : Quot.mk _ (Cofix.repr x) = x := by
   let R := fun x y : Cofix F α => Cofix.abs (Cofix.repr y) = x
+  have hR : R = fun x y : Cofix F α => Cofix.abs (Cofix.repr y) = x := by rfl;
   refine' Cofix.bisim₂ R _ _ _ rfl
   clear x
   rintro x y h
-  simp [R]  at h
+  simp [hR]  at h
   subst h
   simp [Cofix.dest, Cofix.abs]
   induction y using Quot.ind
   simp only [Cofix.repr, M.dest_corec, abs_map, abs_repr]
   conv => congr skip rw [Cofix.dest]
-  simp
-  rw [MvFunctor.map_map, MvFunctor.map_map, ← append_fun_comp_id, ← append_fun_comp_id]
-  let f : (α ::: (P F).M α) ⟹ subtype_ (α.relLast' R) :=
-    split_fun diag_sub fun x => ⟨(Cofix.abs (Cofix.abs x).repr, Cofix.abs x), _⟩
+  simp [MvFunctor.map_map, ← append_fun_comp_id]
+
+  stop --FIXME
+
+  let f : (α ::: (P F).M α) ⟹ Subtype_ (α.relLast' R) :=
+    splitFun diagSub fun x => ⟨(Cofix.abs (Cofix.abs x).repr, Cofix.abs x), _⟩
   refine' liftr_map _ _ _ _ f _
   · simp only [← append_prod_append_fun, prod_map_id]
     apply eq_of_drop_last_eq
@@ -464,12 +466,13 @@ theorem Cofix.abs_repr {α} (x : Cofix F α) : Quot.mk _ (Cofix.repr x) = x := b
       erw [subtype_val_diag_sub]
       
     ext1
-    simp only [Cofix.abs, Prod.mk.inj_iffₓ, prod_mapₓ, Function.comp_app, last_fun_append_fun, last_fun_subtype_val,
+    simp only [Cofix.abs, Prod.mk.inj_iff, prod_map, Function.comp_app, last_fun_append_fun, last_fun_subtype_val,
       last_fun_comp, last_fun_split_fun]
     simp [drop_fun_relLast, last_fun, prod.diag]
     constructor <;> rfl
     
   simp [relLast', split_fun, Function.uncurry, R]
+  rfl
   rfl
 
 section Tactic

@@ -107,9 +107,20 @@ namespace QpfStream
   #print axioms tail
 
   /-
-    However, coinduction requires `Cofix.bisim_rel`, which has yet to be proven
+    Even coinduction is fully proven
   -/
   #print axioms coinduction
+
+  /-
+    However, showing that `QpfStream` is itself a Qpf requires `sorry`
+
+    So, we cannot use `QpfStream` to define another (co)datatype yet
+  -/
+  def qpf : MvQpf QpfStream' 
+    := inferInstance
+
+  #print axioms qpf
+  
 
 
 end QpfStream
