@@ -1,5 +1,5 @@
 import Qpf
-import Qpf.Examples._02_QpfTree
+import Qpf.Examples._02_Tree
 
 open MvQpf
 
