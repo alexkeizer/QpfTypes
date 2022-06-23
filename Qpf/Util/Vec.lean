@@ -62,3 +62,17 @@ namespace Vec
   abbrev nil  : Vec α 0           := DVec.nil
   abbrev last : Vec α n.succ → α  := DVec.last
 end Vec
+
+
+
+/-
+  # Notation macros
+-/
+
+syntax "![" term,* "]" : term
+macro_rules
+  | `(![])    => `(Vec.nil)
+  | `(![$x])  => `(Vec.append1 ![] $x)
+  | `(![ $xs,* , $x]) => `(Vec.append1 ![$xs,*] $x)
+
+

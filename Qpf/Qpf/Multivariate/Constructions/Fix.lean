@@ -207,7 +207,8 @@ than the input. For `F a b c` a ternary functor, fix F is a binary functor such 
 fix F a b = F a b (fix F a b)
 ```
 -/
-def Fix {n : ℕ} (F : TypeVec (n + 1) → Type _) [q : MvQpf F] (α : TypeVec n) :=
+def Fix {n : ℕ} (F : TypeVec (n + 1) → Type _) [q : MvQpf F] : TypeFun n := 
+fun α => 
   Quotient (wSetoid α : Setoid (q.P.W α))
 
 attribute [nolint has_inhabited_instance] Fix

@@ -104,6 +104,7 @@ theorem Const.mk_get (x : (Const n A).Obj α) : Const.mk n (Const.get x) = x := 
 
 end Const
 
+
 /-- Functor composition on multivariate polynomial functors
   
   Suppose that `F(X₁, ..., X_n)  = Σ (a : A)    , ∀ i < n, (B(a))_i   → X_i` and

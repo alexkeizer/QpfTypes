@@ -6,14 +6,14 @@ import Qpf.Qpf.Multivariate.Basic
 -/
 
 /-- A "boxed" type class to express that all elements of `G` implement `MvQpf` -/
-class VecMvQpf (G : Vec (TypeFun m) n) [∀i, MvFunctor (G i)] where
+class VecMvQpf (G : Vec (TypeFun m) n) where
   prop : ∀ i, MvQpf (G i)
 
 namespace VecMvQpf
 
 
   /-- In case of an empty `Vec`, the statement is vacuous -/
-  instance instNil (G : Vec (TypeFun m) 0) [∀i, MvFunctor (G i)] : VecMvQpf G
+  instance instNil (G : Vec (TypeFun m) 0) : VecMvQpf G
     := ⟨by intro i; cases i⟩
 
   /-- 
@@ -22,7 +22,6 @@ namespace VecMvQpf
     Requires that `v` is reducible by type class inference.    
   -/
   instance instSucc  (G : Vec (TypeFun m) (.succ n)) 
-                              [∀i, MvFunctor (G i)]
                               [zero : MvQpf (G .fz)]
                               /-  It is important that the vector used in the recursive step remains 
                                   reducible, or the inference system will not find the appropriate 
@@ -43,8 +42,6 @@ namespace VecMvQpf
     instance
   -/
   instance instAppend1 (tl : Vec (TypeFun m) n) (hd : TypeFun m)
-                              [zeroF : MvFunctor hd]
-                              [succF : ∀i, MvFunctor (tl i)]
                               [zero : MvQpf hd]
                               [succ : VecMvQpf tl] : 
                           VecMvQpf (tl.append1 hd) := 
@@ -57,11 +54,11 @@ namespace VecMvQpf
 
   /-- Users need not be aware of `VecMvQpf`, they can simply write universally quantified type class 
       constraints  -/
-  instance instUnbox [∀i, MvFunctor (G i)] [inst : VecMvQpf G] : 
+  instance instUnbox [inst : VecMvQpf G] : 
     ∀i, MvQpf (G i) :=
   inst.prop
 
-  instance instBox [∀i, MvFunctor (G i)] [inst : ∀i, MvQpf (G i)] : 
+  instance instBox [inst : ∀i, MvQpf (G i)] : 
     VecMvQpf G :=
   ⟨inst⟩
 end VecMvQpf
