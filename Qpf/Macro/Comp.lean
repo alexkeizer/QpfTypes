@@ -59,7 +59,10 @@ def mkFin2Lit [Monad m] [MonadQuotation m] : Fin2 n → m Syntax
 #check List.indexOf
 
 open PrettyPrinter in
-partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Syntax := none) : TermElabM Syntax := do
+/--
+  Elaborate the body of a qpf
+-/
+partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Syntax := none) (normalized := false) : TermElabM Syntax := do
   let vars' := vars.toList;
   let arity := vars'.length;
   let arity_stx := mkNumLit arity.repr;
@@ -92,14 +95,19 @@ partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Synt
     
     let mut G : Array Syntax := #[]
     for a in args do
-      let Ga ← elabQpf vars a
+      let Ga ← elabQpf vars a none false
       G := G.push Ga
 
     let F_stx ← delab F;
     `(Comp $F_stx ![$G,*])
 
   else
-    throwError f!"Unexpected target expression :\n {target}"
+    if !normalized then
+      let target ← whnfR target
+      elabQpf vars target targetStx true
+    else 
+      throwError f!"Unexpected target expression :\n {target}"
+    
 
 
 
@@ -138,11 +146,9 @@ elab "qpf " F:ident deadBinders:bracketedBinder* liveBinders:binderIdent+ " := "
         return id
       else if kind == `Lean.Parser.Term.hole then
         mkFreshIdent id
-        -- let n ← mkFreshBinderName;
-        -- return mkIdent
       else 
         throwErrorAt id "identifier or `_` expected"
-
+    
     for id in ids do
       deadBinderNames := deadBinderNames.push id
 
@@ -157,6 +163,10 @@ elab "qpf " F:ident deadBinders:bracketedBinder* liveBinders:binderIdent+ " := "
       withLiveBinders liveBinders fun vars => do
         let target_expr ← elabTerm target none;
         elabQpf vars target_expr target
+
+  /-
+    Define the qpf using the elaborated body
+  -/
   
   let F_internal := mkIdent $ Name.mkStr F.getId "typefun";
   
@@ -168,12 +178,9 @@ elab "qpf " F:ident deadBinders:bracketedBinder* liveBinders:binderIdent+ " := "
       $body:term
   )
 
-  let mut F_internal_applied := F_internal
-  for name in deadBinderNames do
-    F_internal_applied ← `($F_internal_applied $name)
+  let F_internal_applied := mkApp (←`(@$F_internal)) deadBinderNames
 
-
-  elabCommand <|← `(
+  let cmd ← `(
       def $F $[$deadBinders]* :
         CurriedTypeFun $live_arity := 
       TypeFun.curried $F_internal_applied
@@ -182,16 +189,17 @@ elab "qpf " F:ident deadBinders:bracketedBinder* liveBinders:binderIdent+ " := "
         MvQpf ($F_internal_applied) := 
       by unfold $F_internal; infer_instance
   )  
+  -- dbg_trace cmd
+  elabCommand cmd
 
-  let mut Fapplied      := F
-  for name in deadBinderNames do
-    Fapplied ← `($Fapplied $name)
+  let F_applied := mkApp (←`(@$F)) deadBinderNames
 
-  -- However, if that fails, we try again through inference
-  elabCommand <|← `(command|
+  let cmd ← `(command|
     instance $[$deadBindersNoHoles]* : 
-      MvQpf (TypeFun.ofCurried $Fapplied) 
+      MvQpf (TypeFun.ofCurried $F_applied) 
     := by unfold $F; infer_instance
   )
+  dbg_trace cmd
+  elabCommand cmd
 
 end Macro.Comp

@@ -2,7 +2,9 @@ import Qpf
 import Qpf.Examples._01_List
 import Qpf.Examples._02_Tree
       
--- Projections
+/-
+## Projections
+-/ 
 
 -- every qpf whose target is just a variable, gets compiled to a projection
 qpf F₁ α β γ := γ
@@ -25,8 +27,9 @@ qpf F₂ α _ _ := α
 #reduce F₂ Nat Int (List Nat)
 
 
-
--- Constants
+/-
+## Constants
+-/
 qpf F_int α β := Int
 
 #print F_int
@@ -42,13 +45,59 @@ qpf F_list α β := QpfList Nat
 #reduce F_list Nat Nat
 
 
--- Composition
+/-
+## Composition
+-/ 
 example : MvQpf F₁.typefun := inferInstance
-example : MvQpf (TypeFun.ofCurried F₁) := inferInstance
+example : MvQpf (TypeFun.ofCurried F₁) := inferInstance 
 
--- qpf F₃ (γ : Type) α β := F₁ α β α
+qpf F₃ α β := F₁ α β α
 
--- #print F₃.typefun
--- #reduce F₃ Nat Int
+#print F₃.typefun
+#reduce F₃ Nat Int
 
 
+
+
+/-
+  ## Dead variables
+
+  So-called "dead" variables are non-functorial arguments.
+  That is, if `F` takes three arguments, say `F α β γ`, of which one, `α`, is dead, then
+  `F α` is a binary qpf, for all `α`, but `F` by itself is *not* a ternary qpf.
+
+  A variable can be marked dead by using a bracketed binder, and all dead variables must come before
+  live variables. 
+-/
+
+qpf F_dead (α : Nat) β γ := β
+qpf F_dead' (α m : Nat) {a : Type} β γ := β
+
+/-
+  The following will cause a parse error, either mark `α` dead as well, or re-order the variables
+  ```
+  qpf F_dead' α (γ : Nat) β := β
+  ```
+-/
+
+
+example : MvQpf (TypeFun.ofCurried $ F_dead a) := inferInstance
+
+/-
+  The following does not even typecheck. Since `α` may live in a different universe than the live
+  arguments, we cannot uncurry `F_dead`
+```lean4
+example : MvQpf (TypeFun.ofCurried F_dead) 
+  := by sorry
+```
+-/
+
+/-
+  A very common example of a type constructor with dead variables is that of (non-dependent)
+  arrows `α → β`. It is functorial in `β`, but not in `α`
+-/
+
+-- qpf arrow {α : Type _} (a : α) β := Prod.curried a β
+
+-- #check (Nat → Int)
+-- #reduce arrow Nat Int
