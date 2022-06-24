@@ -49,11 +49,12 @@ def List.indexOf' {α : Type} [inst : BEq α] :  α → (as : List α) → Optio
                       | some i => some <| .fs i
 
 
-def mkFin2Lit [Monad m] [MonadQuotation m] : Fin2 n → m Syntax
-  | .fz   => `( Fin2.fz )
-  | .fs i => do
-    let i_stx ← mkFin2Lit i
-    `( Fin2.fs $i_stx:term )
+def Fin2.quote {n : Nat} : Fin2 n → Syntax 
+  | .fz   => mkCIdent ``Fin2.fz
+  | .fs i => mkApp (mkCIdent ``Fin2.fs) #[quote i]
+
+instance : {n : Nat} → Quote (Fin2 n) := ⟨Fin2.quote⟩
+  
 
 
 #check List.indexOf
@@ -65,7 +66,7 @@ open PrettyPrinter in
 partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Syntax := none) (normalized := false) : TermElabM Syntax := do
   let vars' := vars.toList;
   let arity := vars'.length;
-  let arity_stx := mkNumLit arity.repr;
+  let arity_stx := quote arity;
 
   let varIds := vars'.map fun expr => expr.fvarId!
   let isLiveVar : FVarId → Bool
@@ -77,9 +78,7 @@ partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Synt
     | none      => throwError "Free variable {target} is not one of the qpf arguments"
     | some ind  => pure ind
 
-    dbg_trace "ind: {ind.toNat}"
-
-    let ind_stx ← mkFin2Lit ind.inv;
+    let ind_stx := quote ind.inv;
     `(@Prj $arity_stx $ind_stx)
 
   else if !target.hasAnyFVar isLiveVar then
@@ -126,7 +125,8 @@ def withLiveBinders [MonadControlT MetaM n] [Monad n] [MonadLiftT MetaM n]
   withLocalDeclsD decls f
 
 #check Array
-#check Syntax
+#check Syntax.isNone
+#check Syntax.atom
 
 elab "qpf " F:ident deadBinders:bracketedBinder* liveBinders:binderIdent+ " := " target:term : command => do  
   -- let deadBinders : Array Syntax := #[]
@@ -139,23 +139,38 @@ elab "qpf " F:ident deadBinders:bracketedBinder* liveBinders:binderIdent+ " := "
   let mut deadBinderNames := #[]
   
   for stx in deadBinders do
-    -- replace each hole with a fresh id
-    let ids ← stx[1].getArgs.mapM fun id => do
-      let kind := id.getKind
-      if kind == identKind then
-        return id
-      else if kind == `Lean.Parser.Term.hole then
-        mkFreshIdent id
-      else 
-        throwErrorAt id "identifier or `_` expected"
-    
-    for id in ids do
-      deadBinderNames := deadBinderNames.push id
+    let mut newArgStx := Syntax.missing
+    if stx.getKind == `Lean.Parser.Term.instBinder then
+      if stx[1].isNone then
+        throwErrorAt stx "Instances without names are not supported yet"
+        -- let id := mkIdentFrom stx (← mkFreshBinderName)
+        -- deadBinderNames := deadBinderNames.push id
+        -- newArgStx := stx[1].setArgs #[id, Syntax.atom SourceInfo.none ":"]
+      else    
+        dbg_trace stx[1]
+        let id := stx[1][0]
+        deadBinderNames := deadBinderNames.push id
+        newArgStx := stx[1]
+      
+    else
+      -- replace each hole with a fresh id
+      let ids ← stx[1].getArgs.mapM fun id => do
+        let kind := id.getKind
+        if kind == identKind then
+          return id
+        else if kind == `Lean.Parser.Term.hole then
+          return mkIdentFrom id (← mkFreshBinderName)
+        else 
+          throwErrorAt id "identifier or `_` expected, found {kind}"
+          
+      for id in ids do
+        deadBinderNames := deadBinderNames.push id
+      newArgStx := stx[1].setArgs ids
 
-    let newStx := stx.setArg 1 (stx[1].setArgs ids)
+    let newStx := stx.setArg 1 newArgStx
     deadBindersNoHoles := deadBindersNoHoles.push newStx
 
-  dbg_trace "dead_vars₂:\n {deadBinders}\n"
+  dbg_trace "dead_vars₂:\n {deadBindersNoHoles}\n"
 
 
   let body ← liftTermElabM none $ do
@@ -171,7 +186,7 @@ elab "qpf " F:ident deadBinders:bracketedBinder* liveBinders:binderIdent+ " := "
   let F_internal := mkIdent $ Name.mkStr F.getId "typefun";
   
   let live_arity := mkNumLit liveBinders.size.repr;
-  dbg_trace body
+  -- dbg_trace body
   elabCommand <|← `(
       def $F_internal $[$deadBinders]* : 
         TypeFun $live_arity := 
@@ -199,7 +214,10 @@ elab "qpf " F:ident deadBinders:bracketedBinder* liveBinders:binderIdent+ " := "
       MvQpf (TypeFun.ofCurried $F_applied) 
     := by unfold $F; infer_instance
   )
-  dbg_trace cmd
+  -- dbg_trace cmd
   elabCommand cmd
 
 end Macro.Comp
+
+
+qpf F (G : TypeFun 2) [q : MvQpf G] α β := G.curried α β

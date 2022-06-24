@@ -101,3 +101,7 @@ example : MvQpf (TypeFun.ofCurried F_dead)
 
 -- #check (Nat → Int)
 -- #reduce arrow Nat Int
+
+example (F : TypeFun 2) [q : MvQpf F] : true := by constructor
+
+qpf applyF (F : TypeFun 2) [MvQpf F] α β := α
