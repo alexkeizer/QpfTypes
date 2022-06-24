@@ -73,7 +73,7 @@ namespace QpfList
     := QpfList'.curried
 
   
-  instance qpf : MvQpf QpfList' := 
+  example : MvQpf QpfList' := 
     by infer_instance
 
 

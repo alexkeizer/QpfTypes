@@ -71,9 +71,9 @@ namespace QpfTree
     ]
 
   /-
-    There is also a `#qpf` command, which will define the right projections and compositions for us!
+    There is also a `qpf` command, which will define the right projections and compositions for us!
   -/
-  #qpf F_curried α β := Shape.F α (QpfList β)
+  qpf F_curried α β := Shape.F α (QpfList β)
 
   /-
     The command will give us a curried type function, the internal, uncurried, function can be found

@@ -111,9 +111,8 @@ def withBinders [MonadControlT MetaM n] [Monad n] [MonadLiftT MetaM n]
   withLocalDeclsD decls f
   
 
--- elab "qpf " F:ident dead_binders:bracketedBinder* live_binders:binderIdent+ " := " target:term : command => do  
-elab "#qpf " F:ident live_binders:binderIdent+ " := " target:term : command => do  
-  let dead_binders : Array Syntax := #[]
+elab "qpf " F:ident dead_binders:bracketedBinder* live_binders:binderIdent+ " := " target:term : command => do  
+  -- let dead_binders : Array Syntax := #[]
 
   dbg_trace "live_vars:\n {live_binders}\n"
   if dead_binders.size > 0 then
@@ -137,17 +136,23 @@ elab "#qpf " F:ident live_binders:binderIdent+ " := " target:term : command => d
         CurriedTypeFun $live_arity := 
       TypeFun.curried $F_internal
 
-      instance instInternal : MvQpf $F_internal := by unfold $F_internal; infer_instance
+      instance instInternal $[$dead_binders]* : 
+        MvQpf $F_internal := 
+      by unfold $F_internal; infer_instance
   )  
   elabCommand cmd
   try
     -- It seems that `instInternal` can be used as-is for the uncurried version of `F`
     elabCommand <|← `(command|
-      instance : MvQpf (TypeFun.ofCurried $F) := instInternal
+      instance $[$dead_binders]* : 
+        MvQpf (TypeFun.ofCurried $F) 
+      := instInternal
     )
   catch e =>
-    -- However, if that fails, we try again through by infering an instance
+    -- However, if that fails, we try again through inference
     elabCommand <|← `(command|
-      instance : MvQpf (TypeFun.ofCurried $F) := by unfold $F; infer_instance
+      instance $[$dead_binders]* : 
+        MvQpf (TypeFun.ofCurried $F) 
+      := by unfold $F; infer_instance
     )
 end Macro.Comp

@@ -116,10 +116,10 @@ namespace QpfStream
 
     So, we cannot use `QpfStream` to define another (co)datatype yet
   -/
-  def qpf : MvQpf QpfStream' 
+  def q : MvQpf QpfStream' 
     := inferInstance
 
-  #print axioms qpf
+  #print axioms q
   
 
 
