@@ -1,5 +1,6 @@
 import Qpf
 import Qpf.Examples._01_List
+import Qpf.Examples._02_Tree
       
 -- Projections
 
@@ -45,9 +46,9 @@ qpf F_list α β := QpfList Nat
 example : MvQpf F₁.typefun := inferInstance
 example : MvQpf (TypeFun.ofCurried F₁) := inferInstance
 
-qpf F₃ α β := F₁ α β α
+-- qpf F₃ (γ : Type) α β := F₁ α β α
 
-#print F₃.typefun
-#reduce F₃ Nat Int
+-- #print F₃.typefun
+-- #reduce F₃ Nat Int
 
 
