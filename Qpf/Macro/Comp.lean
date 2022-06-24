@@ -1,4 +1,5 @@
 import Qpf.Qpf
+import Qpf.Macro.Common
 
 namespace Macro.Comp
   open MvQpf
@@ -57,8 +58,6 @@ instance : {n : Nat} → Quote (Fin2 n) := ⟨Fin2.quote⟩
   
 
 
-#check List.indexOf
-
 open PrettyPrinter in
 /--
   Elaborate the body of a qpf
@@ -107,26 +106,6 @@ partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Synt
     else 
       throwError f!"Unexpected target expression :\n {target}"
     
-
-
-
-
-def withLiveBinders [MonadControlT MetaM n] [Monad n] [MonadLiftT MetaM n]
-                [Inhabited α]
-                (binders : Array Syntax) 
-                (f : Array Expr → n α) : n α
-:= do
-  let u := mkLevelSucc <|← mkFreshLevelMVar;
-  let decls := binders.map fun α => (
-      α[0].getId, 
-      fun _ => pure (mkSort u)
-    )
-
-  withLocalDeclsD decls f
-
-#check Array
-#check Syntax.isNone
-#check Syntax.atom
 
 elab "qpf " F:ident deadBinders:bracketedBinder* liveBinders:binderIdent+ " := " target:term : command => do  
   -- let deadBinders : Array Syntax := #[]
