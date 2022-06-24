@@ -218,6 +218,3 @@ elab "qpf " F:ident deadBinders:bracketedBinder* liveBinders:binderIdent+ " := "
   elabCommand cmd
 
 end Macro.Comp
-
-
-qpf F (G : TypeFun 2) [q : MvQpf G] α β := G.curried α β

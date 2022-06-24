@@ -104,4 +104,10 @@ example : MvQpf (TypeFun.ofCurried F_dead)
 
 example (F : TypeFun 2) [q : MvQpf F] : true := by constructor
 
-qpf applyF (F : TypeFun 2) [MvQpf F] α β := α
+/-
+  We can define functor combinators with the macro. For example, the following will flip the arguments
+  to any binary qpf.
+  `ToMvQpf F` is just a shorthand to say that the uncurried version of `F` implements `MvQpf`
+
+-/
+qpf flipF (F : CurriedTypeFun 2) [q : ToMvQpf F] α β := F β α

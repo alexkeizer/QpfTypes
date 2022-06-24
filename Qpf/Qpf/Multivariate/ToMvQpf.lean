@@ -1,8 +1,8 @@
 import Qpf.Qpf.Multivariate.Basic
 
 
-class ToMvQpf {n} (F : CurriedTypeFun n) where
-  q : MvQpf (TypeFun.ofCurried F)
+abbrev ToMvQpf {n} (F : CurriedTypeFun n) 
+  := MvQpf (TypeFun.ofCurried F)
 
 
 namespace MvQpf
@@ -14,11 +14,3 @@ namespace MvQpf
   ) q
     
 end MvQpf
-
-namespace ToMvQpf
-
-  instance instCurried {F : TypeFun n} [q : MvQpf F] : 
-    ToMvQpf F.curried := 
-  ⟨MvQpf.instCurriedOfCurried⟩  
-
-end ToMvQpf
