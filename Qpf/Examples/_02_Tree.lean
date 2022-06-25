@@ -70,7 +70,7 @@ namespace QpfTree
         Prj 1,
         -- Note that `TypeFun.ofCurried QpfList` expands to `TypeFun.ofCurried (QpfList'.curried)`
         -- We could just use `QpfList'` directly, since these are (propositionally) equal
-        MvQpf.Comp QpfList' ![Prj 0]
+        Comp QpfList' ![Prj 0]
     ]
 
   /-
@@ -133,14 +133,10 @@ namespace QpfTree
             fun i _ => match i with
             | 0 => by  
                     apply cast ?_ children;
-                    unfold QpfList; unfold QpfTree
-                    dsimp [QpfList, QpfTree]
-                    dsimp [QpfList, QpfTree, TypeFun.curried, TypeFun.curriedAux, TypeFun.reverseArgs]
+                    unfold QpfList;
+                    dsimp only [TypeFun.curried, TypeFun.curriedAux, TypeFun.reverseArgs]
                     apply congrArg
-                    rw[←Vec.normalize_lawful (fun i =>
-  Vec.append1 Vec.nil (Prj 0) i
-    (Vec.append1 (Vec.reverse (Vec.append1 Vec.nil α)) (Fix F_manual (Vec.reverse (Vec.append1 Vec.nil α)))))]
-                    rfl
+                    vec_eq;
             | 1 => a
     ⟩
 
