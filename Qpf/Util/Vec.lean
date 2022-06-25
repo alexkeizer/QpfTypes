@@ -36,7 +36,7 @@ unif_hint {α : Type _} (n : Nat) where |- DVec (Vec.constVec α n) =?= Vec α n
 
 namespace DVec
   /-- Return the last element from a `DVec` -/
-  def last (v : @DVec (n+1) αs ) : αs 0
+  abbrev last (v : @DVec (n+1) αs ) : αs 0
     := v 0
 
   /-- Drop the last element from a `DVec` -/
@@ -77,35 +77,14 @@ macro_rules
 
 
 
-
-
-
-
 namespace Vec
-  def reverse (v : Vec α n) : Vec α n :=
-    fun i => v i.inv
-
-
-  @[simp]
-  theorem reverse_involution {v : Vec α n} :
-    v.reverse.reverse = v :=
-  by
-    funext i;
-    simp[reverse]
-    apply congrArg;
-    exact Fin2.inv_involution
-
-
-
-
-
   theorem drop_append1 {v : Vec α n} {a : α} {i : Fin2 n} : 
       drop (append1 v a) i = v i := 
     rfl
 
   theorem drop_append1' {v : Vec α n} {a : α} : 
       drop (append1 v a) = v :=
-  by funext x; apply drop_append1
+  by funext x; rfl
 
   theorem last_append1 {v : Vec α n} {a : α} : 
     last (append1 v a) = a
@@ -117,18 +96,17 @@ namespace Vec
 
 
 
-
-
-
-
   /--
-    Turns `n`-ary vector into their canonical `![α(n-1), α(n-2), ..., α(1), α(0)]` form
+    Turns `n`-ary vector into their canonical `![α(n-1), α(n-2), ..., α(1), α(0)]` form.
+    `normalize_lawful` shows that this does not change the vector (up to functional extensionality),
+    but it has the nice side effect that vectors whose elements are definitionally equal, will be 
+    definitionally equal after normalization.
   -/
   def normalize : {n : Nat} → Vec α n → Vec α n
   | 0,    _ => nil
   | n+1,  v => append1 (normalize v.drop) v.last
 
-  theorem normalize_lawful {v : Vec α n} : 
+  theorem normalize_lawful (v : Vec α n) : 
     v.normalize = v :=
   by
     induction n
@@ -139,42 +117,69 @@ namespace Vec
     case succ _ ih =>
       rw[ih]
       apply append1_drop_last
+
+
+  
+  def reverse (v : Vec α n) : Vec α n :=
+    normalize (fun i => v i.inv)
+
+
+  @[simp]
+  theorem reverse_involution {v : Vec α n} :
+    v.reverse.reverse = v :=
+  by
+    funext i;
+    simp[reverse, normalize_lawful]
+    apply congrArg;
+    exact Fin2.inv_involution
 end Vec
 
 
+namespace DVec 
+  /--
+    Turns `n`-ary vector into a canonical form in terms of `append1`
+    `normalize_lawful` shows that this does not change the vector (up to functional extensionality),
+    but it has the nice side effect that vectors whose elements are definitionally equal, will be 
+    definitionally equal after normalization.
+  -/
+  def normalize : {n : Nat} → {αs : Vec (Type _) n} → DVec αs → DVec αs
+  | 0,   _,  _ => nil
+  | n+1, _,  v => append1 (normalize v.drop) v.last
+                  |> cast (congrArg _ (Vec.append1_drop_last _))
 
--- #check Lean.Meta.getMVarDecl
 
--- section 
---   open Lean Tactic Elab.Tactic
+  theorem append1_drop_last {αs : Vec _ (n+1)} (v : DVec αs) : 
+    append1 (drop v) (last v) |> HEq v :=
+  by
+    have type_eq : DVec αs = DVec (Vec.append1 (Vec.drop αs) (αs.last))
+      := congrArg _ (Vec.append1_drop_last _).symm;
+    have : HEq v (cast type_eq v)
+      := by simp_heq
+    apply HEq.trans this
+    apply heq_of_eq
+    funext i;
+    cases i <;> {    
+      rw [cast_arg _]
+      case h₁ => rfl
+      case h₃ => simp[cast_eq]
+      rfl
+    }
+      
 
--- def elabVecEqAux : TacticM Unit := do
---   evalTactic <|← `(tactic| sorry)
+  theorem normalize_lawful {αs : Vec _ n} (v : DVec αs) :
+    v.normalize = v :=
+  by
+    induction n
+    <;> simp[normalize]
+    case zero =>
+      funext i; cases i;
+
+    case succ _ ih =>
+      rw[ih]
+      apply eq_of_heq
+      simp_heq
+      apply HEq.symm
+      apply append1_drop_last
 
 
--- #check Lean.Expr.app
-
--- open Lean Meta Elab.Term Expr in
--- elab "vec_eq " a:term b:term : term => do
---   let α ← mkFreshTypeMVar
---   let n ← mkFreshExprMVar (mkConst ``Nat)
-
---   let vec_type := mkApp2 (mkConst ``Vec) n α
-
---   let a' ← elabTermEnsuringType a vec_type
---   let b' ← elabTermEnsuringType b vec_type
-
---   synthesizeSyntheticMVarsNoPostponing
-
---   let n' ← match ←getExprMVarAssignment? n.mvarId! with
---   | none    => throwError "Failed to assign a value to {n}"
---   | some n' => pure n'
-  
---   match ← whnf n' with
---   | Expr.app (Expr.const (`Nat.cons) ..) .. => 
---       by sorry
---   | Expr.app (Expr.const (`Nat) ..) ..        => 
---       by sorry
---   | _                                       => throwErrow "Nat literal expected:\n\t{n}"
-  
--- end
+end DVec

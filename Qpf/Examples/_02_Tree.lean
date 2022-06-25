@@ -1,5 +1,6 @@
 import Qpf
 import Qpf.Examples._01_List
+import Qpf.Macro.Tactic.FinDestr
 
 open MvQpf
 
@@ -64,9 +65,11 @@ namespace QpfTree
     ```
   -/
 
-  def F_manual : TypeFun 2
+  abbrev F_manual : TypeFun 2
     := Comp Shape.P.Obj ![
         Prj 1,
+        -- Note that `TypeFun.ofCurried QpfList` expands to `TypeFun.ofCurried (QpfList'.curried)`
+        -- We could just use `QpfList'` directly, since these are (propositionally) equal
         MvQpf.Comp QpfList' ![Prj 0]
     ]
 
@@ -83,7 +86,28 @@ namespace QpfTree
 
   abbrev F := F_curried.typefun
 
-  #check (F : TypeFun 2)
+
+  /-
+    Indeed, the macro produces exactly the functor we defined manually
+  -/
+  example : F_manual = F_curried.typefun := rfl
+  /-
+    The keen reader might have noticed that we defined `F_manual` in terms of the uncurried functors
+    `Shape.P.Obj`
+  -/
+
+
+    -- -- Unfold the definitions, to see both are applications of `Comp`
+    -- dsimp [F_manual, F_curried.typefun]
+    -- apply congrArg;
+
+    -- -- At this point, the goal is to show that two vectors, of known size are equal.
+    -- -- These vectors are not definitially equal, but their respective elements are.
+    -- funext i;
+    -- -- The following tactic takes a `i : Fin2 n`, where `n` is a known constant, and breaks the goal
+    -- -- into `n` subgoals, one for each concrete possible value of `i`
+    -- fin_destr i <;> rfl
+    
 
 
   /-
@@ -92,7 +116,7 @@ namespace QpfTree
   -/
   example : MvQpf F := by infer_instance
 
-  abbrev QpfTree' := Fix F
+  abbrev QpfTree' := Fix F_manual
   abbrev QpfTree  := QpfTree'.curried
 
   /-
@@ -107,20 +131,16 @@ namespace QpfTree
   def node (a : α) (children : QpfList (QpfTree α)) : QpfTree α :=
     Fix.mk ⟨Shape.HeadT.node, 
             fun i _ => match i with
-            | 0 => cast (by
-                      unfold QpfList; unfold QpfTree
-                      unfold TypeFun.curried
-                      simp only [TypeFun.curriedAux, TypeFun.reverseArgs]
-                      simp only [Vec.append1, Vec.reverse]
-                      simp only [Prj, Comp]
-                      apply congrArg
-
-                      funext j; 
-                      match j with
-                      | .fs _ => contradiction
-                      | .fz =>
-                        simp only [Fin2.inv, Fin2.last, Vec.append1, TypeVec.append1, Vec.reverse]
-                    ) children                    
+            | 0 => by  
+                    apply cast ?_ children;
+                    unfold QpfList; unfold QpfTree
+                    dsimp [QpfList, QpfTree]
+                    dsimp [QpfList, QpfTree, TypeFun.curried, TypeFun.curriedAux, TypeFun.reverseArgs]
+                    apply congrArg
+                    rw[←Vec.normalize_lawful (fun i =>
+  Vec.append1 Vec.nil (Prj 0) i
+    (Vec.append1 (Vec.reverse (Vec.append1 Vec.nil α)) (Fix F_manual (Vec.reverse (Vec.append1 Vec.nil α)))))]
+                    rfl
             | 1 => a
     ⟩
 

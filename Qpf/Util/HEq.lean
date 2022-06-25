@@ -199,7 +199,7 @@ section Tactic
   | `(tactic| simp_heq $[$cfg:config]? $[$dis:discharger]? $[$loc:location]? ) 
       => `(tactic| simp $[$cfg]? $[$dis]? 
                         only [cast_trans, heq_cast_left, heq_cast_right, cast_eq, cast_heq,
-                          heq_cast_left_fun, heq_cast_right_fun, cast_arg']
+                          heq_cast_left_fun, heq_cast_right_fun, cast_arg', HEq.refl]
                         $[$loc]?
           )
 
