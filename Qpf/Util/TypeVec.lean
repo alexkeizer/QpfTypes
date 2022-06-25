@@ -88,26 +88,13 @@ namespace TypeVec
   infixl:67 " ::: " => append1
 
   /-- drop the last type from a `TypeVec` -/
-  abbrev drop : TypeVec (n.succ) → TypeVec n := Vec.drop
-
-  theorem drop_append1 {α : TypeVec n} {β : Type _} {i : Fin2 n} : 
-      drop (append1 α β) i = α i := 
-    rfl
-
-  theorem drop_append1' {α : TypeVec n} {β : Type _} : 
-      drop (append1 α β) = α :=
-  by funext x; apply drop_append1
-
-  theorem last_append1 {α : TypeVec n} {β : Type _} : last (append1 α β) = β := rfl
-
   @[simp]
-  theorem append1_drop_last (α : TypeVec (n+1)) : append1 (drop α) (last α) = α :=
-  funext $ λ i => by cases i; rfl; rfl
+  abbrev drop : TypeVec (n.succ) → TypeVec n := Vec.drop
 
   
   def append1_cases
     {C : TypeVec (n+1) → Sort u} (H : ∀ α β, C (append1 α β)) (γ) : C γ :=
-  by rw [← @append1_drop_last _ γ]; apply H
+  by rw [← @Vec.append1_drop_last _ _ γ]; apply H
 
   @[simp] theorem append1_cases_append1 {C : TypeVec (n+1) → Sort u}
     (H : ∀ α β, C (append1 α β)) (α β) :
@@ -150,12 +137,12 @@ namespace TypeVec
   def Arrow.mpr {α β : TypeVec n} (h : α = β) : β ⟹ α
   | i => Eq.mpr (congrFun h _)
 
-  def to_append1_drop_last {α : TypeVec (n+1)} : α ⟹ drop α ::: last α :=
-  Arrow.mpr (append1_drop_last _)
+  def to_Vec.append1_drop_last {α : TypeVec (n+1)} : α ⟹ drop α ::: last α :=
+  Arrow.mpr (Vec.append1_drop_last _)
 
   /-- stitch two bits of a vector back together -/
-  def from_append1_drop_last {α : TypeVec (n+1)} : drop α ::: last α ⟹ α :=
-  Arrow.mp (append1_drop_last _)
+  def from_Vec.append1_drop_last {α : TypeVec (n+1)} : drop α ::: last α ⟹ α :=
+  Arrow.mp (Vec.append1_drop_last _)
 
   @[simp] theorem last_fun_split_fun {α α' : TypeVec (n+1)}
     (f : drop α ⟹ drop α') (g : last α → last α') :
@@ -293,7 +280,7 @@ namespace TypeVec
     ∀ v v' fs, β v v' fs :=
   by 
     intros v v'
-    rw [←append1_drop_last v, ←append1_drop_last v']
+    rw [←Vec.append1_drop_last v, ←Vec.append1_drop_last v']
     intro fs
     rw [←split_drop_fun_last_fun fs]
     apply F
@@ -685,8 +672,6 @@ theorem last_fun_of_subtype {α} (p : α ⟹ Repeat (n + 1) Prop) : lastFun (ofS
 theorem drop_fun_relLast {α : TypeVec n} {β} (R : β → β → Prop) : dropFun (relLast' α R) = repeatEq α :=
   rfl
 
-attribute [simp] drop_append1'
-
 -- open_locale MvFunctor
 
 @[simp]
@@ -709,11 +694,11 @@ by
   rfl
 
 @[simp]
-theorem drop_fun_from_append1_drop_last {α : TypeVec (n + 1)} : dropFun (@from_append1_drop_last _ α) = id :=
+theorem drop_fun_from_Vec.append1_drop_last {α : TypeVec (n + 1)} : dropFun (@from_Vec.append1_drop_last _ α) = id :=
   rfl
 
 @[simp]
-theorem last_fun_from_append1_drop_last {α : TypeVec (n + 1)} : lastFun (@from_append1_drop_last _ α) = _root_.id :=
+theorem last_fun_from_Vec.append1_drop_last {α : TypeVec (n + 1)} : lastFun (@from_Vec.append1_drop_last _ α) = _root_.id :=
   rfl
 
 @[simp]

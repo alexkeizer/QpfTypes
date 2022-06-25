@@ -61,19 +61,6 @@ namespace Vec
 
   abbrev nil  : Vec α 0           := DVec.nil
   abbrev last : Vec α n.succ → α  := DVec.last
-
-  def reverse (v : Vec α n) : Vec α n :=
-    fun i => v i.inv
-
-
-  @[simp]
-  theorem reverse_involution {v : Vec α n} :
-    v.reverse.reverse = v :=
-  by
-    funext i;
-    simp[reverse]
-    apply congrArg;
-    exact Fin2.inv_involution
 end Vec
 
 
@@ -89,6 +76,70 @@ macro_rules
   | `(![ $xs,* , $x]) => `(Vec.append1 ![$xs,*] $x)
 
 
+
+
+
+
+
+namespace Vec
+  def reverse (v : Vec α n) : Vec α n :=
+    fun i => v i.inv
+
+
+  @[simp]
+  theorem reverse_involution {v : Vec α n} :
+    v.reverse.reverse = v :=
+  by
+    funext i;
+    simp[reverse]
+    apply congrArg;
+    exact Fin2.inv_involution
+
+
+
+
+
+  theorem drop_append1 {v : Vec α n} {a : α} {i : Fin2 n} : 
+      drop (append1 v a) i = v i := 
+    rfl
+
+  theorem drop_append1' {v : Vec α n} {a : α} : 
+      drop (append1 v a) = v :=
+  by funext x; apply drop_append1
+
+  theorem last_append1 {v : Vec α n} {a : α} : 
+    last (append1 v a) = a
+  := rfl
+
+  @[simp]
+  theorem append1_drop_last (v : Vec α (n+1)) : append1 (drop v) (last v) = v :=
+    funext $ fun i => by cases i; rfl; rfl
+
+
+
+
+
+
+
+  /--
+    Turns `n`-ary vector into their canonical `![α(n-1), α(n-2), ..., α(1), α(0)]` form
+  -/
+  def normalize : {n : Nat} → Vec α n → Vec α n
+  | 0,    _ => nil
+  | n+1,  v => append1 (normalize v.drop) v.last
+
+  theorem normalize_lawful {v : Vec α n} : 
+    v.normalize = v :=
+  by
+    induction n
+    <;> simp[normalize]
+    case zero =>
+      funext i; cases i;
+
+    case succ _ ih =>
+      rw[ih]
+      apply append1_drop_last
+end Vec
 
 
 
