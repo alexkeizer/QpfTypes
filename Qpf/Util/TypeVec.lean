@@ -39,14 +39,8 @@ universe u v w
 -- set_option pp.all true 
 
 
-
-/--
-n-tuples of types, as a category
--/
-def TypeVec := Vec (Type _)
-
 instance {n} : Inhabited (TypeVec.{u} n) :=
-  ⟨fun _ => PUnit⟩
+  Vec.instInhabited
 
 namespace TypeVec
   export Vec (last)
@@ -57,27 +51,47 @@ namespace TypeVec
   abbrev nil : TypeVec 0 := Vec.nil
 
   /-- arrow in the category of `typevec` -/
-  -- def Arrow (α β : TypeVec n) := ∀ i : Fin2 n, α i → β i
-  abbrev Arrow (α β : TypeVec n) := DVec (fun i => α i → β i)
+  def Arrow (α β : TypeVec n) := 
+    let rec aux : {n : Nat} → TypeVec n → TypeVec n → TypeVec n
+      | 0, .nil,               .nil                => .nil
+      | _, .append1 α_tl α_hd, .append1 β_tl β_hd  => .append1 (aux α_tl β_tl) (α_hd → β_hd)
+    DVec (aux α β)
 
   infixl:40 " ⟹ " => Arrow
 
-  /-- Identity Arrow of `TypeVec` -/
-  def id {α : TypeVec n} : α ⟹ α := λ i x => x
+  /-- Identity Arrow of `TypeVec`, is a vector with just identity functions -/
+  def id : {n : Nat} → {α : TypeVec.{u} n} →  α ⟹ α
+    | 0, .nil         => .nil
+    | _, .append1 ..  => .append1 id _root_.id
 
   /-- Composition of `TypeVec` Arrows -/
-  def comp {α β γ : TypeVec n} (g : β ⟹ γ) (f : α ⟹ β) : α ⟹ γ :=
-  λ i x => g i (f i x)
+  def comp : {n : Nat} → {α β γ : TypeVec n} → (β ⟹ γ) → (α ⟹ β) → (α ⟹ γ)
+  | 0,   .nil,          .nil,         .nil,         _, _ => .nil
+  | n+1, .append1 _ _,  .append1 _ _, .append1 _ _, g, f => 
+    .append1 (comp g.drop f.drop) (fun x => g.last (f.last x))
+  -- λ i x => g i (f i x)
 
   infixr:80 " ⊚ " => TypeVec.comp   -- type as \oo
 
   
-  @[simp] theorem id_comp {α β : TypeVec n} (f : α ⟹ β) : id ⊚ f = f := rfl
+  @[simp] theorem id_comp {α β : TypeVec n} (f : α ⟹ β) : id ⊚ f = f := 
+  by
+    induction n <;> cases α <;> cases β <;> cases f
+    . rfl
+    . simp[*, comp, id, DVec.drop]
 
-  @[simp] theorem comp_id {α β : TypeVec n} (f : α ⟹ β) : f ⊚ id = f := rfl
+  @[simp] theorem comp_id {α β : TypeVec n} (f : α ⟹ β) : f ⊚ id = f :=
+  by
+    induction n <;> cases α <;> cases β <;> cases f
+    . rfl
+    . simp[*, comp, id, DVec.drop]
 
   theorem comp_assoc {α β γ δ : TypeVec n} (h : γ ⟹ δ) (g : β ⟹ γ) (f : α ⟹ β) :
-    (h ⊚ g) ⊚ f = h ⊚ g ⊚ f := rfl
+    (h ⊚ g) ⊚ f = h ⊚ g ⊚ f :=
+  by
+    induction n <;> cases α <;> cases β <;> cases γ <;> cases δ
+    . rfl
+    . simp[*, comp, DVec.drop]
 
 
   /-- Appends a single type to a `TypeVec` -/
@@ -101,24 +115,22 @@ namespace TypeVec
     @append1_cases _ C H (append1 α β) = H α β := rfl
 
 
-  def splitFun {α α' : TypeVec (n+1)}
-    (f : drop α ⟹ drop α') (g : last α → last α') : α ⟹ α'
-  | (Fin2.fs i) => f i
-  | Fin2.fz      => g
+  -- def splitFun {α α' : TypeVec (n+1)}
+  --   (f : drop α ⟹ drop α') (g : last α → last α') : α ⟹ α'
+  -- := DVec.append1 f g
 
   def appendFun {α α' : TypeVec n} 
                 {β β' : Type _} 
                 (f : α ⟹ α') 
                 (g : β → β') 
                   : α ::: β ⟹ α' ::: β' 
-    := splitFun f g
+    := .append1 f g
 
   infixl:67 " ::: " => appendFun
 
 
   abbrev dropFun {α β : TypeVec (n+1)} (f : α ⟹ β) : drop α ⟹ drop β 
-    :=
-  λ i => f i.fs
+    := DVec.drop
 
   def lastFun {α β : TypeVec (n+1)} (f : α ⟹ β) : last α → last β :=
   f Fin2.fz
