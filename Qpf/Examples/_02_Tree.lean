@@ -65,11 +65,9 @@ namespace QpfTree
     ```
   -/
 
-  abbrev F_manual : TypeFun 2
+  abbrev Manual.F : TypeFun 2
     := Comp Shape.P.Obj ![
         Prj 1,
-        -- Note that `TypeFun.ofCurried QpfList` expands to `TypeFun.ofCurried (QpfList'.curried)`
-        -- We could just use `QpfList'` directly, since these are (propositionally) equal
         Comp QpfList' ![Prj 0]
     ]
 
@@ -83,19 +81,9 @@ namespace QpfTree
     under `.typefun`
   -/
   #check (F_curried : Type _ → Type _ → Type _)
+  #check (F_curried.typefun : TypeFun 2)
 
   abbrev F := F_curried.typefun
-
-
-  /-
-    Indeed, the macro produces exactly the functor we defined manually
-  -/
-  example : F_manual = F_curried.typefun := rfl
-  /-
-    The keen reader might have noticed that we defined `F_manual` in terms of the uncurried functors
-    `Shape.P.Obj`
-  -/
-
 
     -- -- Unfold the definitions, to see both are applications of `Comp`
     -- dsimp [F_manual, F_curried.typefun]
@@ -116,27 +104,28 @@ namespace QpfTree
   -/
   example : MvQpf F := by infer_instance
 
-  abbrev QpfTree' := Fix F_manual
+  abbrev QpfTree' := Fix F
   abbrev QpfTree  := QpfTree'.curried
 
   /-
   ## Constructor
 
-  We'd like to take `QpfList (QpfTree α)` as an argument, since that is what users expect.
-  However, `Fix.mk` expects something akin to `(Comp QpfList' ![Prj 0]) ![_, QpfTree' ![α]]`,
-  which is not definitionally equal, so we'll have to massage the types a bit
+  -- We'd like to take `QpfList (QpfTree α)` as an argument, since that is what users expect.
+  -- However, `Fix.mk` expects something akin to `(Comp QpfList' ![Prj 0]) ![_, QpfTree' ![α]]`,
+  -- which is not definitionally equal, so we'll have to massage the types a bit
   -/
 
 
   def node (a : α) (children : QpfList (QpfTree α)) : QpfTree α :=
     Fix.mk ⟨Shape.HeadT.node, 
             fun i _ => match i with
-            | 0 => by  
-                    apply cast ?_ children;
-                    unfold QpfList;
-                    dsimp only [TypeFun.curried, TypeFun.curriedAux, TypeFun.reverseArgs]
-                    apply congrArg
-                    vec_eq;
+            | 0 => children
+                    -- by  
+                    -- apply cast ?_ children;
+                    -- unfold QpfList;
+                    -- dsimp only [TypeFun.curried, TypeFun.curriedAux, TypeFun.reverseArgs]
+                    -- apply congrArg
+                    -- vec_eq;
             | 1 => a
     ⟩
 

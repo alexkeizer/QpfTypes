@@ -19,19 +19,26 @@ namespace Macro
     Tries to prevent unneccesary `ofCurried / curried` roundtrips
   -/
   def uncurry (F : Expr) : n Expr := do
-    let n       ← mkFreshExprMVar (mkConst ``Nat)
-    let F_inner ← mkFreshExprMVar (kind:=MetavarKind.synthetic) none
-    let us      ← mkFreshLevelMVars 2
-    let app     := mkApp2 (mkConst ``TypeFun.curried us) n F_inner
-    
-    dbg_trace "\nChecking defEq of {F} and {app}"
-    if (←isDefEq F app) then
-      if let some F' :=  (← getExprMVarAssignment? F_inner.mvarId!) then
-        dbg_trace "yes: {F'}"
-        return F'
-    
-    dbg_trace "no"
     mkAppM ``TypeFun.ofCurried #[F]
+
+    --
+    -- Although preventing unneccesary `ofCurried / curried` roundtrips seems like a good idea,
+    -- leaving them in actually causes more definitional equality (e.g., in the `_02_Tree` example)
+    --
+
+    -- let n       ← mkFreshExprMVar (mkConst ``Nat)
+    -- let F_inner ← mkFreshExprMVar (kind:=MetavarKind.synthetic) none
+    -- let us      ← mkFreshLevelMVars 2
+    -- let app     := mkApp2 (mkConst ``TypeFun.curried us) n F_inner
+    
+    -- dbg_trace "\nChecking defEq of {F} and {app}"
+    -- if (←isDefEq F app) then
+    --   if let some F' :=  (← getExprMVarAssignment? F_inner.mvarId!) then
+    --     dbg_trace "yes: {F'}"
+    --     return F'
+    
+    -- dbg_trace "no"
+    -- mkAppM ``TypeFun.ofCurried #[F]
 
   
 
