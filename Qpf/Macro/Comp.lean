@@ -181,6 +181,3 @@ elab "qpf " F:ident sig:optDeclSig " := " target:term : command => do
   elabCommand cmd
 
 end Macro.Comp
-
-
-qpf F (i : Fin2 n) _ α β := α
