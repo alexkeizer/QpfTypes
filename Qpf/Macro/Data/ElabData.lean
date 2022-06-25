@@ -8,7 +8,8 @@ import Lean.Elab.Inductive
 import Lean.Elab.Term
 
 import Qpf.Macro.Data.Internals
-import Qpf.Macro.Data.MkQpf
+-- import Qpf.Macro.Data.MkQpf
+import Qpf.Macro.Common
 
 open Lean Meta Elab.Command
 open Elab (Modifiers elabModifiers)
@@ -44,14 +45,11 @@ section
 /-
   A modified version of `elabInductiveViews`
 -/
-def elabDataViews (views : Array InductiveView) : CommandElabM Unit := do
-  if views.size > 1 then
-    throwError "Mutual definitions are not supported"
-  let view := views[0]
+def elabDataView (view : InductiveView) : CommandElabM Unit := do
   let ref := view.ref
   let decl ← runTermElabM view.declName fun vars => withRef ref do
-    trace[Meta.debug] "vars = {vars}"
     let decl ← mkDataDecl vars view
+    trace[Meta.debug] "vars = {vars}"
     trace[Meta.debug] "type = {decl.inner.type}"
     trace[Meta.debug] "nparams = {decl.nparams}"
     trace[Meta.debug] "lparams = {decl.lparams}"
@@ -59,8 +57,23 @@ def elabDataViews (views : Array InductiveView) : CommandElabM Unit := do
       throwError "Unsafe data declarations are not supported"      
     pure decl
   
-  mkQpf decl
+  -- mkQpf decl
 end
+  
+
+
+open Macro
+
+def elabDataView' (view: InductiveView) : CommandElabM Unit := do
+  let ref := view.ref
+  liftTermElabM view.declName <| do
+    dbg_trace view.binders
+    let (liveVars, deadVars) ← splitLiveAndDeadBinders view.binders.getArgs
+    dbg_trace "liveVars: {liveVars}"
+    dbg_trace "deadVars: {deadVars}"
+
+    return ()
+
 
 
 /-- Top-level elaboration -/
@@ -69,8 +82,7 @@ def elabData : CommandElab := fun stx => do
   let modifiers ← elabModifiers stx[0]
   let decl := stx[1]
   let view ← inductiveSyntaxToView modifiers decl
-  let views := #[view]
-  elabDataViews views
+  elabDataView view
   pure ()
 
 end Data.Command

@@ -107,56 +107,39 @@ partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Synt
       throwError f!"Unexpected target expression :\n {target}"
     
 
-elab "qpf " F:ident deadBinders:bracketedBinder* liveBinders:binderIdent+ " := " target:term : command => do  
-  -- let deadBinders : Array Syntax := #[]
+
+elab "qpf " F:ident sig:optDeclSig " := " target:term : command => do  
+  dbg_trace sig
+  let (liveBinders, deadBinders) ← splitLiveAndDeadBinders sig[0].getArgs
 
   dbg_trace "live_vars:\n {liveBinders}\n"
   if deadBinders.size > 0 then
     dbg_trace "dead_vars:\n {deadBinders}\n"
 
-  let mut deadBindersNoHoles := #[]
-  let mut deadBinderNames := #[]
+  let (deadBindersNoHoles, deadBinderNames) ← mkFreshNamesForBinderHoles deadBinders
+
+  dbg_trace "dead_vars_no_holes:\n {deadBindersNoHoles}\n"
   
-  for stx in deadBinders do
-    let mut newArgStx := Syntax.missing
-    if stx.getKind == `Lean.Parser.Term.instBinder then
-      if stx[1].isNone then
-        throwErrorAt stx "Instances without names are not supported yet"
-        -- let id := mkIdentFrom stx (← mkFreshBinderName)
-        -- deadBinderNames := deadBinderNames.push id
-        -- newArgStx := stx[1].setArgs #[id, Syntax.atom SourceInfo.none ":"]
-      else    
-        dbg_trace stx[1]
-        let id := stx[1][0]
-        deadBinderNames := deadBinderNames.push id
-        newArgStx := stx[1]
-      
-    else
-      -- replace each hole with a fresh id
-      let ids ← stx[1].getArgs.mapM fun id => do
-        let kind := id.getKind
-        if kind == identKind then
-          return id
-        else if kind == `Lean.Parser.Term.hole then
-          return mkIdentFrom id (← mkFreshBinderName)
-        else 
-          throwErrorAt id "identifier or `_` expected, found {kind}"
-          
-      for id in ids do
-        deadBinderNames := deadBinderNames.push id
-      newArgStx := stx[1].setArgs ids
-
-    let newStx := stx.setArg 1 newArgStx
-    deadBindersNoHoles := deadBindersNoHoles.push newStx
-
-  dbg_trace "dead_vars₂:\n {deadBindersNoHoles}\n"
-
-
   let body ← liftTermElabM none $ do
-    elabBinders deadBinders fun deadVars => 
-      withLiveBinders liveBinders fun vars => do
-        let target_expr ← elabTerm target none;
-        elabQpf vars target_expr target
+    let body_type ← 
+      if let some sigInner := sig[1].getOptional? then
+        let u ← mkFreshLevelMVar;
+        dbg_trace sigInner
+        dbg_trace sigInner[1]
+        let type ← elabTermEnsuringType sigInner[1] (mkSort <| mkLevelSucc u)
+        if !(←whnf type).isType then
+          throwErrorAt sigInner[1] "invalid qpf, resulting type must be a type (e.g., `Type`, `Type _`, or `Type u`)"
+        pure type
+      else 
+        let u ← mkFreshLevelMVar;
+        pure <| mkSort <| mkLevelSucc u
+  
+    withAutoBoundImplicit <|
+      elabBinders deadBinders fun deadVars => 
+        withLiveBinders liveBinders fun vars =>
+          withoutAutoBoundImplicit <| do
+            let target_expr ← elabTermEnsuringType target body_type;
+            elabQpf vars target_expr target
 
   /-
     Define the qpf using the elaborated body
@@ -172,7 +155,8 @@ elab "qpf " F:ident deadBinders:bracketedBinder* liveBinders:binderIdent+ " := "
       $body:term
   )
 
-  let F_internal_applied := mkApp (←`(@$F_internal)) deadBinderNames
+  let deadBinderNamedArgs ← deadBinderNames.mapM fun n => `(Parser.Term.namedArgument| ($n:ident := $n:term))
+  let F_internal_applied := mkApp F_internal deadBinderNamedArgs
 
   let cmd ← `(
       def $F $[$deadBinders]* :
@@ -186,7 +170,7 @@ elab "qpf " F:ident deadBinders:bracketedBinder* liveBinders:binderIdent+ " := "
   -- dbg_trace cmd
   elabCommand cmd
 
-  let F_applied := mkApp (←`(@$F)) deadBinderNames
+  let F_applied := mkApp F deadBinderNamedArgs
 
   let cmd ← `(command|
     instance $[$deadBindersNoHoles]* : 
@@ -197,3 +181,6 @@ elab "qpf " F:ident deadBinders:bracketedBinder* liveBinders:binderIdent+ " := "
   elabCommand cmd
 
 end Macro.Comp
+
+
+qpf F (i : Fin2 n) _ α β := α
