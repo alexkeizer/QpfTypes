@@ -9,6 +9,32 @@ namespace Macro
             [MonadError n] [MonadLog n] [AddMessageContext n]
             [MonadQuotation n]
 
+
+  #check @TypeFun.curried
+  #check Exception
+
+  /--
+    Takes an expression `e` of type `CurriedTypeFun n` and returns an expression of type `TypeFun n`
+    representing the uncurried version of `e`.
+    Tries to prevent unneccesary `ofCurried / curried` roundtrips
+  -/
+  def uncurry (F : Expr) : n Expr := do
+    let n       ← mkFreshExprMVar (mkConst ``Nat)
+    let F_inner ← mkFreshExprMVar (kind:=MetavarKind.synthetic) none
+    let us      ← mkFreshLevelMVars 2
+    let app     := mkApp2 (mkConst ``TypeFun.curried us) n F_inner
+    
+    dbg_trace "\nChecking defEq of {F} and {app}"
+    if (←isDefEq F app) then
+      if let some F' :=  (← getExprMVarAssignment? F_inner.mvarId!) then
+        dbg_trace "yes: {F'}"
+        return F'
+    
+    dbg_trace "no"
+    mkAppM ``TypeFun.ofCurried #[F]
+
+  
+
   def withLiveBinders [Inhabited α]
                   (binders : Array Syntax) 
                   (f : Array Expr → n α) : n α

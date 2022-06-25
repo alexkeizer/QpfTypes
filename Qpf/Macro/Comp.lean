@@ -7,13 +7,14 @@ namespace Macro.Comp
   open Syntax
 
 
+
 /--
   Given an expression `e`, tries to find the largest subexpression `F` such that 
     * `e = F α₀ ... αₙ`, for some list of arguments `α_i` and
     * `F` contains no live variables
   Then, tries to infer an instance of `MvQpf (TypeFun.curried F)`
 -/
-def parseApp (isLiveVar : FVarId → Bool) (e : Expr) : TermElabM (Expr × (List Expr))
+protected def parseApp (isLiveVar : FVarId → Bool) (e : Expr) : TermElabM (Expr × (List Expr))
   := 
     if !e.isApp then
       throwError "application expected:\n {e}"
@@ -27,7 +28,7 @@ where
       let (G, args) ← parseAppAux F;
       return (G, args ++ [a])
     else
-      let F ← mkAppM ``TypeFun.ofCurried #[F]
+      let F ← uncurry F
       let inst_type ← mkAppM ``MvQpf #[F];
       -- We don't need the instance, we just need to know it exists
       let _ ← synthesizeInst inst_type    
@@ -89,7 +90,7 @@ partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Synt
 
   else if target.isApp then
     dbg_trace f!"target {target} is an application"
-    let (F, args) ← (parseApp isLiveVar target)
+    let (F, args) ← (Comp.parseApp isLiveVar target)
     
     let mut G : Array Syntax := #[]
     for a in args do
