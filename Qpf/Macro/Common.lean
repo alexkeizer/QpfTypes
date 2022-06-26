@@ -139,11 +139,18 @@ namespace Macro
 
 
   
-  open Lean.Parser.Term
+  open Lean.Parser.Term in
   elab "#dbg_syntax " t:term : command => do
-    dbg_trace ←`(namedArgument| (a:=a))
     dbg_trace t
 
   #dbg_syntax F (a:=2)
+  
+  open Lean.Parser.Term Elab.Command in
+  elab "#dbg_expr " t:term : command => do
+    let expr ← liftTermElabM none $ elabTerm t none
+    dbg_trace expr
+    dbg_trace expr.isForall
+
+  #dbg_expr (Nat → Int)
 
 end Macro

@@ -64,13 +64,43 @@ end
 
 open Macro
 
+-- needed for `view.derivingClasses[0]` to be accpted down below
+instance : Inhabited Elab.DerivingClassView := ⟨default, default, default⟩
+
+open Elab.Term in
 def elabDataView' (view: InductiveView) : CommandElabM Unit := do
   let ref := view.ref
   liftTermElabM view.declName <| do
     dbg_trace view.binders
-    let (liveVars, deadVars) ← splitLiveAndDeadBinders view.binders.getArgs
-    dbg_trace "liveVars: {liveVars}"
-    dbg_trace "deadVars: {deadVars}"
+    let (liveBinders, deadBinders) ← splitLiveAndDeadBinders view.binders.getArgs
+    dbg_trace "liveVars: {liveBinders}"
+    dbg_trace "deadVars: {deadBinders}"
+
+    withAutoBoundImplicit 
+    <| elabBinders deadBinders fun deadVars => 
+      withLiveBinders liveBinders fun liveVars => 
+        withoutAutoBoundImplicit <| do
+
+          -- let mut type := mkForall
+          for var in liveVars.reverse do
+            let type ← inferType var
+
+
+          let mut ctors : Array CtorView := #[]
+          if let some ref := view.type? then
+            throwErrorAt ref "Explicitly provided target type is not supported yet. Note that QPFs cannot represent (co)inductive families"
+
+          if view.derivingClasses.size > 0 then
+            throwErrorAt view.derivingClasses[0].ref "`deriving` is not supported yet"
+
+          for ctor in view.ctors do
+            if !ctor.binders.isNone then
+              throwErrorAt ctor.binders "Constructor binders are not supported yet"
+
+            -- let type ← Internals.elabCtors
+            
+      -- else
+        
 
     return ()
 
@@ -82,7 +112,12 @@ def elabData : CommandElab := fun stx => do
   let modifiers ← elabModifiers stx[0]
   let decl := stx[1]
   let view ← inductiveSyntaxToView modifiers decl
-  elabDataView view
+  elabDataView' view
   pure ()
 
 end Data.Command
+
+
+data QpfList (ded : Nat) α β where
+  | nil   : QpfList α β
+  | cons  : α → β → QpfList α β

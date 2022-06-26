@@ -231,7 +231,7 @@ private def withExplicitToImplicit (xs : Array Expr) (k : TermElabM α) : TermEl
   - Positivity (it is a rare failure, and the kernel already checks for it).
   - Universe constraints (the kernel checks for it).
 -/
-private def elabCtors (indFVars : Array Expr) (indFVar : Expr) (params : Array Expr) (r : ElabHeaderResult) : TermElabM (List Constructor) := withRef r.view.ref do
+protected def elabCtors (indFVars : Array Expr) (indFVar : Expr) (params : Array Expr) (r : ElabHeaderResult) : TermElabM (List Constructor) := withRef r.view.ref do
   let indFamily ← isInductiveFamily params.size indFVar
   r.view.ctors.toList.mapM fun ctorView =>
     Term.withAutoBoundImplicit <| Term.elabBinders ctorView.binders.getArgs fun ctorParams =>
@@ -647,6 +647,7 @@ def mkDataDecl  (vars : Array Expr) (view0 : InductiveView) : TermElabM DataDecl
   -- checkLevelNames views  -- No need, since families are disallowed
   let allUserLevelNames := view0.levelNames
   let isUnsafe          := view0.modifiers.isUnsafe
+  
   withRef view0.ref <| Term.withLevelNames allUserLevelNames do
     let rs ← elabHeader views
     withInductiveLocalDecls rs fun params indFVars => do
@@ -662,7 +663,7 @@ def mkDataDecl  (vars : Array Expr) (view0 : InductiveView) : TermElabM DataDecl
           throwErrorAt view0.ref "Inductive families are not supported"
 
         let type  ← mkForallFVars params r.type
-        let ctors ← withExplicitToImplicit params (elabCtors indFVars indFVar params r)
+        let ctors ← withExplicitToImplicit params (Internals.elabCtors indFVars indFVar params r)
         let indType : InductiveType := { 
                           name := r.view.declName, 
                           type := type,
