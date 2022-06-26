@@ -381,9 +381,9 @@ by
   simp [Liftr']
 
 open Function
-variable {F: TypeVec (n + 1) → Type u} [MvFunctor F]
+variable {F: TypeFun (n + 1)} [instMvFunctor : MvFunctor F] [instLawful : LawfulMvFunctor F] 
 
-theorem liftr_map_last  {α : TypeVec.{u} n}
+theorem liftr_map_last  {α : TypeVec n}
                         {ι ι'}
                         (R : ι' → ι' → Prop) 
                         (x : F (α ::: ι))
@@ -391,31 +391,29 @@ theorem liftr_map_last  {α : TypeVec.{u} n}
                         (hh : ∀ x : ι, R (f x) (g x)) : 
       Liftr' (relLast' _ R) ((id ::: f) <$$> x) ((id ::: g) <$$> x) :=
 by
-  sorry
-  /- FIXME
-  let h : ι → { x : ι' × ι' // uncurry R x } := fun x => ⟨(f x, g x), hh x⟩
-  let b : (α ::: ι) ⟹ _ := @diagSub n α ::: h
-  let c : (Subtype_ α.repeatEq ::: { x // uncurry R x }) 
-          ⟹ ((fun i : Fin2 n => { x // ofRepeat (α.relLast' R i.fs x) }) ::: Subtype (uncurry R)) 
-      := (ofSubtype _) ::: id
-  have hh : subtypeVal _ ⊚ toSubtype _ ⊚ from_append1_drop_last ⊚ c ⊚ b = ((id ::: f) ⊗' (id ::: g)) ⊚ Prod.diag := 
-  by
-    have hb : b = @diagSub n α ::: h
-      := by rfl
-    have hc : c = ofSubtype (repeatEq α) ::: id
-      := by rfl
-    simp [hb, hc]
+  stop
+
+  let h : ι → { x : ι' × ι' // uncurry R x } 
+    := fun x => ⟨(f x, g x), hh x⟩
+  apply liftr_map _ _ _ _ (toSubtype _ ⊚ from_append1_drop_last ⊚ ?c ⊚ ?b) ?hh
+  case b => exact @diagSub n α ::: h  
+  case c => exact (ofSubtype α.repeatEq) ::: id  
+
+  case hh =>
     apply eq_of_drop_last_eq
     · simp [prod_map_id, drop_fun_prod, drop_fun_append_fun, drop_fun_diag, id_comp, drop_fun_to_subtype]
       erw [to_subtype_of_subtype_assoc, id_comp]
       intro i
       funext x
       simp [diagSub, Prod.diag]
+      clear instLawful
       induction i
       . rfl
       
-      . rename_i n' i i_ih _ _
+      . rename_i n' i i_ih _
         simp [diagSub, Prod.diag, subtypeVal, *]
+
+        sorry; stop
         apply i_ih
         apply @i_ih F' (cast _ PUnit.unit) (cast _ PUnit.unit) (cast _ PUnit.unit)
         
@@ -423,23 +421,29 @@ by
     simp [last_fun_from_append1_drop_last, last_fun_to_subtype, last_fun_append_fun, last_fun_subtype_val,
           comp.left_id, last_fun_comp, last_fun_prod]
     ext1
+    intros;
     rfl
-  apply liftr_map _ _ _ _ (toSubtype _ ⊚ from_append1_drop_last ⊚ c ⊚ b) hh
 
 
 theorem liftr_map_last' [LawfulMvFunctor F] {α : TypeVec n} {ι} (R : ι → ι → Prop) (x : F (α ::: ι)) (f : ι → ι)
     (hh : ∀ x : ι, R (f x) x) : Liftr' (relLast' _ R) ((id ::: f) <$$> x) x := by
-  have := liftr_map_last R x f id hh
-  rwa [append_fun_id_id, MvFunctor.id_map] at this
+  have : @TypeVec.id (.succ n) (α ::: ι) = (@TypeVec.id n α) ::: id;
+  . funext i; simp[appendFun,splitFun]; cases i <;> rfl
+  conv => {
+    arg 3
+    rw [←MvFunctor.id_map x, this]
+  }
+  apply liftr_map_last (F:=F) (α:=α) R x f id hh
 
--/
+
 
 end LiftrMap
 
-variable {F: TypeVec (n + 1) → Type u} [MvFunctor F] [LawfulMvFunctor F] [q : MvQpf F]
+variable {F: TypeVec (n + 1) → Type u} [q : MvQpf F]
 
-#check prod_map
-
+--
+-- DIFFICULT PORT
+--
 theorem Cofix.abs_repr {α} (x : Cofix F α) : Quot.mk _ (Cofix.repr x) = x := by
   let R := fun x y : Cofix F α => Cofix.abs (Cofix.repr y) = x
   have hR : R = fun x y : Cofix F α => Cofix.abs (Cofix.repr y) = x := by rfl;
@@ -448,32 +452,47 @@ theorem Cofix.abs_repr {α} (x : Cofix F α) : Quot.mk _ (Cofix.repr x) = x := b
   rintro x y h
   simp [hR]  at h
   subst h
-  simp [Cofix.dest, Cofix.abs]
+  dsimp [Cofix.dest, Cofix.abs]
+
   induction y using Quot.ind
-  simp only [Cofix.repr, M.dest_corec, abs_map, abs_repr]
+  case mk y =>  
+  simp only [Cofix.repr, M.dest_corec, abs_map, abs_repr, Function.comp]
+
   conv => congr skip rw [Cofix.dest]
-  simp [MvFunctor.map_map, ← append_fun_comp_id]
+  dsimp
+  rw[q.abs_repr]
 
-  stop --FIXME
+  rw [MvFunctor.map_map, MvFunctor.map_map, ←append_fun_comp_id, ←append_fun_comp_id]
 
-  let f : (α ::: (P F).M α) ⟹ Subtype_ (α.relLast' R) :=
-    splitFun diagSub fun x => ⟨(Cofix.abs (Cofix.abs x).repr, Cofix.abs x), _⟩
-  refine' liftr_map _ _ _ _ f _
+  /-
+    TODO: once `liftr_map_last` has been proven without sorry, we can switch to the following,
+          much shorter proof.
+  -/
+  -- apply liftr_map_last
+  -- intro x;
+  -- rfl
+
+  let h : (α ::: (P F).M α) ⟹ Subtype_ (α.relLast' R) :=
+    splitFun diagSub fun x => ⟨
+      (Cofix.abs (Cofix.abs x).repr, Cofix.abs x),
+      by simp[relLast', splitFun];
+    ⟩
+  apply liftr_map _ _ _ _ h _
+
   · simp only [← append_prod_append_fun, prod_map_id]
     apply eq_of_drop_last_eq
     · simp
       simp only [drop_fun_diag]
       erw [subtype_val_diag_sub]
+      intros
+      rfl
       
     ext1
-    simp only [Cofix.abs, Prod.mk.inj_iff, prod_map, Function.comp_app, last_fun_append_fun, last_fun_subtype_val,
+    simp only [Cofix.abs, Prod.mk.inj_iff, prod_map, Function.comp, last_fun_append_fun, last_fun_subtype_val,
       last_fun_comp, last_fun_split_fun]
-    simp [drop_fun_relLast, last_fun, prod.diag]
-    constructor <;> rfl
-    
-  simp [relLast', split_fun, Function.uncurry, R]
-  rfl
-  rfl
+    simp [drop_fun_relLast, lastFun, Prod.diag]
+    intros; constructor <;> rfl
+  
 
 section Tactic
 

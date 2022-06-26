@@ -51,7 +51,7 @@ protected def cases' {n} {C : Fin2 (succ n) → Sort u} (H1 : C fz) (H2 : ∀ n,
 
 /-- Ex falso. The dependent eliminator for the empty `fin2 0` type. -/
 def elim0 {C : Fin2 0 → Sort u} : ∀ i : Fin2 0, C i :=
-  fun.
+  by intro i; cases i
 
 /-- Converts a `fin2` into a natural. -/
 def toNat : ∀ {n}, Fin2 n → Nat

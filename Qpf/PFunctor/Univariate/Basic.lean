@@ -130,68 +130,6 @@ end PFunctor
 ## Lifting predicates and relations.
 -/
 
--- FIXME
-
--- namespace PFunctor
--- variable {P : PFunctor.{u}}
--- open Functor
-
--- theorem liftp_iff {α : Type u} (p : α → Prop) (x : P.Obj α) :
---   Liftp p x ↔ ∃ a f, x = ⟨a, f⟩ ∧ ∀ i, p (f i) :=
--- begin
---   split,
---   { rintros ⟨y, hy⟩, cases h : y with a f,
---     refine ⟨a, λ i, (f i).val, _, λ i, (f i).property⟩,
---     rw [←hy, h, PFunctor.map_eq] },
---   rintros ⟨a, f, xeq, pf⟩,
---   use ⟨a, λ i, ⟨f i, pf i⟩⟩,
---   rw [xeq], reflexivity
--- end
-
--- theorem liftp_iff' {α : Type u} (p : α → Prop) (a : P.A) (f : P.B a → α) :
---   @Liftp.{u} P.Obj _ α p ⟨a,f⟩ ↔ ∀ i, p (f i) :=
--- begin
---   simp only [liftp_iff, sigma.mk.inj_iff]; split; intro,
---   { casesm* [Exists _, _ ∧ _], subst_vars, assumption },
---   repeat { constructor <|> assumption }
--- end
-
--- theorem liftr_iff {α : Type u} (r : α → α → Prop) (x y : P.Obj α) :
---   Liftr r x y ↔ ∃ a f₀ f₁, x = ⟨a, f₀⟩ ∧ y = ⟨a, f₁⟩ ∧ ∀ i, r (f₀ i) (f₁ i) :=
--- begin
---   split,
---   { rintros ⟨u, xeq, yeq⟩, cases h : u with a f,
---     use [a, λ i, (f i).val.fst, λ i, (f i).val.snd],
---     split, { rw [←xeq, h], refl },
---     split, { rw [←yeq, h], refl },
---     intro i, exact (f i).property },
---   rintros ⟨a, f₀, f₁, xeq, yeq, h⟩,
---   use ⟨a, λ i, ⟨(f₀ i, f₁ i), h i⟩⟩,
---   split,
---   { rw [xeq], refl },
---   rw [yeq], refl
--- end
-
--- open set
-
--- theorem supp_eq {α : Type u} (a : P.A) (f : P.B a → α) :
---   @supp.{u} P.Obj _ α  (⟨a,f⟩ : P.Obj α) = f '' univ :=
--- begin
---   ext, simp only [supp, image_univ, mem_range, mem_set_of_eq],
---   split; intro h,
---   { apply @h (λ x, ∃ (y : P.B a), f y = x),
---     rw liftp_iff', intro, refine ⟨_,rfl⟩ },lake print-paths Init Qpf.PFunctor Qpf.W Qpf.M Qpf.Example.List
---   { simp only [liftp_iff'], cases h, subst x,
---     tauto }
--- end
-
--- end PFunctor
-
-
-/-
-## Lifting predicates and relations.
--/
-
 namespace PFunctor
 
 variable {P : PFunctor.{u}}
@@ -266,8 +204,6 @@ theorem liftr_iff {α : Type u} (r : α → α → Prop) (x y : P.Obj α) :
   rfl
 
 open Set
-
-#check @setOf
 
 theorem supp_eq {α : Type u} (a : P.A) (f : P.B a → α) : 
   @Supp.{u} P.Obj _ α (⟨a, f⟩ : P.Obj α) = Set.image f Set.univ := 

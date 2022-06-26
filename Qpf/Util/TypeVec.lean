@@ -141,7 +141,7 @@ namespace TypeVec
   Arrow.mpr (Vec.append1_drop_last _)
 
   /-- stitch two bits of a vector back together -/
-  def from_Vec.append1_drop_last {α : TypeVec (n+1)} : drop α ::: last α ⟹ α :=
+  def from_append1_drop_last {α : TypeVec (n+1)} : drop α ::: last α ⟹ α :=
   Arrow.mp (Vec.append1_drop_last _)
 
   @[simp] theorem last_fun_split_fun {α α' : TypeVec (n+1)}
@@ -262,18 +262,20 @@ namespace TypeVec
   @[simp] def eq0 (f : TypeVec 0) : f = Fin2.elim0
   := by apply Fin2.eq_fn0
 
-  /-- FIXME 
+  
   def typevec_cases_nil₃ {β : ∀ v v' : TypeVec 0, v ⟹ v' → Sort _} (f : β Fin2.elim0 Fin2.elim0 nil_fun) :
     ∀ v v' f, β v v' f :=
-  λ v v' fs => cast (
+  fun v v' fs => cast (
     by 
-       congr
-       simp [veq, v'eq]
+      have : v = Fin2.elim0 := by funext i; contradiction
+      cases this;
+      have : v' = Fin2.elim0 := by funext i; contradiction
+      cases this;
+      have : fs = nil_fun := by funext i; contradiction;
+      cases this
+      rfl
   ) f
-  begin
-    refine cast _ f; congr; ext; try { intros; exact Fin2.elim0 ‹ Fin2 0 ›  }; refl
-  end
-  -/
+  
 
   def typevec_cases_cons₃ (n : Nat) {β : ∀ v v' : TypeVec (n+1), v ⟹ v' → Sort _}
     (F : ∀ t t' (f : t → t') (v v' : TypeVec n) (fs : v ⟹ v'), β (v ::: t) (v' ::: t') (fs ::: f)) :
@@ -547,7 +549,7 @@ def toSubtype :
 into a subtype of vector -/
 def ofSubtype :
     ∀ {n} {α : TypeVec.{u} n} (p : α ⟹ Repeat n Prop), 
-        Subtype_ p ⟹ fun i : Fin2 n => { x // ofRepeat <| p i x }
+        Subtype_ p ⟹ fun (i : Fin2 n) => { x // ofRepeat <| p i x }
   | succ n, α, p, Fin2.fs i, x => ofSubtype _ i x
   | succ n, α, p, Fin2.fz, x => x
 
@@ -603,7 +605,7 @@ theorem prod_id : ∀ {n} {α β : TypeVec.{u} n}, (id ⊗' id) = (id : α ⊗ �
   · rename_i i i_ih _ _
     apply i_ih
     
-/- FIXME
+
 theorem append_prod_append_fun  {n} 
                                 {α α' β β' : TypeVec.{u} n} 
                                 {φ φ' ψ ψ' : Type u}
@@ -611,13 +613,14 @@ theorem append_prod_append_fun  {n}
                                 {g₀ : β ⟹ β'}
                                 {f₁ : φ → φ'}
                                 {g₁ : ψ → ψ'} : 
-        (f₀ ⊗' (g₀ ::: (Prod.map f₁ g₁))) = ((f₀ ::: f₁) ⊗' (g₀ ::: g₁)) := 
+        ((f₀ ⊗' g₀) ::: (_root_.Prod.map f₁ g₁)) = ((f₀ ::: f₁) ⊗' (g₀ ::: g₁)) := 
 by
   ext i a
   cases i
-  cases a
-  rfl
--/
+  . cases a
+    rfl
+  . rfl
+
 
 
 
@@ -694,11 +697,11 @@ by
   rfl
 
 @[simp]
-theorem drop_fun_from_Vec.append1_drop_last {α : TypeVec (n + 1)} : dropFun (@from_Vec.append1_drop_last _ α) = id :=
+theorem drop_fun_from_append1_drop_last {α : TypeVec (n + 1)} : dropFun (@from_append1_drop_last _ α) = id :=
   rfl
 
 @[simp]
-theorem last_fun_from_Vec.append1_drop_last {α : TypeVec (n + 1)} : lastFun (@from_Vec.append1_drop_last _ α) = _root_.id :=
+theorem last_fun_from_append1_drop_last {α : TypeVec (n + 1)} : lastFun (@from_append1_drop_last _ α) = _root_.id :=
   rfl
 
 @[simp]
