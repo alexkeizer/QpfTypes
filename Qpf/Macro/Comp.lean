@@ -100,12 +100,24 @@ partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Synt
     let F_stx ← delab F;
     `(Comp $F_stx ![$G,*])
 
+  else if target.isArrow then
+    match target with
+    | Expr.forallE _ e₁ e₂ .. => 
+      let newTarget ← mkAppM ``MvQpf.Arrow #[e₁, e₂]
+      elabQpf vars newTarget targetStx normalized
+    | _ => unreachable!
+
   else
     if !normalized then
       let target ← whnfR target
       elabQpf vars target targetStx true
     else 
-      throwError f!"Unexpected target expression :\n {target}"
+      let extra :=
+        if target.isForall then
+          "Dependent arrows / forall are not supported"
+        else
+          ""
+      throwError f!"Unexpected target expression :\n {target}\n{extra}\nNote that the expression contains live variables, hence, must be functorial"
     
 
 

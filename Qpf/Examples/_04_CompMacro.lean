@@ -111,3 +111,31 @@ example (F : TypeFun 2) [q : MvQpf F] : true := by constructor
 
 -/
 qpf flipF (F : CurriedTypeFun 2) [q : ToMvQpf F] α β := F β α
+
+
+
+
+qpf Id' α := α
+
+
+
+/-
+  The following fails, as it should, because `Arrow` is *not* functorial in the first argument.
+  The macro will try to synthesize an instance of `MvQpf (TypeFun.ofCurried Arrow)` and fail
+
+  ```
+  qpf withArrow α β := Id' (α → β)
+  ```
+-/
+
+-- It does work when we "kill" the first argument
+qpf withArrow (α : Type _) β := Id' (α → β)
+
+-- Note that (non-dependent) arrow `α → β` are automatically translated to `MvQpf.Arrow`
+open MvQpf (Arrow)
+
+qpf withArrow₂ (α : Type _) β := Id' (Arrow α β)
+
+
+example : withArrow = withArrow₂ := rfl
+
