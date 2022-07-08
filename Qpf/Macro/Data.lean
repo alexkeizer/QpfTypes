@@ -1,8 +1,5 @@
 
-import Qpf.Macro.Data.Internals
-import Qpf.Macro.Common
+import Qpf.Macro.Data.ElabData
 
-
-syntax qpfCtor := "| " ident (" : " term)?
-
-syntax qpfType := ("data " <|> "codata ") declId
+-- import Qpf.Macro.Data.Internals
+-- import Qpf.Macro.Common

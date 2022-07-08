@@ -1,3 +1,8 @@
+/-
+Copyright (c) 2020 Microsoft Corporation. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Leonardo de Moura
+-/
 
 import Lean
 import Qpf.Macro.Data.DataDecl
@@ -265,9 +270,15 @@ protected def elabCtors (indFVars : Array Expr) (indFVar : Expr) (params : Array
           trace[Elab.inductive] "extraCtorParams: {extraCtorParams}"
           /- We must abstract `extraCtorParams` and `ctorParams` simultaneously to make
              sure we do not create auxiliary metavariables. -/
+            
           let type  ← mkForallFVars (extraCtorParams ++ ctorParams) type
           let type ← reorderCtorArgs type
-          let type ← mkForallFVars params type
+
+          --
+          -- We don't want to `mkForallFVars` yet, so that we can inspect the raw types
+          --
+          -- let type ← mkForallFVars params type
+
           trace[Elab.inductive] "{ctorView.declName} : {type}"
           return { name := ctorView.declName, type }
 where
@@ -628,29 +639,28 @@ private partial def fixedIndicesToParams (numParams : Nat) (indTypes : Array Ind
         return i
     go numParams type typesToCheck
 
-def Constructor.dump (ctor : Constructor) : String := 
-  s!"{ctor.name} : {ctor.type}"
-
-def InductiveType.dump (indType : InductiveType) : String :=
-  s!"{indType.name} : {indType.type}\n" 
-    ++ indType.ctors.foldl (· ++ "  " ++ Constructor.dump · ++ "\n") ""
-
 
 /-
   A modified version of `mkInductiveDecl`, which performs the same elaborations and checks, but
   returns the elaborated declaration as a `DataDecl`, instead of adding it to the environment
   as an inductive declaration. Also omits the auxiliary constructions.
 -/
-def mkDataDecl  (vars : Array Expr) (view0 : InductiveView) : TermElabM DataDecl := do
+def mkDataDecl  (vars : Array Expr) (view0 : InductiveView) 
+                (addToEnv : (params: Array Expr) → (indFVars: Array Expr) → DataDecl → TermElabM Unit) 
+              : TermElabM Unit := do
   let views := #[view0]
   let scopeLevelNames ← Term.getLevelNames
   -- checkLevelNames views  -- No need, since families are disallowed
   let allUserLevelNames := view0.levelNames
   let isUnsafe          := view0.modifiers.isUnsafe
-  
+
   withRef view0.ref <| Term.withLevelNames allUserLevelNames do
     let rs ← elabHeader views
     withInductiveLocalDecls rs fun params indFVars => do
+
+      dbg_trace params
+      dbg_trace indFVars
+
       trace[Elab.inductive] "indFVars: {indFVars}"
       let mut indTypesArray := #[]
       for i in [:views.size] do
@@ -693,7 +703,7 @@ def mkDataDecl  (vars : Array Expr) (view0 : InductiveView) : TermElabM DataDecl
         | Except.ok levelParams => do          
           let indTypes ← replaceIndFVarsWithConsts views indFVars levelParams numVars numParams indTypes
 
-          let decl ← match indTypes with
+          let decl : DataDecl ← match indTypes with
            | [indType] => forallTelescopeReducing indType.type fun argTypes _ =>                               
                               pure $ {
                                 lparams   := levelParams,
@@ -701,10 +711,12 @@ def mkDataDecl  (vars : Array Expr) (view0 : InductiveView) : TermElabM DataDecl
                                 inner     := (DataType.mk indType)
                                 view      := view0,
                                 isUnsafe  := isUnsafe,
+                                : DataDecl
                               }
             | _         => throwError "Found more than 1 inductive type"
           Term.ensureNoUnassignedMVars decl.asInductDecl
-          pure decl
+
+          addToEnv (vars ++ params) indFVars decl
           /- TODO: see what the following code does (presumably something with pop-up info?)
 
           withSaveInfoContext do  -- save new env

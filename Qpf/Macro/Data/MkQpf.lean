@@ -64,20 +64,6 @@ do
   elabInductiveViews #[head_t]
 
 
-private def mkHeadT2 (decl : DataDecl) : CommandElabM Unit := 
-do
-  let stx ← `(inductive MyList (α β : Type u) where
-                | Nil  : MyList α β
-                | Cons : {a : α} → (as : MyList α β) → MyList α β
-            );
-  
-  let stx ← `(bla a)
-  let orig_name := decl.inner.name
-  let head_t_name := Name.mkStr decl.inner.name "HeadT"
-
-  let ctors := decl.inner.ctors.map fun ctor => 
-    let ctor_name := Name.stripPrefix orig_name ctor.name
-    s!"\n  | {ctor_name}"
 
 
 /--

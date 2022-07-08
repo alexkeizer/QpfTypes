@@ -6,7 +6,7 @@ set_option trace.Meta.debug true
 set_option pp.rawOnError true
 
 
-data MyList (α β : Type _) : Type _ where
+data MyList (α β : Type _) where
   | Nil  : MyList α β
   | Cons : {a : α} → β → (as : MyList α β) → MyList α β
 
