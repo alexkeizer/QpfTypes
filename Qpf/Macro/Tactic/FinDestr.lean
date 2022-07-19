@@ -9,8 +9,9 @@ import Qpf.MathlibPort.Fin2
 open Lean Syntax Elab Elab.Tactic Meta
 
 def elabFinDestrAux (i_stx : Syntax) : TacticM Unit := do
+  let u ← mkFreshLevelMVar;
   let n ← mkFreshExprMVar (mkConst ``Nat) (kind:=MetavarKind.synthetic);
-  let finTyp := mkApp (mkConst ``Fin2) n
+  let finTyp := mkApp (mkConst ``PFin2 [u]) n
 
   let i ← elabTermEnsuringType i_stx finTyp false;
   Term.synthesizeSyntheticMVarsNoPostponing

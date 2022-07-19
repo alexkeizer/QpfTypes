@@ -5,7 +5,7 @@ namespace MvQpf
 namespace Prod
 
 def ProdPFunctor : MvPFunctor 2 
-  := ⟨PUnit, fun _ => ![PUnit, PUnit]⟩
+  := ⟨PUnit, fun _ => ![PFin2 1, PFin2 1]⟩
 
 abbrev QpfProd' := ProdPFunctor.Obj
 abbrev QpfProd  := QpfProd'.curried
@@ -33,7 +33,7 @@ def box : Prod' Γ → QpfProd' Γ
   | ⟨a, b⟩ => mk a b
 
 def unbox : QpfProd' Γ → Prod' Γ
-  | ⟨_, f⟩ => (f 1 (), f 0 ())
+  | ⟨_, f⟩ => (f 1 .fz, f 0 .fz)
 
 theorem unbox_box_id (x : Prod' Γ) :
   unbox (box x) = x :=

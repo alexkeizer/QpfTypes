@@ -9,8 +9,8 @@ universe u
 def SumPFunctor : MvPFunctor.{u} 2
   := ⟨PFin2 2, 
       fun 
-      | 0 => ![PUnit, PEmpty] -- inl
-      | 1 => ![PEmpty, PUnit] -- inr
+      | 0 => ![PFin2 1, PFin2 0] -- inl
+      | 1 => ![PFin2 0, PFin2 1] -- inr
     ⟩
 
 
@@ -27,7 +27,7 @@ def inr {Γ : TypeVec 2} (b : Γ 0) : QpfSum' Γ
   := ⟨PFin2.ofNat' 1, 
       fun 
       | 0, _ => b
-      | 1, x => x.elim
+      | 1, x => by cases x
     ⟩
 
 
@@ -39,8 +39,8 @@ def box {Γ : TypeVec 2} : Sum' Γ → QpfSum' Γ
 
 def unbox {Γ : TypeVec 2} : QpfSum' Γ → Sum' Γ 
   | ⟨i, f⟩ => match i with
-    | .fz   => .inl (f 1 ())
-    | .fs 0 => .inr (f 0 ())
+    | .fz   => .inl (f 1 .fz)
+    | .fs 0 => .inr (f 0 .fz)
 
 
 theorem unbox_box_id (x : Sum' Γ) :
@@ -52,14 +52,10 @@ theorem box_unbox_id (x : QpfSum' Γ) :
   box (unbox x) = x :=
 by
   rcases x with ⟨i, f⟩
-  simp[box, unbox, inl, inr];
+  dsimp only [box, unbox, inl, inr];
   fin_destr i <;> {
     apply congrArg;
-    funext i x
-    <;> fin_destr i
-    <;> solve
-        | cases x
-        | rfl
+    fin_destr <;> rfl
   }
 
 
