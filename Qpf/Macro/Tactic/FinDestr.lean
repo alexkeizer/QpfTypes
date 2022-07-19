@@ -8,10 +8,6 @@ import Qpf.MathlibPort.Fin2
 
 open Lean Syntax Elab Elab.Tactic Meta
 
--- #check SepByArray
-#check Fin2
-#check Expr.natLit?
-
 def elabFinDestrAux (i_stx : Syntax) : TacticM Unit := do
   let n ← mkFreshExprMVar (mkConst ``Nat) (kind:=MetavarKind.synthetic);
   let finTyp := mkApp (mkConst ``Fin2) n
@@ -19,14 +15,14 @@ def elabFinDestrAux (i_stx : Syntax) : TacticM Unit := do
   let i ← elabTermEnsuringType i_stx finTyp false;
   Term.synthesizeSyntheticMVarsNoPostponing
 
-  dbg_trace n
-  dbg_trace finTyp
+  -- dbg_trace n
+  -- dbg_trace finTyp
 
   let n ← match (← getExprMVarAssignment? n.mvarId!) with
   | none    => throwErrorAt i_stx "{i_stx} must be of type `Fin2 0` or `Fin2 (Nat.succ n)`"
   | some v  => whnf v
 
-  dbg_trace n
+  -- dbg_trace n
 
   if let some n := n.natLit? then
     let rec genTactic : Nat → TacticM Syntax
@@ -35,7 +31,7 @@ def elabFinDestrAux (i_stx : Syntax) : TacticM Unit := do
               let tct ← genTactic n
               `(tactic| cases $i_stx:ident; swap; rename_i $i_stx:ident; $tct:tactic)
 
-    dbg_trace (←genTactic n)
+    -- dbg_trace (←genTactic n)
     evalTactic <|← genTactic n
 
   else
@@ -55,10 +51,27 @@ def elabFinDestrAux (i_stx : Syntax) : TacticM Unit := do
 
 
 
-elab "fin_destr " i:ident : tactic => do
-  let _ ←
-    withMainContext <|
-      elabFinDestrAux i
+elab "fin_destr_one " i:ident : tactic => do
+  withMainContext <|
+    elabFinDestrAux i
+
+syntax "fin_destr' " ident* : tactic 
+macro_rules
+| `(tactic| fin_destr' $i:ident $is:ident*) => `(tactic| fin_destr_one $i <;> dsimp <;> fin_destr' $is:ident*)
+| `(tactic| fin_destr') => `(tactic| skip)
+
+syntax "fin_destr " ident* : tactic 
+macro_rules
+| `(tactic| fin_destr $i:ident $is:ident*) => `(tactic| 
+      fin_destr' $i:ident $is:ident* 
+      <;> try fin_destr
+    )
+
+| `(tactic| fin_destr) => `(tactic| 
+      first
+      | intro i;  fin_destr i
+      | funext i; fin_destr i
+  )
 
 
 syntax "vec_eq " (tactic)? : tactic 

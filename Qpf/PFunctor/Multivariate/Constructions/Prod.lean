@@ -46,9 +46,7 @@ by
   cases x;
   simp[box, unbox, mk];
   apply congrArg;
-  funext i;
-  fin_destr i
-  <;> rfl
+  fin_destr
 
 
 

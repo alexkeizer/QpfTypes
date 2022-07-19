@@ -52,16 +52,14 @@ theorem box_unbox_iso (x : QpfSum' Γ) :
   box (unbox x) = x :=
 by
   rcases x with ⟨i, f⟩
-  simp[box, unbox]
+  simp[box, unbox, inl, inr];
   fin_destr i <;> {
-    simp[inl, inr]
     apply congrArg;
-    funext j x;
-    fin_destr j
-    <;> {
-      try cases x
-      try rfl
-    }
+    funext i x
+    <;> fin_destr i
+    <;> solve
+        | cases x
+        | rfl
   }
 
 
@@ -79,3 +77,8 @@ instance : MvQpf Sum' where
 
 end Sum
 end MvQpf
+
+example {α β : Type} :
+  (α → β) = ((α → ·) β) :=
+by
+  rfl
