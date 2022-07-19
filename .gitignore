@@ -1,7 +1,6 @@
 build/
 lean_packages/
 Qpf/Scratch.lean
-Qpf/Example
 Scratch2.lean
 
 Qpf/_Text/out

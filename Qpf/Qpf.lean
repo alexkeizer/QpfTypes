@@ -5,7 +5,10 @@ import Qpf.MvFunctor.VecMvFunctor
 
 import Qpf.MathlibPort.Logic
 
-import Qpf.Qpf.Multivariate.Constructions.Arrow
+import Qpf.PFunctor.Multivariate.Constructions.Arrow
+import Qpf.PFunctor.Multivariate.Constructions.Prod
+import Qpf.PFunctor.Multivariate.Constructions.Sum
+
 import Qpf.Qpf.Multivariate.Constructions.Cofix
 import Qpf.Qpf.Multivariate.Constructions.Comp
 import Qpf.Qpf.Multivariate.Constructions.Const
