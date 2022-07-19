@@ -43,12 +43,12 @@ def unbox {Γ : TypeVec 2} : QpfSum' Γ → Sum' Γ
     | .fs 0 => .inr (f 0 ())
 
 
-theorem unbox_box_iso (x : Sum' Γ) :
+theorem unbox_box_id (x : Sum' Γ) :
   unbox (box x) = x :=
 by
   cases x <;> rfl
 
-theorem box_unbox_iso (x : QpfSum' Γ) :
+theorem box_unbox_id (x : QpfSum' Γ) :
   box (unbox x) = x :=
 by
   rcases x with ⟨i, f⟩
@@ -68,7 +68,7 @@ instance : MvQpf Sum' where
   map f a     := unbox <| SumPFunctor.map f <| box a
   abs         := @unbox
   repr        := @box
-  abs_repr    := unbox_box_iso
+  abs_repr    := unbox_box_id
   abs_map f x := by 
                   rcases x with ⟨i, f⟩ 
                   fin_destr i <;> rfl
@@ -76,9 +76,7 @@ instance : MvQpf Sum' where
 
 
 end Sum
-end MvQpf
 
-example {α β : Type} :
-  (α → β) = ((α → ·) β) :=
-by
-  rfl
+export Sum (QpfSum QpfSum')
+
+end MvQpf

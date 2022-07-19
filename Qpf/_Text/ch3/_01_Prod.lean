@@ -32,12 +32,12 @@ def box : Prod' Γ → QpfProd Γ
 def unbox : QpfProd Γ → Prod' Γ
   | ⟨_, f⟩ => (f 1 (), f 0 ())
 
-theorem unbox_box_iso (x : Prod' Γ) :
+theorem unbox_box_id (x : Prod' Γ) :
   unbox (box x) = x :=
 by
   rfl
 
-theorem box_unbox_iso (x : QpfProd Γ) :
+theorem box_unbox_id (x : QpfProd Γ) :
   box (unbox x) = x :=
 by
   cases x;
@@ -58,7 +58,7 @@ instance : MvQpf Prod' where
   map f a     := unbox <| P.map f <| box a
   abs         := @unbox
   repr        := @box
-  abs_repr    := unbox_box_iso
+  abs_repr    := unbox_box_id
   abs_map f x := rfl
 
   

@@ -131,11 +131,9 @@ qpf Id' α := α
 -- It does work when we "kill" the first argument
 qpf withArrow (α : Type _) β := Id' (α → β)
 
--- Note that (non-dependent) arrow `α → β` are automatically translated to `MvQpf.Arrow`
-open MvQpf (Arrow)
-
-qpf withArrow₂ (α : Type _) β := Id' (Arrow α β)
-
-
-example : withArrow = withArrow₂ := rfl
+/-
+  Note that (non-dependent) arrow `α → β` are automatically translated to `MvQpf.Arrow`.
+  This is fine; the translation preserves definitional equality
+-/
+example : withArrow α β = (α → β) := rfl
 

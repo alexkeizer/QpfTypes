@@ -103,7 +103,7 @@ partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Synt
   else if target.isArrow then
     match target with
     | Expr.forallE _ e₁ e₂ .. => 
-      let newTarget ← mkAppM ``MvQpf.Arrow #[e₁, e₂]
+      let newTarget ← mkAppM ``MvQpf.Arrow.Arrow #[e₁, e₂]
       elabQpf vars newTarget targetStx normalized
     | _ => unreachable!
 
