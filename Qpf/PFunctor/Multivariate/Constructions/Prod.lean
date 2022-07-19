@@ -1,7 +1,7 @@
 import Qpf.Qpf.Multivariate.Basic
+import Qpf.Macro.Tactic.FinDestr
 
 namespace MvQpf
-
 namespace Prod
 
 def ProdPFunctor : MvPFunctor 2 
@@ -17,13 +17,20 @@ abbrev Prod' : TypeFun 2
   := @TypeFun.ofCurried 2 Prod
 
 
-def box : Prod' Γ → QpfProd' Γ
-  | ⟨a, b⟩ => ⟨
+/--
+  Constructor for `QpfProd'`
+-/
+def mk (a : Γ 1) (b : Γ 0) : QpfProd' Γ
+  := ⟨
       (), 
       fun 
       | 1, _ => a
       | 0, _ => b
   ⟩
+
+
+def box : Prod' Γ → QpfProd' Γ
+  | ⟨a, b⟩ => mk a b
 
 def unbox : QpfProd' Γ → Prod' Γ
   | ⟨_, f⟩ => (f 1 (), f 0 ())
@@ -37,15 +44,11 @@ theorem box_unbox_iso (x : QpfProd' Γ) :
   box (unbox x) = x :=
 by
   cases x;
-  simp[box, unbox];
+  simp[box, unbox, mk];
   apply congrArg;
   funext i;
-  cases i;
-  case fz   => rfl
-  case fs i => 
-    cases i
-    . rfl
-    . contradiction
+  fin_destr i
+  <;> rfl
 
 
 
