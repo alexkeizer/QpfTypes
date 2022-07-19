@@ -202,22 +202,22 @@ variable (A : Type)
 inductive Test where
   | test : A → Test
 
-data MyList α where
-  | My.nil : MyList α
-  | My2.nil :  A → (a : α) → MyList α → MyList α
+-- data MyList α where
+--   | My.nil : MyList α
+--   | My2.nil :  A → (a : α) → MyList α → MyList α
 
-data MyList α where
-  | My.nil : MyList α
-  | My2.nil : α → MyList α → MyList α
+-- data MyList α where
+--   | My.nil : MyList α
+--   | My2.nil : α → MyList α → MyList α
 
 
 
-data QpfList (dead : Type) β γ where
-  | nil   : QpfList dead β γ
-  | cons  : A → QpfList dead β γ → QpfList dead β γ
+-- data QpfList (dead : Type) β γ where
+--   | nil   : QpfList dead β γ
+--   | cons  : A → QpfList dead β γ → QpfList dead β γ
 
-data QpfList (A : Type) (dead : Type) β where
-  | nil   : QpfList A dead β
-  | cons  : A → (dead → β) → QpfList A dead β → QpfList A dead β
+-- data QpfList (A : Type) (dead : Type) β where
+--   | nil   : QpfList A dead β
+--   | cons  : A → (dead → β) → QpfList A dead β → QpfList A dead β
 
 -- #check QpfList

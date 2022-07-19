@@ -115,7 +115,7 @@ end Const
   is
   ` `
 -/
-def Comp (P : MvPFunctor.{u} n) (Q : Fin2 n → MvPFunctor.{u} m) : MvPFunctor m :=
+def Comp (P : MvPFunctor.{u} n) (Q : Fin2 n → MvPFunctor.{u} m) : MvPFunctor.{u} m :=
 { A := Σ a₂ : P.A, ∀ i, P.B a₂ i → (Q i).A, 
   B := λ a i => Σ (j : Fin2 n), Σ (b : P.B a.1 j), (Q j).2 (a.snd j b) i
 }
