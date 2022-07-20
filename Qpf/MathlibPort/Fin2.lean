@@ -64,7 +64,7 @@ def toNat : ∀ {n}, PFin2 n → Nat
   | _, @fs n i => succ (toNat i)
 
 /-- Shows that `toNat` produces a natural withing the range -/
-theorem toNat_in_range (i : Fin2 n) :
+theorem toNat_in_range (i : PFin2 n) :
   i.toNat < n :=
 by
   induction i
