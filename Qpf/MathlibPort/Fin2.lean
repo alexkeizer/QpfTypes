@@ -21,7 +21,7 @@ different definitional equalities.
 * `Fin2 n`: shorthand for `PFin2.{0} n`, i.e., it lives in `Type`
 * `toNat`, `optOfNat`, `ofNat'`: Conversions to and from `Nat`. `ofNat' m` takes a proof that
   `m < n` through the class `is_lt`.
-* `add k`: Takes `i : fin2 n` to `i + k : fin2 (n + k)`.
+* `add k`: Takes `i : PFin2 n` to `i + k : PFin2 (n + k)`.
 * `left`: Embeds `PFin2 n` into `PFin2 (n + k)`.
 * `insertPerm a`: Permutation of `PFin2 n` which cycles `0, ..., a - 1` and leaves `a, ..., n - 1`
   unchanged.
@@ -47,18 +47,18 @@ abbrev Fin2 : Nat → Type
 
 namespace PFin2
 
-/-- Define a dependent function on `fin2 (succ n)` by giving its value at
+/-- Define a dependent function on `PFin2 (succ n)` by giving its value at
 zero (`H1`) and by giving a dependent function on the rest (`H2`). -/
 -- @[elab_as_eliminator]
 protected def cases' {n} {C : PFin2 (succ n) → Sort u} (H1 : C fz) (H2 : ∀ n, C (fs n)) : ∀ i : PFin2 (succ n), C i
   | fz => H1
   | fs n => H2 n
 
-/-- Ex falso. The dependent eliminator for the empty `fin2 0` type. -/
+/-- Ex falso. The dependent eliminator for the empty `PFin2 0` type. -/
 def elim0 {C : PFin2 0 → Sort u} : ∀ i : PFin2 0, C i :=
   by intro i; cases i
 
-/-- Converts a `fin2` into a natural. -/
+/-- Converts a `PFin2` into a natural. -/
 def toNat : ∀ {n}, PFin2 n → Nat
   | _, @fz n => 0
   | _, @fs n i => succ (toNat i)
@@ -76,29 +76,29 @@ def toFin : PFin2 n → Fin n
   := fun i => ⟨i.toNat, toNat_in_range i⟩
 
 
-/-- Converts a natural into a `fin2` if it is in range -/
+/-- Converts a natural into a `PFin2` if it is in range -/
 def optOfNat : ∀ {n} k : Nat, Option (PFin2 n)
   | 0, _ => none
   | succ n, 0 => some fz
   | succ n, succ k => fs <$> @optOfNat n k
 
-/-- Converts a natural into a `fin2` given a proof that it is in range -/
+/-- Converts a natural into a `PFin2` given a proof that it is in range -/
 def ofNatLt : ∀ {n} (k : Nat) (h : k < n), PFin2 n
   | 0, _, h            => by contradiction
   | succ n, 0, h       => fz
   | succ n, succ k, h  => fs $ @ofNatLt n k (lt_of_succ_lt_succ h)
 
-/-- `i + k : fin2 (n + k)` when `i : fin2 n` and `k : Nat` -/
+/-- `i + k : PFin2 (n + k)` when `i : PFin2 n` and `k : Nat` -/
 def add {n} (i : PFin2 n) : ∀ k, PFin2 (n + k)
   | 0 => i
   | succ k => fs (add i k)
 
-/-- `left k` is the embedding `fin2 n → fin2 (k + n)` -/
+/-- `left k` is the embedding `PFin2 n → PFin2 (k + n)` -/
 def left k : ∀ {n}, PFin2 n → PFin2 (k + n)
   | _, @fz n => fz
   | _, @fs n i => fs (left k i)
 
-/-- `insertPerm a` is a permutation of `fin2 n` with the following properties:
+/-- `insertPerm a` is a permutation of `PFin2 n` with the following properties:
   * `insertPerm a i = i+1` if `i < a`
   * `insertPerm a a = 0`
   * `insertPerm a i = i` if `i > a` -/
@@ -111,8 +111,8 @@ def insertPerm : ∀ {n}, PFin2 n → PFin2 n → PFin2 n
     | fz => fz
     | fs k => fs (fs k)
 
-/-- `remapLeft f k : fin2 (m + k) → fin2 (n + k)` applies the function
-  `f : fin2 m → fin2 n` to inputs less than `m`, and leaves the right part
+/-- `remapLeft f k : PFin2 (m + k) → PFin2 (n + k)` applies the function
+  `f : PFin2 m → PFin2 n` to inputs less than `m`, and leaves the right part
   on the right (that is, `remapLeft f k (m + i) = n + i`). -/
 def remapLeft {m n} (f : PFin2 m → PFin2 n) : ∀ k, PFin2 (m + k) → PFin2 (n + k)
   | 0, i => f i
@@ -131,7 +131,7 @@ instance IsLt.succ m n [l : IsLt m n] : IsLt (succ m) (succ n) :=
   ⟨succ_lt_succ l.h⟩
 
 /-- Use type class inference to infer the boundedness proof, so that we can directly convert a
-`nat` into a `fin2 n`. This supports notation like `&1 : fin 3`. -/
+`nat` into a `PFin2 n`. This supports notation like `&1 : fin 3`. -/
 def ofNat' : ∀ {n} m [IsLt m n], PFin2 n
   | 0, m, ⟨h⟩ => absurd h (Nat.not_lt_zero _)
   | succ n, 0, ⟨h⟩ => fz
