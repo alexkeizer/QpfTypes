@@ -63,6 +63,19 @@ def toNat : ∀ {n}, PFin2 n → Nat
   | _, @fz n => 0
   | _, @fs n i => succ (toNat i)
 
+/-- Shows that `toNat` produces a natural withing the range -/
+theorem toNat_in_range (i : Fin2 n) :
+  i.toNat < n :=
+by
+  induction i
+  case fz       => apply succ_pos
+  case fs _ ih  => apply lt_succ_of_le ih
+
+/-- Converts a `PFin2` into the a `Fin` -/
+def toFin : PFin2 n → Fin n
+  := fun i => ⟨i.toNat, toNat_in_range i⟩
+
+
 /-- Converts a natural into a `fin2` if it is in range -/
 def optOfNat : ∀ {n} k : Nat, Option (PFin2 n)
   | 0, _ => none
