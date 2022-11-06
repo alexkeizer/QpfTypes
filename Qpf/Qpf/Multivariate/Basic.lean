@@ -88,6 +88,16 @@ class MvQpf {n : ℕ} (F : TypeFun.{u,_} n) extends MvFunctor F  where
   abs_repr : ∀ {α} x : F α, abs (repr x) = x
   abs_map : ∀ {α β} (f : α ⟹ β) (p : P.Obj α), abs (f <$$> p) = f <$$> abs p
 
+
+class MvQpf' {n : ℕ} (F : TypeFun.{u,_} n) [MvFunctor F]  where
+  P : MvPFunctor.{u} n
+  abs : ∀ {α}, P.Obj α → F α
+  repr : ∀ {α}, F α → P.Obj α
+  abs_repr : ∀ {α} x : F α, abs (repr x) = x
+  abs_map : ∀ {α β} (f : α ⟹ β) (p : P.Obj α), abs (f <$$> p) = f <$$> abs p
+
+#check (MvQpf' : (F : TypeFun _) → [MvFunctor F] → Type _)
+
 namespace MvQpf
 
 variable {n : ℕ} {F : TypeFun.{u,_} n} [q : MvQpf F]

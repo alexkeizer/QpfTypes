@@ -1,4 +1,6 @@
 import Qpf.Qpf.Multivariate.Basic
+import Qpf.Qpf.Multivariate.ofPolynomial
+import Qpf.PFunctor.Multivariate.Constructions.Basic
 import Qpf.Macro.Tactic.FinDestr
 
 namespace MvQpf
@@ -43,9 +45,10 @@ def unbox {Γ : TypeVec 2} : QpfSum' Γ → Sum' Γ
     | .fs 0 => .inr (f 0 .fz)
 
 
-theorem unbox_box_id (x : Sum' Γ) :
+theorem unbox_box_id : (x : Sum' Γ) →
   unbox (box x) = x :=
 by
+  intros x;
   cases x <;> rfl
 
 theorem box_unbox_id (x : QpfSum' Γ) :
@@ -59,15 +62,7 @@ by
   }
 
 
-instance : MvQpf Sum' where
-  P           := SumPFunctor
-  map f a     := unbox <| SumPFunctor.map f <| box a
-  abs         := @unbox
-  repr        := @box
-  abs_repr    := unbox_box_id
-  abs_map f x := by 
-                  rcases x with ⟨i, f⟩ 
-                  fin_destr i <;> rfl
+instance : MvQpf Sum' := .ofPolynomial SumPFunctor box unbox box_unbox_id unbox_box_id
 
 
 

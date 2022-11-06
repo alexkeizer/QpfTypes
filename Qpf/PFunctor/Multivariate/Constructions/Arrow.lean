@@ -1,4 +1,3 @@
-
 import Qpf.Qpf.Multivariate.Basic
 import Qpf.Macro.Tactic.FinDestr
 
