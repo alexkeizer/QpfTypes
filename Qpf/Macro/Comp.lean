@@ -1,3 +1,22 @@
+/-
+  This file establishes a `qpf` macro that can be used to define QPFs in an equational way.
+
+  It supports simple projections, as in
+  `qpf F₁ α β γ := γ`
+
+  We can leave out the names for unused variables
+  `qpf F₂ α _ _ := α`
+
+  We can define constant functors, that don't depend on their variables at all
+  `qpf F_int α β := Int`
+
+  It's primary use is for (nested) compositions
+  `qpf F₃ α β := F₁ β α (F_int β α)`
+
+
+  Note that the macro just compiles these equations into the appropriate constructions on QPFs.
+-/
+
 import Qpf.Qpf
 import Qpf.Macro.Common
 
