@@ -701,7 +701,7 @@ def mkDataDecl  (vars : Array Expr) (view0 : InductiveView)
         match sortDeclLevelParams scopeLevelNames allUserLevelNames usedLevelNames with
         | Except.error msg      => throwError msg
         | Except.ok levelParams => do          
-          let indTypes ← replaceIndFVarsWithConsts views indFVars levelParams numVars numParams indTypes
+          -- let indTypes ← replaceIndFVarsWithConsts views indFVars levelParams numVars numParams indTypes
 
           let decl : DataDecl ← match indTypes with
            | [indType] => forallTelescopeReducing indType.type fun argTypes _ =>                               

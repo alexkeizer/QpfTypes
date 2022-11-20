@@ -87,6 +87,10 @@ namespace TypeVec
 
   infixl:67 " ::: " => append1
 
+  -- Longer chains of `:::` can cause timeouts; the overload below means there are exponentially
+  -- many branches to explore. So, we also add a notation that only works for TypeVecs
+  infixl:67 " :::ᵥ " => append1
+
   /-- drop the last type from a `TypeVec` -/
   @[simp]
   abbrev drop : TypeVec (n.succ) → TypeVec n := Vec.drop
@@ -114,6 +118,20 @@ namespace TypeVec
     := splitFun f g
 
   infixl:67 " ::: " => appendFun
+
+  syntax "$[" term,* "]" : term
+  macro_rules
+  | `($[]) => `(nil)
+  | `($[$a]) => `($[] :::ᵥ ($a))
+  | `($[$a, $as,*]) => `(($[$as,*]) :::ᵥ ($a))
+
+  -- It seems we cannot use `$[ ... ]` syntax in syntax quotations, we define a secondary macro
+  syntax "##[" term,* "]" : term
+  macro_rules
+  | `(##[]) => `(nil)
+  | `(##[$a]) => `(##[] :::ᵥ ($a) )
+  | `(##[$a, $as,*]) => `((##[$as,*]) :::ᵥ ($a))
+
 
 
   abbrev dropFun {α β : TypeVec (n+1)} (f : α ⟹ β) : drop α ⟹ drop β 
