@@ -39,16 +39,18 @@ end
   ## Elaboration
 -/
 open Internals
-
-#check Constructor
+open Elab.Term (TermElabM)
 
 section
 /-
   A modified version of `elabInductiveViews`
 -/
-def elabDataView (view : InductiveView) (nlivevars : Nat) : CommandElabM Unit := do
+def elabDataView (view : InductiveView) 
+                  (deadVars liveVars : Array Expr) 
+                  : TermElabM Unit := do
   let ref := view.ref
-  let decl ← runTermElabM view.declName fun vars => withRef ref do
+  let vars := deadVars ++ liveVars
+  -- let decl ← runTermElabM view.declName fun vars => withRef ref do
     let orig_vars := vars;
     mkDataDecl vars view fun params indFVars decl => do
       if decl.isUnsafe then
@@ -60,19 +62,18 @@ def elabDataView (view : InductiveView) (nlivevars : Nat) : CommandElabM Unit :=
       dbg_trace "nparams = {decl.nparams}"
       dbg_trace "lparams = {decl.lparams}"
 
-      let ndeadvars := decl.nparams - nlivevars;
+      -- let ndeadvars := decl.nparams - nlivevars;
+      -- let mut n := ndeadvars;
+      -- let mut deadVars := #[]
+      -- let mut liveVars := #[]
 
-      let mut n := ndeadvars;
-      let mut deadVars := #[]
-      let mut liveVars := #[]
 
-
-      for var in params do
-        if n > 0 then
-          deadVars := deadVars.push var
-          n := n-1
-        else
-          liveVars := liveVars.push var
+      -- for var in params do
+      --   if n > 0 then
+      --     deadVars := deadVars.push var
+      --     n := n-1
+      --   else
+      --     liveVars := liveVars.push var
 
       let liveVarIds := liveVars.map Expr.fvarId!
       let isLiveVar := fun id : FVarId => liveVarIds.contains id
@@ -106,11 +107,6 @@ def elabDataView (view : InductiveView) (nlivevars : Nat) : CommandElabM Unit :=
           constraints := constraints'
       
       let newVars := constraints.map fun ⟨v, _⟩ => v
-
-
-
-
-
       
   
   -- mkQpf decl
@@ -129,8 +125,6 @@ def elabDataView' (view: InductiveView) : CommandElabM Unit := do
   let (liveBinders, deadBinders) ← splitLiveAndDeadBinders view.binders.getArgs
 
   liftTermElabM view.declName <| do
-    dbg_trace view.binders
-    let (liveBinders, deadBinders) ← splitLiveAndDeadBinders view.binders.getArgs
     dbg_trace "liveVars: {liveBinders}"
     dbg_trace "deadVars: {deadBinders}"
 
@@ -138,8 +132,8 @@ def elabDataView' (view: InductiveView) : CommandElabM Unit := do
     <| elabBinders deadBinders fun deadVars => 
       withLiveBinders liveBinders fun liveVars => 
         withoutAutoBoundImplicit <| do
-          for var in liveVars.reverse do
-            let type ← inferType var
+          -- for var in liveVars.reverse do
+          --   let type ← inferType var
 
           -- Check that unsupported features are not used
           let mut ctors : Array CtorView := #[]
@@ -153,7 +147,62 @@ def elabDataView' (view: InductiveView) : CommandElabM Unit := do
             if !ctor.binders.isNone then
               throwErrorAt ctor.binders "Constructor binders are not supported yet"
 
-          -- elabDataView view 0
+          let orig_vars := deadVars ++ liveVars;
+          mkDataDecl orig_vars view fun params indFVars decl => do
+            if decl.isUnsafe then
+              throwError "Unsafe data declarations are not supported"
+              
+            dbg_trace "params: {params}"
+            dbg_trace "indFVars: {indFVars}"
+            dbg_trace "type = {decl.inner.type}"
+            dbg_trace "nparams = {decl.nparams}"
+            dbg_trace "lparams = {decl.lparams}"
+            
+            -- let ndeadvars := decl.nparams - nlivevars;
+            -- let mut n := ndeadvars;
+            -- let mut deadVars := #[]
+            -- let mut liveVars := #[]
+
+
+            -- for var in params do
+            --   if n > 0 then
+            --     deadVars := deadVars.push var
+            --     n := n-1
+            --   else
+            --     liveVars := liveVars.push var
+
+            let liveVarIds := liveVars.map Expr.fvarId!
+            let isLiveVar := fun id : FVarId => liveVarIds.contains id
+
+            /-
+              Replace all expressions with fresh free vars
+            -/
+            let mut constraints : List (Expr × Expr) := []
+            for ctor in decl.inner.ctors do
+              if ctor.type.isForall then      
+                constraints := []
+                dbg_trace "{ctor.name}: {ctor.type}"
+                let (constraints', args) ← 
+                forallTelescopeReducing ctor.type fun args type => do
+                  let mut constraints := constraints
+                  let mut newArgs : Array Expr := #[]
+                  for arg in args do
+                    let newArg ←
+                      if arg.isFVar && isLiveVar arg.fvarId! then
+                        pure arg
+                      else if let some v := constraints.lookup arg then
+                        pure v
+                      else
+                        let v := mkFVar (← mkFreshFVarId);
+                        constraints := (arg, v) :: constraints
+                        pure v
+                    newArgs := newArgs.push newArg
+
+                  pure (constraints, newArgs)
+
+                constraints := constraints'
+
+            let newVars := constraints.map fun ⟨v, _⟩ => v
                   
 
     return ()
@@ -190,17 +239,18 @@ def elabData : CommandElab := fun stx => do
     derivingClasses := view.derivingClasses
   }
 
-  elabDataView view liveBinders.size
+  elabDataView' view
   pure ()
 
 end Data.Command
 
 
--- set_option trace.Elab.inductive true
-variable (A : Type)
+data MyList α where
+  | nil
+  | cons : α → MyList α → MyList α 
 
-inductive Test where
-  | test : A → Test
+-- #check MyList.HeadT
+
 
 -- data MyList α where
 --   | My.nil : MyList α
