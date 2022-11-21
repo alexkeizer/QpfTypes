@@ -24,6 +24,8 @@ namespace Macro.Comp
   open MvQpf
   open Lean Elab Term Command Meta
   open Syntax
+  open Parser (ident)
+  open Parser.Term (bracketedBinder)
 
 
 
@@ -139,10 +141,8 @@ partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Synt
       throwError f!"Unexpected target expression :\n {target}\n{extra}\nNote that the expression contains live variables, hence, must be functorial"
     
 
-
-elab "qpf " F:ident sig:optDeclSig " := " target:term : command => do  
-  dbg_trace sig
-  let (liveBinders, deadBinders) ← splitLiveAndDeadBinders sig[0].getArgs
+def elabQpfCommand (F : Syntax) (binders : Syntax) (type? : Option Syntax) (target : Syntax) : CommandElabM Unit := do
+  let (liveBinders, deadBinders) ← splitLiveAndDeadBinders binders.getArgs
 
   dbg_trace "live_vars:\n {liveBinders}\n"
   if deadBinders.size > 0 then
@@ -154,13 +154,12 @@ elab "qpf " F:ident sig:optDeclSig " := " target:term : command => do
   
   let body ← liftTermElabM none $ do
     let body_type ← 
-      if let some sigInner := sig[1].getOptional? then
+      if let some typeStx := type? then
         let u ← mkFreshLevelMVar;
-        dbg_trace sigInner
-        dbg_trace sigInner[1]
-        let type ← elabTermEnsuringType sigInner[1] (mkSort <| mkLevelSucc u)
+        dbg_trace typeStx
+        let type ← elabTermEnsuringType typeStx (mkSort <| mkLevelSucc u)
         if !(←whnf type).isType then
-          throwErrorAt sigInner[1] "invalid qpf, resulting type must be a type (e.g., `Type`, `Type _`, or `Type u`)"
+          throwErrorAt typeStx "invalid qpf, resulting type must be a type (e.g., `Type`, `Type _`, or `Type u`)"
         pure type
       else 
         let u ← mkFreshLevelMVar;
@@ -173,6 +172,7 @@ elab "qpf " F:ident sig:optDeclSig " := " target:term : command => do
             let target_expr ← elabTermEnsuringType target body_type;
             elabQpf vars target_expr target
 
+  
   /-
     Define the qpf using the elaborated body
   -/
@@ -182,7 +182,7 @@ elab "qpf " F:ident sig:optDeclSig " := " target:term : command => do
   let live_arity := mkNumLit liveBinders.size.repr;
   -- dbg_trace body
   elabCommand <|← `(
-      def $F_internal $[$deadBinders]* : 
+      def $F_internal:ident $deadBinders:bracketedBinder* : 
         TypeFun $live_arity := 
       $body:term
   )
@@ -191,11 +191,11 @@ elab "qpf " F:ident sig:optDeclSig " := " target:term : command => do
   let F_internal_applied := mkApp F_internal deadBinderNamedArgs
 
   let cmd ← `(
-      def $F $[$deadBinders]* :
+      def $F $deadBinders:bracketedBinder* :
         CurriedTypeFun $live_arity := 
       TypeFun.curried $F_internal_applied
 
-      instance $[$deadBinders]* : 
+      instance $deadBinders:bracketedBinder* : 
         MvQpf ($F_internal_applied) := 
       by unfold $F_internal; infer_instance
   )  
@@ -205,11 +205,18 @@ elab "qpf " F:ident sig:optDeclSig " := " target:term : command => do
   let F_applied := mkApp F deadBinderNamedArgs
 
   let cmd ← `(command|
-    instance $[$deadBindersNoHoles]* : 
+    instance $deadBindersNoHoles:bracketedBinder* : 
       MvQpf (TypeFun.ofCurried $F_applied) 
     := by unfold $F; infer_instance
   )
   -- dbg_trace cmd
   elabCommand cmd
+
+elab "qpf " F:ident sig:optDeclSig " := " target:term : command => do  
+  let type? := sig[1].getOptional?.map fun sigInner => sigInner[1]
+  elabQpfCommand F sig[0] type? target
+
+  
+
 
 end Macro.Comp
