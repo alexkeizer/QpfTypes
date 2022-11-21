@@ -360,7 +360,7 @@ set_option pp.rawOnError true
 
 data MyList α β where
   | nil : β → MyList α β
-  | cons : α → MyList α β → MyList α β
+  | cons : α → α → MyList α β → MyList α β
 
 data QpfList α where
   | nil
@@ -369,13 +369,15 @@ data QpfList α where
 data QpfTree α where
   | node : α → QpfList (QpfTree α) → QpfTree α
 
-#check MyList Nat Int
+codata QpfCoTree α where
+  | node : α → QpfList (QpfCoTree α) → QpfCoTree α
 
-#print MyList.Internal
+#print QpfCoTree.Internal
 
 def MyList.nil {α β} (b : β) : MyList α β
   := MvQpf.Fix.mk ⟨MyList.Shape.HeadT.nil, fun i j => match i with
-      | 0 => b
+      | 0 => match j with 
+             | .fz => b
       | 1 => Fin2.elim0 
               (C := fun _ => _)
               $ cast (by simp[Shape.P, Shape.ChildT, Vec.append1]) j
@@ -384,13 +386,16 @@ def MyList.nil {α β} (b : β) : MyList α β
               $ cast (by simp[Shape.P, Shape.ChildT, Vec.append1]) j
   ⟩
 
-def MyList.cons {α β} (a : α) (as : MyList α β) : MyList α β
+def MyList.cons {α β} (a₁ a₂ : α) (as : MyList α β) : MyList α β
   := MvQpf.Fix.mk ⟨MyList.Shape.HeadT.cons, fun i j => match i with
       | 0 => Fin2.elim0 
               (C := fun _ => _)
               $ cast (by simp[Shape.P, Shape.ChildT, Vec.append1]) j
-      | 1 => a
-      | 2 => as
+      | 1 => match j with
+             | .fz => a₁
+             | .fs .fz => a₂
+      | 2 => match j with
+             | .fz => as
   ⟩
 
 #check (MvQpf.Fix.mk (F:=TypeFun.ofCurried MyList.Base) (α:=$[Int, Nat]) _ : MyList Nat Int)
