@@ -14,20 +14,35 @@ open Lean Meta Elab.Command Elab.Term
 
 -/
 
+structure CtorArgs where
+  (args : Array Name)
+  (per_type : Array (Array Name))
+
 structure Replace where
-  (expr: List Syntax)
-  (vars: List Name)
+  (expr: Array Syntax)
+  (vars: Array Name)
+  (ctor: CtorArgs)
+
 
 private def Replace.new : CommandElabM Replace := 
-  do pure ⟨[], []⟩
+  do pure ⟨#[], #[], ⟨#[], #[]⟩⟩
 
 private abbrev ReplaceM := StateT Replace CommandElabM
 
+private def CtorArgs.reset : ReplaceM Unit := do
+  let r ← StateT.get
+  let n := r.vars.size
+  let ctor: CtorArgs := ⟨#[], (Array.range n).map fun _ => #[]⟩
+  StateT.set ⟨r.expr, r.vars, ctor⟩
+
+private def CtorArgs.get : ReplaceM CtorArgs := do
+  pure (←StateT.get).ctor
+
 def Replace.arity (r : Replace) : Nat :=
-  r.vars.length
+  r.vars.size
 
 def Replace.getBinderIdents (r : Replace) : Array Syntax :=
-  (r.vars.map mkIdent).toArray
+  r.vars.map mkIdent
 
 open Parser.Term
 def Replace.getBinders (r : Replace) : CommandElabM Syntax := do
@@ -35,23 +50,29 @@ def Replace.getBinders (r : Replace) : CommandElabM Syntax := do
   `(bracketedBinder| ($names* : Type _ ))
 
 
-private def List.indexOf? [BEq α] : α → List α → Option Nat 
-  | _, []     =>  none
-  | a, b::bs  =>  if a == b then 
-                    some 0
-                  else
-                    (indexOf? a bs).map (· + 1)
+
+
+
+
+
 
 private def ReplaceM.identFor (stx : Syntax) : ReplaceM Syntax := do
   let r ← StateT.get
+  let ctor := r.ctor
+  let argName ← mkFreshBinderName
+  let ctor_args := ctor.args.push argName
   -- dbg_trace "\nstx := {stx}\nr.expr := {r.expr}"
 
-  let name ← match List.indexOf? stx r.expr with
-  | some id => do
+  let name ← match r.expr.indexOf? stx with
+  | some id => do      
+      let ctor_per_type := ctor.per_type.set! id $ (ctor.per_type.get! id).push argName
+      let ctor := ⟨ctor_args, ctor_per_type⟩
+      StateT.set ⟨r.expr, r.vars, ctor⟩
       pure $ r.vars.get! id
   | none       => do
+      let ctor_per_type := ctor.per_type.push #[argName]
       let name ← mkFreshBinderName
-      StateT.set ⟨stx :: r.expr, name :: r.vars⟩
+      StateT.set ⟨r.expr.push stx, r.vars.push name, ⟨ctor_args, ctor_per_type⟩⟩
       pure name
 
   pure $ mkIdent name
@@ -99,32 +120,50 @@ def CtorView.withType? (ctor : CtorView) (type? : Option Syntax) : CtorView := {
   fresh variables.
 -/
 
+#eval toString ((Array.range 0).map (fun _ => (#[] : Array Nat)))
+
 /--
   Extract the constructors for a "shape" functor from the original constructors.
   It replaces all constructor arguments with fresh variables, ensuring that repeated occurences
   of the same type map to a single variable, where "same" refers to a very simple notion of
   syntactic equality. E.g., it does not realize `Nat` and `ℕ` are the same.
 -/
-def Replace.shapeOfCtors (ctors : Array CtorView) (shapeIdent : Syntax) : ReplaceM (Array CtorView) := do
-  let ctors ← ctors.mapM fun ctor => do
+def Replace.shapeOfCtors (ctors : Array CtorView) (shapeIdent : Syntax) : ReplaceM (Array CtorView × Array CtorArgs) := do
+  let pairs ← ctors.mapM fun ctor => do
     if !ctor.binders.isNone then
       throwErrorAt ctor.binders "Constructor binders are not supported yet, please provide all arguments in the type"
 
     dbg_trace "{ctor.declName}: {ctor.type?}"
 
+    CtorArgs.reset
+
     let type? ← ctor.type?.mapM shapeOf'
 
-    pure $ CtorView.withType? ctor type?
+    pure $ (CtorView.withType? ctor type?, ←CtorArgs.get)
+
+  let r ← StateT.get
+  let ctors := pairs.map Prod.fst;
+  let ctorArgs := pairs.map fun ⟨_, ctorArgs⟩ =>
+      let per_type := ctorArgs.per_type
+      
+      let diff := r.vars.size - ctorArgs.per_type.size
+
+      -- HACK: It seems that `Array.append` causes a stack overflow, so we go through `List` for now
+      -- TODO: fix this after updating to newer Lean version
+      let per_type := per_type.appendList $ (List.range diff).map (fun _ => (#[] : Array Name));
+      ⟨ctorArgs.args, per_type⟩
 
   -- Now that we know how many free variables were introduced, we can fix up the resulting type
   -- of each constructor to be `Shape α_0 α_1 ... α_n`
   let r ← StateT.get
   let res := Syntax.mkApp shapeIdent r.getBinderIdents
 
-  ctors.mapM fun ctor => do
+  let ctors ← ctors.mapM fun ctor => do
     let type? ← ctor.type?.mapM (setResultingType res) 
     pure $ CtorView.withType? ctor type?
-  -- pure ctors
+
+  pure (ctors, ctorArgs)
+
 
 
 /-- Runs the given action with a fresh instance of `Replace` -/
@@ -133,9 +172,6 @@ def Replace.run : ReplaceM α → CommandElabM (α × Replace) :=
     let r ← Replace.new
     StateT.run x r
 
-
-#check Syntax.getArgs
-#check Syntax.setArgs
 
 private partial def replaceStx (find replace : Syntax) : Syntax → Syntax := fun stx =>
   if stx == find then

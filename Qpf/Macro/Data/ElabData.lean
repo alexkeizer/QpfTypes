@@ -10,7 +10,6 @@ import Lean.Parser.Term
 import Lean.Parser.Command
 
 import Qpf.Macro.Data.Internals
-import Qpf.Macro.Data.MkQpf
 import Qpf.Macro.Data.Replace
 import Qpf.Macro.Data.Count
 import Qpf.Macro.Common
@@ -20,6 +19,19 @@ import Qpf.Qpf.Multivariate.Constructions.Fix
 
 open Lean Meta Elab.Command
 open Elab (Modifiers elabModifiers)
+
+private def Array.enum (as : Array α) : Array (Nat × α) :=
+  (Array.range as.size).zip as
+
+
+/--
+  Given a natural number `n`, produce a sequence of `n` calls of `.fs`, ending in `.fz`.
+
+  The result corresponds to a `i : PFin2 _` such that `i.toNat == n`
+-/
+private def PFin2.quoteOfNat : Nat → Syntax
+  | 0   => mkIdent ``PFin2.fz
+  | n+1 => Syntax.mkApp (mkIdent ``PFin2.fs) #[(quoteOfNat n)]
 
 
 namespace Data.Command
@@ -85,6 +97,12 @@ def CtorView.declReplacePrefix (pref new_pref : Name) (ctor: CtorView) : CtorVie
 
 
 open Parser in
+/--
+  Defines the "head" type of a polynomial functor
+
+  That is, it defines a type with exactly as many constructor as the input type, but such that
+  all constructors are constants (take no arguments).
+-/
 def mkHeadT (view : InductiveView) : CommandElabM Name := do
   -- If the original declId was `MyType`, we want to register the head type under `MyType.HeadT`
   let suffix := "HeadT"
@@ -143,6 +161,13 @@ private def declValEqnsOfMatchAltArray (matchAlts : Array Syntax) : Syntax :=
 
 
 open Parser Parser.Term Parser.Command in
+/--
+  Defines the "child" family of type vectors for an `n`-ary polynomial functor
+
+  That is, it defines a type `ChildT : HeadT → TypeVec n` such that number of inhabitants of
+  `ChildT a i` corresponds to the times that constructor `a` takes an argument of the `i`-th type
+  argument
+-/
 def mkChildT (view : InductiveView) (r : Replace) (headTName : Name) : CommandElabM Name := do  
   -- If the original declId was `MyType`, we want to register the child type under `MyType.ChildT`
   let suffix := "ChildT"
@@ -150,16 +175,15 @@ def mkChildT (view : InductiveView) (r : Replace) (headTName : Name) : CommandEl
   let declId := mkNode ``Command.declId #[mkIdent declName, mkNullNode]
   let shortDeclName := Name.mkSimple suffix
 
-  let arity := r.arity
-  let target_type := Syntax.mkApp (mkIdent ``TypeVec) #[quote arity]
+  let target_type := Syntax.mkApp (mkIdent ``TypeVec) #[quote r.arity]
 
   let binderIdents := r.getBinderIdents
   let matchAlts ← view.ctors.mapM fun ctor => do  
-    let PFin2 := mkIdent ``PFin2
     let head := mkIdent $ Name.replacePrefix view.declName headTName ctor.declName 
 
     let counts := countVarOccurences r ctor.type?
-    let counts := counts.map fun n => Syntax.mkApp PFin2 #[quote n]
+    let counts := counts.map fun n => 
+                    Syntax.mkApp (mkIdent ``PFin2) #[quote n]
     let counts := counts.reverse
 
     `(matchAltExpr| | $head => (##[ $counts,* ]))
@@ -177,42 +201,131 @@ def mkChildT (view : InductiveView) (r : Replace) (headTName : Name) : CommandEl
 
   pure declName
 
-
--- structure CtorArgs where
---   (all : Array Syntax)
---   (byType : Array (Array Syntax))
-
--- private def CtorArgs.ofType (acc : CtorArgs) : Syntax → CtorArgs
-
--- private def CtorArgs.ofCtor (ctor : CtorView) (r : Replace) : CtorArgs :=
---   let acc := ⟨
---     Array.range 
---   ⟩
-
-
 open Parser.Term in
-def mkQpf (shapeView : InductiveView) (headT childT P : Name) (arity : Nat) : CommandElabM Unit := do
-  let shape := shapeView.declName
-  let qpf_ := mkIdent $ Name.mkStr shape "qpf"
-
-  let P := mkIdent P
-  let Shape := mkIdent shape
+/--
+  Show that the `Shape` type is a qpf, through an isomorphism with the `Shape.P` pfunctor
+-/
+def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT childT P : Syntax) (arity : Nat) : CommandElabM Unit := do
+  let shapeN := shapeView.declName
+  let q := mkIdent $ Name.mkStr shapeN "qpf"
+  let shape := mkIdent shapeN
+  let ofCurriedShape ← `(@TypeFun.ofCurried $(quote arity) $shape)
 
   let n_ctors := shapeView.ctors.size;
+  let ctors := shapeView.ctors.zip ctorArgs
 
-  let box := matchAltsOfArray <|<- shapeView.ctors.mapM fun ctor => do
-    `(matchAltExpr| | _ => _)
+  /-
+    `box` maps objects from the curried form, to the internal uncurried form.
+    See below, or [.ofPolynomial] for the signature
+
+    Example, using a simple list type
+    ```lean4
+     fun x => match x with
+    | MyList.Shape.nil a b => ⟨MyList.Shape.HeadT.nil, fun i => match i with
+        | 0 => Fin2.elim0 (C:=fun _ => _)
+        | 1 => fun j => match j with 
+                | (.ofNat' 0) => b
+        | 2 => fun j => match j with 
+                | (.ofNat' 0) => a
+    ⟩
+    | MyList.Shape.cons a as => ⟨MyList.Shape.HeadT.cons, fun i j => match i with
+        | 0 => match j with
+                | .fz => as
+        | 1 => Fin2.elim0 (C:=fun _ => _) j
+        | 2 => match j with
+                | .fz => a
+    ```
+  -/
+
+  let boxBody ← ctors.mapM fun (ctor, args) => do
+    let argsId  := args.args.map mkIdent
+    let alt     := mkIdent ctor.declName
+    let headAlt := mkIdent $ Name.replacePrefix shapeView.declName headT.getId ctor.declName
+
+    `(matchAltExpr| | $alt:ident $argsId:ident* => ⟨$headAlt:ident, fun i => match i with
+        $(
+          ←args.per_type.enum.mapM fun (i, args) => do
+            let i := arity - 1 - i
+            let body ← if args.size == 0 then
+                          -- `(fun j => Fin2.elim0 (C:=fun _ => _) j)
+                          `(PFin2.elim0)
+                        else
+                          let alts ← args.enum.mapM fun (j, arg) =>
+                              let arg := mkIdent arg
+                              `(matchAltExpr| | $(PFin2.quoteOfNat j) => $arg)
+                          `(
+                            fun j => match j with
+                              $alts:matchAlt*
+                          )
+            `(matchAltExpr| | $(PFin2.quoteOfNat i) => $body)
+        ):matchAlt*
+    ⟩)
+  let box := mkIdent $ Name.mkStr shapeN "box"
+  let cmd ← `(
+    def $box:ident : ∀{α}, $ofCurriedShape α → $(P).Obj α :=
+    fun x => match x with
+      $boxBody:matchAlt*
+  )
+  dbg_trace f!"\nbox: {cmd}\n"
+  elabCommand cmd
+
+  /-
+    `unbox` does the opposite of `box`; it maps from uncurried to curried
+
+    fun ⟨head, child⟩ => match head with
+    | MyList.Shape.HeadT.nil  => MyList.Shape.nil (child 2 .fz) (child 1 .fz)
+    | MyList.Shape.HeadT.cons => MyList.Shape.cons (child 2 .fz) (child 0 .fz)
+  -/
+
+  let unbox_child := mkIdent <|<- Elab.Term.mkFreshBinderName;
+  let unboxBody ← ctors.mapM fun (ctor, args) => do
+    let alt     := mkIdent ctor.declName
+    let headAlt := mkIdent $ Name.replacePrefix shapeView.declName headT.getId ctor.declName
+      
+    let args : Array Syntax ← args.args.mapM fun arg => do
+      -- find the pair `(i, j)` such that the argument is the `j`-th occurence of the `i`-th type
+      let (i, j) := (args.per_type.enum.map fun (i, t) => 
+        -- the order of types is reversed, since `TypeVec`s count right-to-left
+        let i := arity - 1 - i 
+        ((t.indexOf? arg).map fun ⟨j, _⟩ => (i, j)).toList
+      ).toList.join.get! 0
+
+      `($unbox_child $(PFin2.quoteOfNat i) $(PFin2.quoteOfNat j))
+
+    let body := Syntax.mkApp alt args
+
+    `(matchAltExpr| | $headAlt:ident => $body)
+
+  let unbox := mkIdent $ Name.mkStr shapeN "unbox"
+  let cmd ← `(
+    def $unbox:ident : ∀{α}, $(P).Obj α → $ofCurriedShape α :=
+      fun ⟨head, $unbox_child⟩ => match head with
+          $unboxBody:matchAlt*
+  )
+  -- dbg_trace f!"\nunbox: {cmd}\n"
+  elabCommand cmd
 
   let cmd ← `(
-    instance $qpf_ : $(mkIdent ``MvQpf) (@$(mkIdent ``TypeFun.ofCurried) $(quote arity) $Shape) := 
-      let box   : ∀{α}, $Shape α → $(P).Obj α :=
-          fun x => match x with
-            $box:matchAlts
-
-      let unbox : ∀{α}, $(P).Obj α → $Shape α := _
-      
-      $(mkIdent ``MvQpf.ofPolynomial) $P
+    instance $q:ident : MvQpf $ofCurriedShape :=
+      MvQpf.ofPolynomial $P $box $unbox (
+        by 
+          simp only [$box:ident, $unbox:ident];
+          intro _ x;
+          rcases x with ⟨head, child⟩;
+          cases head
+          <;> simp
+          <;> apply congrArg
+          <;> fin_destr
+          <;> rfl          
+      ) (
+        by 
+          simp only [$box:ident, $unbox:ident];
+          intro _ x;
+          cases x
+          <;> rfl
+      )
   )
+  -- dbg_trace f!"\nqpf: {cmd}\n"
   elabCommand cmd
 
   pure ()
@@ -241,9 +354,8 @@ def mkShape (view: InductiveView) : CommandElabM MkShapeResult := do
 
   -- Extract the "shape" functors constructors
   let shapeIdent  := mkIdent shortDeclName
-  let (ctors, r) ← Replace.run (Replace.shapeOfCtors view.ctors shapeIdent)
+  let ((ctors, ctorArgs), r) ← Replace.run (Replace.shapeOfCtors view.ctors shapeIdent)
   let ctors := ctors.map (CtorView.declReplacePrefix view.declName declName)
-
 
   -- Assemble it back together, into the shape inductive type
   let binders ← r.getBinders  
@@ -257,6 +369,7 @@ def mkShape (view: InductiveView) : CommandElabM MkShapeResult := do
     type?           := view.type?          
     
     derivingClasses := view.derivingClasses
+    : InductiveView
   }
 
   elabInductiveViews #[view]
@@ -264,9 +377,10 @@ def mkShape (view: InductiveView) : CommandElabM MkShapeResult := do
   let headTName ← mkHeadT view
   let childTName ← mkChildT view r headTName
 
-  let declNameP := Name.mkStr declName "P"
-  let u ← `(ident| u) -- use a hygienic id for the universe
-  let declIdP := mkNode ``Command.declId #[mkIdent declNameP, mkNullNode 
+  let PName := Name.mkStr declName "P"
+  let PId := mkIdent PName
+  -- let u ← Elab.Term.mkFreshBinderName
+  let PDeclId := mkNode ``Command.declId #[PId, mkNullNode 
     -- #[ TODO: make this universe polymorphic
     --   mkAtom ".{",
     --   mkNullNode #[u],
@@ -274,19 +388,29 @@ def mkShape (view: InductiveView) : CommandElabM MkShapeResult := do
     -- ]
   ]
 
+  let headTId := mkIdent headTName
   let childTId := mkIdent childTName
 
   elabCommand <|<- `(
-    def $declIdP := 
-      $(mkIdent ``MvPFunctor.mk):ident.{0} $(mkIdent headTName) $childTId
+    def $PDeclId := 
+      MvPFunctor.mk $headTId $childTId
   )
 
-  pure ⟨r, declName, declNameP⟩
+ 
+  mkQpf view ctorArgs headTId childTId PId r.arity
+  
+
+  pure ⟨r, declName, PName⟩
 
 
 
 
 open Parser Macro.Comp in
+/--
+  The "base" type is the shape type with all variables set to the appropriate expressions, besides
+  the variable used for (co)-recursive occurences.
+  It is the final step before taking the (co)fixpoint
+-/
 def mkBase (view : InductiveView) : CommandElabM Syntax := do
   let declId := mkIdent $ Name.mkStr view.declName "Base"
   
@@ -295,10 +419,10 @@ def mkBase (view : InductiveView) : CommandElabM Syntax := do
   let ⟨r, shape, P⟩ ← mkShape view
 
   let binders := view.binders
-  let args := r.expr.toArray
+  let args := r.expr
 
   let target ← `(
-    ($(mkIdent ``TypeFun.curried) ($(mkIdent ``MvPFunctor.Obj) $(mkIdent P))) $args*
+    (TypeFun.curried (MvPFunctor.Obj $(mkIdent P))) $args*
   )
   dbg_trace "\n{target}\n"
   elabQpfCommand declId binders none target  
@@ -328,7 +452,7 @@ def elabData : CommandElab := fun stx => do
 
   let internal := mkIdent $ Name.mkStr view.declName "Internal"
   let cmd ← `(
-    abbrev $internal := $(mkIdent ``MvQpf.Fix) ($(mkIdent ``TypeFun.ofCurried)  $base)
+    abbrev $internal := _root_.MvQpf.Fix (_root_.TypeFun.ofCurried $base)
   ) 
   elabCommand cmd
 
@@ -359,8 +483,12 @@ end Data.Command
 set_option pp.rawOnError true
 
 data MyList α β where
-  | nil : β → MyList α β
-  | cons : α → α → MyList α β → MyList α β
+  | nil : α → β → MyList α β
+  | cons : α → MyList α β → MyList α β
+
+
+
+
 
 data QpfList α where
   | nil
@@ -372,30 +500,36 @@ data QpfTree α where
 codata QpfCoTree α where
   | node : α → QpfList (QpfCoTree α) → QpfCoTree α
 
-#print QpfCoTree.Internal
 
-def MyList.nil {α β} (b : β) : MyList α β
+
+data QpfTest α β where
+  | A : α → α → β → β → QpfTest α β → QpfTree β → QpfCoTree (QpfTree (QpfTest α β)) → QpfTest α β
+
+
+
+
+
+/-
+#print MyList.Internal
+
+def MyList.nil {α β} (a : α) (b : β) : MyList α β
   := MvQpf.Fix.mk ⟨MyList.Shape.HeadT.nil, fun i j => match i with
-      | 0 => match j with 
+      | 0 => Fin2.elim0 (C:=fun _ => _) j
+      | 1 => match j with 
              | .fz => b
-      | 1 => Fin2.elim0 
-              (C := fun _ => _)
-              $ cast (by simp[Shape.P, Shape.ChildT, Vec.append1]) j
-      | 2 => Fin2.elim0 
-              (C := fun _ => _)
-              $ cast (by simp[Shape.P, Shape.ChildT, Vec.append1]) j
+      | 2 => match j with 
+             | .fz => a      
   ⟩
 
-def MyList.cons {α β} (a₁ a₂ : α) (as : MyList α β) : MyList α β
+def MyList.cons {α β} (a : α) (as : MyList α β) : MyList α β
   := MvQpf.Fix.mk ⟨MyList.Shape.HeadT.cons, fun i j => match i with
-      | 0 => Fin2.elim0 
-              (C := fun _ => _)
-              $ cast (by simp[Shape.P, Shape.ChildT, Vec.append1]) j
-      | 1 => match j with
-             | .fz => a₁
-             | .fs .fz => a₂
-      | 2 => match j with
+      | 0 => match j with
              | .fz => as
+
+      | 1 => Fin2.elim0 (C:=fun _ => _) j
+      
+      | 2 => match j with
+             | .fz => a
   ⟩
 
 #check (MvQpf.Fix.mk (F:=TypeFun.ofCurried MyList.Base) (α:=$[Int, Nat]) _ : MyList Nat Int)
@@ -404,37 +538,28 @@ def MyList.cons {α β} (a₁ a₂ : α) (as : MyList α β) : MyList α β
 #print MyList.Shape.P
 
 
-/-
+
 instance instQpfMyListShape : MvQpf (@TypeFun.ofCurried 3 MyList.Shape) := 
   .ofPolynomial MyList.Shape.P (
     fun x => match x with
-    | MyList.Shape.nil b_0 b_1 => ⟨MyList.Shape.HeadT.nil, fun i j => (
-        by 
-          fin_destr i
-           <;> simp [MyList.Shape.P, MyList.Shape.ChildT, Vec.append1] at j |-
-           <;> try fin_destr j
-          
-          {
-            match j with 
-            | 0 => exact b_0
-            | 1 => exact b_1
-          }
-    )⟩
-    | MyList.Shape.cons a_0 a_1 => ⟨MyList.Shape.HeadT.cons, fun i j => (
-        by 
-          simp[TypeVec.drop, Vec.drop, Vec.reverse, Vec.normalize, Vec.append1, 
-              TypeVec.last, DVec.last, PFin2.inv, PFin2.weaken] at a_0 a_1
-          fin_destr i
-           <;> simp [MyList.Shape.P, MyList.Shape.ChildT, Vec.append1] at j |-
-           <;> try fin_destr j;
-          
-          exact a_1;
-          exact a_0;
-    )⟩
+    | MyList.Shape.nil a b => ⟨MyList.Shape.HeadT.nil, fun i => match i with
+        | 0 => Fin2.elim0 (C:=fun _ => _)
+        | 1 => fun j => match j with 
+                | (.ofNat' 0) => b
+        | 2 => fun j => match j with 
+                | (.ofNat' 0) => a
+    ⟩
+    | MyList.Shape.cons a as => ⟨MyList.Shape.HeadT.cons, fun i j => match i with
+        | 0 => match j with
+                | .fz => as
+        | 1 => Fin2.elim0 (C:=fun _ => _) j
+        | 2 => match j with
+                | .fz => a
+  ⟩
   ) (
     fun ⟨head, child⟩ => match head with
-    | MyList.Shape.HeadT.nil  => MyList.Shape.nil (child 0 .fz) (child 0 $ .fs .fz)
-    | MyList.Shape.HeadT.cons => MyList.Shape.cons (child 1 .fz) (child 2 .fz)
+    | MyList.Shape.HeadT.nil  => MyList.Shape.nil (child 2 .fz) (child 1 .fz)
+    | MyList.Shape.HeadT.cons => MyList.Shape.cons (child 2 .fz) (child 0 .fz)
   ) (by 
       intro _ x;
       rcases x with ⟨head, child⟩;
@@ -454,8 +579,6 @@ instance instQpfMyListShape : MvQpf (@TypeFun.ofCurried 3 MyList.Shape) :=
 -- #check @MyList.cons
 
 #check instQpfMyListShape
-
--/
 
 
 -- data MyList α where
@@ -478,3 +601,5 @@ instance instQpfMyListShape : MvQpf (@TypeFun.ofCurried 3 MyList.Shape) :=
 --   | cons  : A → (dead → β) → QpfList A dead β → QpfList A dead β
 
 -- #check QpfList
+
+-/
