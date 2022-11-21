@@ -4,7 +4,7 @@ import Lean.Elab.Command
 
 import Qpf.Macro.Common
 
-open Lean Meta Elab.Command
+open Lean Meta Elab.Command Elab.Term
 
 /-
   This file contains the core "shape" extraction logic.
@@ -17,13 +17,20 @@ open Lean Meta Elab.Command
 structure Replace where
   (expr: List Syntax)
   (vars: List Name)
+  (recurse : Name)
+  (origApp : Syntax) 
+  (shapeIdent : Syntax)
 
-def Replace.new : Replace := ⟨[], []⟩
+private def Replace.new (origApp : Syntax) (shapeIdent : Syntax) : CommandElabM Replace := 
+  do pure ⟨[], [], ←mkFreshBinderName, origApp, shapeIdent⟩
 
 private abbrev ReplaceM := StateT Replace CommandElabM
 
+def Replace.arity (r : Replace) : Nat :=
+  r.vars.length + 1
+
 def Replace.getBinderIdents (r : Replace) : Array Syntax :=
-  (r.vars.map mkIdent).toArray
+  ((r.vars ++ [r.recurse]).map mkIdent).toArray
 
 open Parser.Term
 def Replace.getBinders (r : Replace) : CommandElabM Syntax := do
@@ -42,17 +49,18 @@ private def ReplaceM.identFor (stx : Syntax) : ReplaceM Syntax := do
   let r ← StateT.get
   -- dbg_trace "\nstx := {stx}\nr.expr := {r.expr}"
 
-  let name ← match List.indexOf? stx r.expr with
-  | some id => do
-      pure $ r.vars.get! id
-  | none       => do
-      let id := r.expr.length
-      let name := Name.mkSimple ("α_" ++ toString id)
-      --TODO collision check with dead binders, once added
-      StateT.set ⟨stx :: r.expr, name :: r.vars⟩
-      pure name
+  if stx == r.origApp then
+    pure $ mkIdent r.recurse
+  else
+    let name ← match List.indexOf? stx r.expr with
+    | some id => do
+        pure $ r.vars.get! id
+    | none       => do
+        let name ← mkFreshBinderName
+        StateT.set ⟨stx :: r.expr, name :: r.vars, r.recurse, r.origApp, r.shapeIdent⟩
+        pure name
 
-  pure $ mkIdent name
+    pure $ mkIdent name
   
 
 open Lean.Parser in
@@ -103,7 +111,7 @@ def CtorView.withType? (ctor : CtorView) (type? : Option Syntax) : CtorView := {
   of the same type map to a single variable, where "same" refers to a very simple notion of
   syntactic equality. E.g., it does not realize `Nat` and `ℕ` are the same.
 -/
-def Replace.shapeOfCtors (shapeIdent: Syntax) (ctors : Array CtorView) : ReplaceM (Array CtorView) := do
+def Replace.shapeOfCtors (ctors : Array CtorView) : ReplaceM (Array CtorView) := do
   let ctors ← ctors.mapM fun ctor => do
     if !ctor.binders.isNone then
       throwErrorAt ctor.binders "Constructor binders are not supported yet, please provide all arguments in the type"
@@ -117,7 +125,7 @@ def Replace.shapeOfCtors (shapeIdent: Syntax) (ctors : Array CtorView) : Replace
   -- Now that we know how many free variables were introduced, we can fix up the resulting type
   -- of each constructor to be `Shape α_0 α_1 ... α_n`
   let r ← StateT.get
-  let res := Syntax.mkApp shapeIdent r.getBinderIdents
+  let res := Syntax.mkApp r.shapeIdent r.getBinderIdents
 
   ctors.mapM fun ctor => do
     let type? ← ctor.type?.mapM (setResultingType res) 
@@ -126,5 +134,7 @@ def Replace.shapeOfCtors (shapeIdent: Syntax) (ctors : Array CtorView) : Replace
 
 
 /-- Runs the given action with a fresh instance of `Replace` -/
-def Replace.run : ReplaceM α → CommandElabM (α × Replace) :=
-  fun x => StateT.run x Replace.new
+def Replace.run (origApp : Syntax) (shapeIdent : Syntax) : ReplaceM α → CommandElabM (α × Replace) := 
+  fun x => do 
+    let r ← Replace.new origApp shapeIdent
+    StateT.run x r
