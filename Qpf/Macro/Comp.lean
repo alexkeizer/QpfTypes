@@ -28,7 +28,6 @@ namespace Macro.Comp
   open Parser.Term (bracketedBinder)
 
 
-
 /--
   Given an expression `e`, tries to find the largest subexpression `F` such that 
     * `e = F α₀ ... αₙ`, for some list of arguments `α_i` and
@@ -40,23 +39,23 @@ protected def parseApp (isLiveVar : FVarId → Bool) (e : Expr) : TermElabM (Exp
     if !e.isApp then
       throwError "application expected:\n {e}"
     else
-      parseAppAux e
+      parseAppAux 1 e
 where
-  parseAppAux : Expr → _
-  | Expr.app F a _ => do
+  parseAppAux : Nat → Expr → _
+  | depth, Expr.app F a _ => do
     -- If `F` contains live variables, recurse
     if F.hasAnyFVar isLiveVar then
-      let (G, args) ← parseAppAux F;
+      let (G, args) ← parseAppAux (depth+1) F;
       return (G, args ++ [a])
     else
-      let F ← uncurry F
+      let F ← uncurry F (mkNatLit depth)
       let inst_type ← mkAppM ``MvQpf #[F];
       -- We don't need the instance, we just need to know it exists
       let _ ← synthesizeInst inst_type    
         
       return (F, [a])
 
-  | ex => 
+  | _, ex => 
     throwError "Smallest function subexpression still contains live variables:\n  {ex}\ntry marking more variables as dead "
 
 
@@ -119,7 +118,7 @@ partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Synt
       G := G.push Ga
 
     let F_stx ← delab F;
-    `(Comp $F_stx ![$G,*])
+    `(Comp (n:=$(quote args.length)) $F_stx ![$G,*])
 
   else if target.isArrow then
     match target with

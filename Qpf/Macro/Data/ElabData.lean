@@ -266,7 +266,7 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT childT 
     fun x => match x with
       $boxBody:matchAlt*
   )
-  dbg_trace f!"\nbox: {cmd}\n"
+  -- dbg_trace f!"\nbox: {cmd}\n"
   elabCommand cmd
 
   /-
@@ -422,7 +422,7 @@ def mkBase (view : InductiveView) : CommandElabM Syntax := do
   let args := r.expr
 
   let target ← `(
-    (TypeFun.curried (MvPFunctor.Obj $(mkIdent P))) $args*
+    $(mkIdent shape):ident $args*
   )
   dbg_trace "\n{target}\n"
   elabQpfCommand declId binders none target  
@@ -487,8 +487,13 @@ data MyList α β where
   | cons : α → MyList α β → MyList α β
 
 
+def MyList.nil {α β} : α → β → MyList α β :=
+  (MvQpf.Fix.mk $ MyList.Shape.nil · ·)
 
 
+-- def MyList.isNil : MyList α β → Bool := MvQpf.Fix.cas
+
+/-
 
 data QpfList α where
   | nil
@@ -509,7 +514,7 @@ data QpfTest α β where
 
 
 
-/-
+
 #print MyList.Internal
 
 def MyList.nil {α β} (a : α) (b : β) : MyList α β

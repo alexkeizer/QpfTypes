@@ -18,8 +18,8 @@ namespace Macro
     representing the uncurried version of `e`.
     Tries to prevent unneccesary `ofCurried / curried` roundtrips
   -/
-  def uncurry (F : Expr) : n Expr := do
-    mkAppM ``TypeFun.ofCurried #[F]
+  def uncurry (F : Expr) (arity : Option Expr := none) : n Expr := do
+    mkAppOptM ``TypeFun.ofCurried #[arity, some F]
 
     --
     -- Although preventing unneccesary `ofCurried / curried` roundtrips seems like a good idea,
