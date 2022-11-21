@@ -138,12 +138,36 @@ namespace Macro
     return (liveVars, deadBinders)
 
 
+  /--
+    Takes a list of binders, and returns an array of just the bound identifiers, 
+    for use in applications
+  -/
+  def getBinderIdents (binders : Array Syntax) : Array Syntax := Id.run do
+    let mut idents := #[]
+
+    for binder in binders do
+      let kind := binder.getKind
+
+      if kind == ``Lean.binderIdent then
+        idents := idents.push binder
+
+      else if kind == ``Lean.Parser.Term.simpleBinder then
+        for id in binder[0].getArgs do
+          idents := idents.push id
+
+      else
+        dbg_trace "{binder}"
+
+    pure idents
+
+
+
   
   open Lean.Parser.Term in
   elab "#dbg_syntax " t:term : command => do
     dbg_trace t
 
-  #dbg_syntax F (a:=2)
+  -- #dbg_syntax F (a:=2)
   
   open Lean.Parser.Term Elab.Command in
   elab "#dbg_expr " t:term : command => do
@@ -151,6 +175,6 @@ namespace Macro
     dbg_trace expr
     dbg_trace expr.isForall
 
-  #dbg_expr (Nat → Int)
+  -- #dbg_expr (Nat → Int)
 
 end Macro
