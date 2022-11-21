@@ -490,6 +490,9 @@ data MyList α β where
 def MyList.nil {α β} : α → β → MyList α β :=
   (MvQpf.Fix.mk $ MyList.Shape.nil · ·)
 
+def MyList.cons {α β} : α → MyList α β → MyList α β :=
+  (MvQpf.Fix.mk $ MyList.Shape.cons · ·)
+
 
 -- def MyList.isNil : MyList α β → Bool := MvQpf.Fix.cas
 
