@@ -11,7 +11,6 @@ open Parser
 private partial def countVarOccurencesAux (r : Replace) (acc : Array Nat) : Syntax → Array Nat
   | Syntax.node _ ``Term.arrow #[arg, arrow, tail] =>     
       -- NOTE: `indexOf` return an index one-past-the-end of `r.vars` if it cant find the index
-      -- This *should* only happen for recursive occurences
       let i := r.vars.indexOf arg.getId
 
       -- dbg_trace "{r.expr}.indexOf {arg} == {i}"

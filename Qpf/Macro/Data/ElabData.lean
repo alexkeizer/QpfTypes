@@ -240,13 +240,8 @@ def mkShape (view: InductiveView) : CommandElabM MkShapeResult := do
 
 
   -- Extract the "shape" functors constructors
-  let origArgs    := Macro.getBinderIdents view.binders.getArgs
-  let origApp     := Syntax.mkApp (mkIdent view.shortDeclName) origArgs
-
-  dbg_trace "origApp := {origApp}"
-
   let shapeIdent  := mkIdent shortDeclName
-  let (ctors, r) ← Replace.run origApp shapeIdent (Replace.shapeOfCtors view.ctors)
+  let (ctors, r) ← Replace.run (Replace.shapeOfCtors view.ctors shapeIdent)
   let ctors := ctors.map (CtorView.declReplacePrefix view.declName declName)
 
 
@@ -295,13 +290,12 @@ open Parser Macro.Comp in
 def mkBase (view : InductiveView) : CommandElabM Syntax := do
   let declId := mkIdent $ Name.mkStr view.declName "Base"
   
+  let (view, _) ← makeNonRecursive view;
+
   let ⟨r, shape, P⟩ ← mkShape view
-  let recurse := mkIdent r.recurse
-  let recurseBind := mkNode ``Term.simpleBinder #[mkNullNode #[recurse], mkNullNode]
 
   let binders := view.binders
-  let binders := binders.setArgs (binders.getArgs.push recurseBind)
-  let args := r.expr.toArray.push recurse
+  let args := r.expr.toArray
 
   let target ← `(
     ($(mkIdent ``TypeFun.curried) ($(mkIdent ``MvPFunctor.Obj) $(mkIdent P))) $args*
@@ -316,7 +310,7 @@ def mkBase (view : InductiveView) : CommandElabM Syntax := do
 
 def mkAuxConstructions (view : InductiveView) (internal : Syntax) : CommandElabM Unit := do
   let cmd ← `(
-    def $(view.declId) := $(mkIdent ``TypeFun.curried) $internal
+    abbrev $(view.declId) := $(mkIdent ``TypeFun.curried) $internal
   )
   elabCommand cmd
 
@@ -368,16 +362,23 @@ data MyList α β where
   | nil : β → MyList α β
   | cons : α → MyList α β → MyList α β
 
+data QpfList α where
+  | nil
+  | cons : α → QpfList α → QpfList α
+
+data QpfTree α where
+  | node : α → QpfList (QpfTree α) → QpfTree α
+
 #check MyList Nat Int
 
 #print MyList.Internal
 
 def MyList.nil {α β} (b : β) : MyList α β
   := MvQpf.Fix.mk ⟨MyList.Shape.HeadT.nil, fun i j => match i with
-      | 0 => Fin2.elim0 
+      | 0 => b
+      | 1 => Fin2.elim0 
               (C := fun _ => _)
               $ cast (by simp[Shape.P, Shape.ChildT, Vec.append1]) j
-      | 1 => b
       | 2 => Fin2.elim0 
               (C := fun _ => _)
               $ cast (by simp[Shape.P, Shape.ChildT, Vec.append1]) j
@@ -385,11 +386,11 @@ def MyList.nil {α β} (b : β) : MyList α β
 
 def MyList.cons {α β} (a : α) (as : MyList α β) : MyList α β
   := MvQpf.Fix.mk ⟨MyList.Shape.HeadT.cons, fun i j => match i with
-      | 0 => as
-      | 1 => Fin2.elim0 
+      | 0 => Fin2.elim0 
               (C := fun _ => _)
               $ cast (by simp[Shape.P, Shape.ChildT, Vec.append1]) j
-      | 2 => a
+      | 1 => a
+      | 2 => as
   ⟩
 
 #check (MvQpf.Fix.mk (F:=TypeFun.ofCurried MyList.Base) (α:=$[Int, Nat]) _ : MyList Nat Int)
