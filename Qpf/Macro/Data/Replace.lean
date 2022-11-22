@@ -78,7 +78,33 @@ private def ReplaceM.identFor (stx : Syntax) : ReplaceM Syntax := do
   pure $ mkIdent name
   
 
+
+open Parser in
+/--
+  Checks that the given type is a sequence of (non-depenedent) arrows, ending in `expected`
+-/
+private partial def checkResultingType (expected : Syntax) : Syntax → CommandElabM Unit
+  | Syntax.node _ ``Term.arrow #[arg, arrow, tail] =>
+      checkResultingType expected tail
+
+  | stx@(Syntax.node _ ``Term.arrow _) =>
+      throwErrorAt stx "Internal bug: encountered an unexpected form of arrow syntax"
+
+  | stx@(Syntax.node _ ``Term.depArrow _) =>
+      throwErrorAt stx "Dependent arrows are not supported, please only use plain arrow types"
+
+  | ctor_type => 
+      if ctor_type != expected then
+        throwErrorAt ctor_type m!"Unexpected constructor resulting type; expected {expected}, found {ctor_type}"
+      else
+        pure ()
+
 open Lean.Parser in
+/--
+  Given a sequence of (non-dependent) arrows, replace each unique expression in between the arrows
+  with a fresh variable, such that repeated occurrences of the same expression map to the same
+  variable
+-/
 private partial def shapeOf' : Syntax → ReplaceM Syntax
   | Syntax.node _ ``Term.arrow #[arg, arrow, tail] => do
     let ctor_arg ← ReplaceM.identFor arg
@@ -86,12 +112,16 @@ private partial def shapeOf' : Syntax → ReplaceM Syntax
 
     -- dbg_trace ">> {arg} ==> {ctor_arg}"    
     pure $ mkNode ``Term.arrow #[ctor_arg, arrow, ctor_tail]
+
   | ctor_type => 
       pure ctor_type
 
 
 
 open Lean.Parser in
+/--
+  Given a sequence of (non-dependent) arrows, change the last expression into `res_type`
+-/
 private partial def setResultingType (res_type : Syntax) : Syntax → ReplaceM Syntax
   | Syntax.node _ ``Term.arrow #[arg, arrow, tail] => do
     let tail ← setResultingType res_type tail
@@ -128,7 +158,11 @@ def CtorView.withType? (ctor : CtorView) (type? : Option Syntax) : CtorView := {
   of the same type map to a single variable, where "same" refers to a very simple notion of
   syntactic equality. E.g., it does not realize `Nat` and `ℕ` are the same.
 -/
-def Replace.shapeOfCtors (ctors : Array CtorView) (shapeIdent : Syntax) : ReplaceM (Array CtorView × Array CtorArgs) := do
+def Replace.shapeOfCtors (view : InductiveView) 
+                          (shapeIdent : Syntax) 
+                          : ReplaceM (Array CtorView × Array CtorArgs) := do  
+  let ctors := view.ctors
+
   let pairs ← ctors.mapM fun ctor => do
     if !ctor.binders.isNone then
       throwErrorAt ctor.binders "Constructor binders are not supported yet, please provide all arguments in the type"
@@ -137,7 +171,7 @@ def Replace.shapeOfCtors (ctors : Array CtorView) (shapeIdent : Syntax) : Replac
 
     CtorArgs.reset
 
-    let type? ← ctor.type?.mapM shapeOf'
+    let type? ← ctor.type?.mapM $ shapeOf'
 
     pure $ (CtorView.withType? ctor type?, ←CtorArgs.get)
 
@@ -180,11 +214,17 @@ private partial def replaceStx (find replace : Syntax) : Syntax → Syntax := fu
     stx.setArgs (stx.getArgs.map (replaceStx find replace))
 
 
+
+
 open Parser
 /--
   Makes a type non-recursive, by replacing all recursive occurences by a fresh bound variable.
 -/
 def makeNonRecursive (view : InductiveView) : CommandElabM (InductiveView × Name) := do
+  let expected := Syntax.mkApp (mkIdent view.shortDeclName) (
+    (Macro.getBinderIdents view.binders.getArgs)
+  )  
+
   let rec ← mkFreshBinderName
   let recId := mkIdent rec
 
@@ -192,11 +232,11 @@ def makeNonRecursive (view : InductiveView) : CommandElabM (InductiveView × Nam
   let binders := view.binders
   let binders := binders.setArgs (binders.getArgs.push newBinder)
 
-  let origArgs := Macro.getBinderIdents view.binders.getArgs
-  let orig     := Syntax.mkApp (mkIdent view.shortDeclName) origArgs
-
-  let ctors := view.ctors.map fun ctor =>
-    CtorView.withType? ctor $ ctor.type?.map (replaceStx orig recId)
+  let ctors ← view.ctors.mapM fun ctor => do
+    pure $ CtorView.withType? ctor $ ← ctor.type?.mapM (fun type => do
+      checkResultingType expected type
+      pure $ replaceStx expected recId type
+    )
 
   pure ({
     binders, ctors,

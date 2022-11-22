@@ -354,7 +354,7 @@ def mkShape (view: InductiveView) : CommandElabM MkShapeResult := do
 
   -- Extract the "shape" functors constructors
   let shapeIdent  := mkIdent shortDeclName
-  let ((ctors, ctorArgs), r) ← Replace.run (Replace.shapeOfCtors view.ctors shapeIdent)
+  let ((ctors, ctorArgs), r) ← Replace.run (Replace.shapeOfCtors view shapeIdent)
   let ctors := ctors.map (CtorView.declReplacePrefix view.declName declName)
 
   -- Assemble it back together, into the shape inductive type
@@ -439,15 +439,37 @@ def mkAuxConstructions (view : InductiveView) (internal : Syntax) : CommandElabM
   elabCommand cmd
 
 
-
-/-- Top-level elaboration -/
-@[commandElab «data»]
-def elabData : CommandElab := fun stx => do 
+open Macro in
+private def syntaxToView (stx : Syntax) : CommandElabM InductiveView := do
   let modifiers ← elabModifiers stx[0]
   let decl := stx[1]
   let view ← inductiveSyntaxToView modifiers decl
 
+  let (live, dead) ← splitLiveAndDeadBinders view.binders.getArgs
+  if live.isEmpty then
+    if dead.isEmpty then
+      throwError "Trying to define a QPF without variables, you probably want an `inductive` type instead"
+    else
+      throwErrorAt view.binders "You should mark some variables as live by removing the type ascription (they will be automatically inferred as `Type _`), or if you don't have variables of type `Type _`, you probably want an `inductive` type"
 
+  -- TODO: remove once dead variables are fully supported
+  if !dead.isEmpty then
+    throwErrorAt dead[0] "Dead variables are not supported yet, please make the variable live by removing the type ascription (it will be automatically inferred as `Type _`)"
+
+
+  -- TODO: make this more intelligent. In particular, allow types like `Type`, `Type 3`, or `Type u`
+  --       and only throw an error if the user tries to define a family of types
+  match view.type? with
+  | some t => throwErrorAt t "Unexpected type; type will be automatically inferred. Note that inductive families are not supported due to inherent limitations of QPFs"
+  | none => pure ()
+
+  pure view
+
+
+/-- Top-level elaboration -/
+@[commandElab «data»]
+def elabData : CommandElab := fun stx => do 
+  let view ← syntaxToView stx
   let base ← mkBase view
 
   let internal := mkIdent $ Name.mkStr view.declName "Internal"
@@ -462,16 +484,12 @@ def elabData : CommandElab := fun stx => do
 /-- Top-level elaboration -/
 @[commandElab «codata»]
 def elabCodata : CommandElab := fun stx => do 
-  let modifiers ← elabModifiers stx[0]
-  let decl := stx[1]
-  let view ← inductiveSyntaxToView modifiers decl
-
-
+  let view ← syntaxToView stx
   let base ← mkBase view
 
   let internal := mkIdent $ Name.mkStr view.declName "Internal"
   let cmd ← `(
-    abbrev $internal := $(mkIdent ``MvQpf.Cofix) ($(mkIdent ``TypeFun.ofCurried)  $base)
+    abbrev $internal := _root_.MvQpf.Cofix (_root_.TypeFun.ofCurried $base)
   ) 
   elabCommand cmd
 
@@ -479,135 +497,3 @@ def elabCodata : CommandElab := fun stx => do
   pure ()
 
 end Data.Command
-
-set_option pp.rawOnError true
-
-data MyList α β where
-  | nil : α → β → MyList α β
-  | cons : α → MyList α β → MyList α β
-
-
-def MyList.nil {α β} : α → β → MyList α β :=
-  (MvQpf.Fix.mk $ MyList.Shape.nil · ·)
-
-def MyList.cons {α β} : α → MyList α β → MyList α β :=
-  (MvQpf.Fix.mk $ MyList.Shape.cons · ·)
-
-
--- def MyList.isNil : MyList α β → Bool := MvQpf.Fix.cas
-
-/-
-
-data QpfList α where
-  | nil
-  | cons : α → QpfList α → QpfList α
-
-data QpfTree α where
-  | node : α → QpfList (QpfTree α) → QpfTree α
-
-codata QpfCoTree α where
-  | node : α → QpfList (QpfCoTree α) → QpfCoTree α
-
-
-
-data QpfTest α β where
-  | A : α → α → β → β → QpfTest α β → QpfTree β → QpfCoTree (QpfTree (QpfTest α β)) → QpfTest α β
-
-
-
-
-
-
-#print MyList.Internal
-
-def MyList.nil {α β} (a : α) (b : β) : MyList α β
-  := MvQpf.Fix.mk ⟨MyList.Shape.HeadT.nil, fun i j => match i with
-      | 0 => Fin2.elim0 (C:=fun _ => _) j
-      | 1 => match j with 
-             | .fz => b
-      | 2 => match j with 
-             | .fz => a      
-  ⟩
-
-def MyList.cons {α β} (a : α) (as : MyList α β) : MyList α β
-  := MvQpf.Fix.mk ⟨MyList.Shape.HeadT.cons, fun i j => match i with
-      | 0 => match j with
-             | .fz => as
-
-      | 1 => Fin2.elim0 (C:=fun _ => _) j
-      
-      | 2 => match j with
-             | .fz => a
-  ⟩
-
-#check (MvQpf.Fix.mk (F:=TypeFun.ofCurried MyList.Base) (α:=$[Int, Nat]) _ : MyList Nat Int)
-
-#print MyList.Shape
-#print MyList.Shape.P
-
-
-
-instance instQpfMyListShape : MvQpf (@TypeFun.ofCurried 3 MyList.Shape) := 
-  .ofPolynomial MyList.Shape.P (
-    fun x => match x with
-    | MyList.Shape.nil a b => ⟨MyList.Shape.HeadT.nil, fun i => match i with
-        | 0 => Fin2.elim0 (C:=fun _ => _)
-        | 1 => fun j => match j with 
-                | (.ofNat' 0) => b
-        | 2 => fun j => match j with 
-                | (.ofNat' 0) => a
-    ⟩
-    | MyList.Shape.cons a as => ⟨MyList.Shape.HeadT.cons, fun i j => match i with
-        | 0 => match j with
-                | .fz => as
-        | 1 => Fin2.elim0 (C:=fun _ => _) j
-        | 2 => match j with
-                | .fz => a
-  ⟩
-  ) (
-    fun ⟨head, child⟩ => match head with
-    | MyList.Shape.HeadT.nil  => MyList.Shape.nil (child 2 .fz) (child 1 .fz)
-    | MyList.Shape.HeadT.cons => MyList.Shape.cons (child 2 .fz) (child 0 .fz)
-  ) (by 
-      intro _ x;
-      rcases x with ⟨head, child⟩;
-      cases head
-      <;> simp
-      <;> apply congrArg
-      <;> fin_destr
-      <;> rfl          
-          
-  ) (by 
-      intro _ x;
-      cases x
-      <;> rfl
-  )
-  
--- #print MyList.Shape.ChildT
--- #check @MyList.cons
-
-#check instQpfMyListShape
-
-
--- data MyList α where
---   | My.nil : MyList α
---   | My2.nil :  A → (a : α) → MyList α → MyList α
-
--- data MyList α where
---   | My.nil : MyList α
---   | My2.nil : α → MyList α → MyList α
-
-
-
-
--- data QpfList (dead : Type) β γ where
---   | nil   : QpfList dead β γ
---   | cons  : A → QpfList dead β γ → QpfList dead β γ
-
--- data QpfList (A : Type) (dead : Type) β where
---   | nil   : QpfList A dead β
---   | cons  : A → (dead → β) → QpfList A dead β → QpfList A dead β
-
--- #check QpfList
-
--/
