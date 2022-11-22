@@ -3,20 +3,9 @@ import Qpf.Macro.Data
 -- set_option trace.Meta.debug true
 set_option pp.rawOnError true
 
-data MyList α β where
-  | nil : α → β → MyList α β
-  | cons : α → MyList α β → MyList α β
-
-def MyList.nil {α β} : α → β → MyList α β :=
-  (MvQpf.Fix.mk $ MyList.Shape.nil · ·)
-
-def MyList.cons {α β} : α → MyList α β → MyList α β :=
-  (MvQpf.Fix.mk $ MyList.Shape.cons · ·)
-
-
--- def MyList.isNil : MyList α β → Bool := MvQpf.Fix.cas
-
-
+data MyList α where
+  | nil : MyList α
+  | cons : α → MyList α → MyList α
 
 data QpfList α where
   | nil
@@ -27,6 +16,87 @@ data QpfTree α where
 
 codata QpfCoTree α where
   | node : α → QpfList (QpfCoTree α) → QpfCoTree α
+
+
+
+
+
+
+
+
+
+
+def MyList.nil {α} : MyList α :=
+  MvQpf.Fix.mk MyList.Shape.nil
+
+def MyList.cons {α} : α → MyList α → MyList α :=
+  fun a as => MvQpf.Fix.mk (MyList.Shape.cons a as)
+
+
+def MyList.isNil : MyList α → Bool := 
+  MvQpf.Fix.rec fun as => match as with
+    | .nil => true
+    | _    => false
+
+def MyList.isCons : MyList α → Bool := 
+  fun as => match as.dest with
+    | .cons .. => true
+    | _        => false
+
+def MyList.length : MyList α → Nat :=
+  MvQpf.Fix.rec fun as => match as with
+    | .nil                => 0
+    | .cons a (as : Nat)  => as + 1 
+
+
+inductive MyListInd α
+ | nil
+ | cons : α → MyListInd α → MyListInd α
+
+
+codata QpfStream α where
+  | mk : α → QpfStream α → QpfStream α
+
+def QpfStream.mk : α → QpfStream α → QpfStream α :=
+  fun a as => MvQpf.Cofix.mk (Shape.mk a as)
+
+
+/-- The stream `0,0,0,...` -/
+def QpfStream.zeroes : QpfStream Nat :=
+  MvQpf.Cofix.corec (fun _ => 
+    Shape.mk (0 : Nat) ()
+  ) ()
+
+/-- The stream `0,1,2,3,4,...` -/
+def QpfStream.naturals : QpfStream Nat :=
+  MvQpf.Cofix.corec (fun (i : Nat) => 
+    Shape.mk (i : Nat) (i + 1 : Nat)
+  ) 0
+
+
+/-- Add two streams together -/
+def QpfStream.add (as bs : QpfStream Nat) : QpfStream Nat :=
+    MvQpf.Cofix.corec (fun ⟨as, bs⟩ => 
+      let ⟨(a : Nat), as⟩ := MvQpf.Cofix.dest as;
+      let ⟨(b : Nat), bs⟩ := MvQpf.Cofix.dest bs;
+      Shape.mk (a + b : Nat) (as, bs)
+    ) (as, bs)
+
+
+-- data MyListPair α β where
+--   | nil_nil
+--   | cons_nil  : α → MyListPair α β
+--   | nil_cons  : β → MyListPair α β
+--   | cons_cons : α → β → MyListPair α β
+
+-- def MyListPair.of (as : MyList α) (bs : MyList β) : MyListPair α β
+
+
+
+
+
+
+
 
 
 
