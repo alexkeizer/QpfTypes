@@ -432,23 +432,30 @@ def mkBase (view : InductiveView) : CommandElabM Syntax := do
 
 
 
-def mkAuxConstructions (view : InductiveView) (internal : Syntax) : CommandElabM Unit := do
-  let cmd ← `(
-    abbrev $(view.declId) := $(mkIdent ``TypeFun.curried) $internal
-  )
-  elabCommand cmd
 
+
+
+private inductive ElabType where
+  | Data
+  | Codata
+  deriving BEq
 
 open Macro in
-private def syntaxToView (stx : Syntax) : CommandElabM InductiveView := do
+/--
+  Top-level elaboration for both `data` and `codata`, as distinghuished by `type`
+-/
+private def elabGeneric (stx : Syntax) (type : ElabType) : CommandElabM Unit := do
   let modifiers ← elabModifiers stx[0]
   let decl := stx[1]
   let view ← inductiveSyntaxToView modifiers decl
 
   let (live, dead) ← splitLiveAndDeadBinders view.binders.getArgs
-  if live.isEmpty then
+  if live.isEmpty then    
     if dead.isEmpty then
-      throwError "Trying to define a QPF without variables, you probably want an `inductive` type instead"
+      if type == .Codata then
+        throwError "Due to a bug, codatatype without any parameters don't quite work yet. Please try adding parameters to your type"
+      else 
+        throwError "Trying to define a data without variables, you probably want an `inductive` type instead"
     else
       throwErrorAt view.binders "You should mark some variables as live by removing the type ascription (they will be automatically inferred as `Type _`), or if you don't have variables of type `Type _`, you probably want an `inductive` type"
 
@@ -463,37 +470,27 @@ private def syntaxToView (stx : Syntax) : CommandElabM InductiveView := do
   | some t => throwErrorAt t "Unexpected type; type will be automatically inferred. Note that inductive families are not supported due to inherent limitations of QPFs"
   | none => pure ()
 
-  pure view
+  let base ← mkBase view
+
+  let internal := mkIdent $ Name.mkStr view.declName "Internal"
+  let fix_or_cofix := mkIdent $ match type with
+    | .Data   => ``_root_.MvQpf.Fix
+    | .Codata => ``_root_.MvQpf.Cofix
+  let cmd ← `(
+    abbrev $internal := $fix_or_cofix (_root_.TypeFun.ofCurried $base)
+    abbrev $(view.declId) := _root_.TypeFun.curried $internal
+  ) 
+  elabCommand cmd
 
 
 /-- Top-level elaboration -/
 @[commandElab «data»]
 def elabData : CommandElab := fun stx => do 
-  let view ← syntaxToView stx
-  let base ← mkBase view
-
-  let internal := mkIdent $ Name.mkStr view.declName "Internal"
-  let cmd ← `(
-    abbrev $internal := _root_.MvQpf.Fix (_root_.TypeFun.ofCurried $base)
-  ) 
-  elabCommand cmd
-
-  mkAuxConstructions view internal
-  pure ()
+  elabGeneric stx .Data
 
 /-- Top-level elaboration -/
 @[commandElab «codata»]
 def elabCodata : CommandElab := fun stx => do 
-  let view ← syntaxToView stx
-  let base ← mkBase view
-
-  let internal := mkIdent $ Name.mkStr view.declName "Internal"
-  let cmd ← `(
-    abbrev $internal := _root_.MvQpf.Cofix (_root_.TypeFun.ofCurried $base)
-  ) 
-  elabCommand cmd
-
-  mkAuxConstructions view internal  
-  pure ()
+  elabGeneric stx .Codata
 
 end Data.Command

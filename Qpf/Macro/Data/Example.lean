@@ -18,11 +18,14 @@ codata QpfCoTree α where
   | node : α → QpfList (QpfCoTree α) → QpfCoTree α
 
 
+#print MyList
 
 
 
-
-
+-- TODO: find out why the following won't work
+-- codata NatList α where
+--   | nil : NatList α
+--   | cons : Nat → NatList α → NatList α
 
 
 
