@@ -483,12 +483,12 @@ private def elabGeneric (stx : Syntax) (type : ElabType) : CommandElabM Unit := 
   elabCommand cmd
 
 
-/-- Top-level elaboration -/
+/-- datatype, i.e., inductive type -/
 @[commandElab «data»]
 def elabData : CommandElab := fun stx => do 
   elabGeneric stx .Data
 
-/-- Top-level elaboration -/
+/-- codatatype, i.e., coinductive type -/
 @[commandElab «codata»]
 def elabCodata : CommandElab := fun stx => do 
   elabGeneric stx .Codata
