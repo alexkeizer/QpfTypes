@@ -119,19 +119,6 @@ namespace TypeVec
 
   infixl:67 " ::: " => appendFun
 
-  syntax "$[" term,* "]" : term
-  macro_rules
-  | `($[]) => `(nil)
-  | `($[$a]) => `($[] :::ᵥ ($a))
-  | `($[$a, $as,*]) => `(($[$as,*]) :::ᵥ ($a))
-
-  -- It seems we cannot use `$[ ... ]` syntax in syntax quotations, we define a secondary macro
-  syntax "##[" term,* "]" : term
-  macro_rules
-  | `(##[]) => `(nil)
-  | `(##[$a]) => `(##[] :::ᵥ ($a) )
-  | `(##[$a, $as,*]) => `((##[$as,*]) :::ᵥ ($a))
-
 
 
   abbrev dropFun {α β : TypeVec (n+1)} (f : α ⟹ β) : drop α ⟹ drop β 
