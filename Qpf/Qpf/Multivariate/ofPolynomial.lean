@@ -10,28 +10,34 @@ import Qpf.Macro.Tactic.FinDestr
 -/
 
 namespace MvQpf
-
-  def ofPolynomial {F : TypeFun n} 
-                    (P : MvPFunctor n) 
-                    (box    : ∀{α}, F α → P.Obj α) 
-                    (unbox  : ∀{α}, P.Obj α → F α) 
-                    (box_unbox_id : ∀{α} (x : P.Obj α), box (unbox x) = x)
-                    -- Technically, `unbox_box_id` is not needed for the construction
-                    -- We still require it so that `ofPolynomial` can only be used when `F` is
-                    -- indeed isomorphic to `P`
+  /-- If `F` is isomorphic to a QPF `F'`, then `F` is also a QPF -/
+  def ofIsomorphism {F : TypeFun n} 
+                    (F' : TypeFun n)
+                    [q : MvQpf F']
+                    (box    : ∀{α}, F α → F' α) 
+                    (unbox  : ∀{α}, F' α → F α) 
+                    (box_unbox_id : ∀{α} (x : F' α), box (unbox x) = x)
                     (unbox_box_id : ∀{α} (x : F α), unbox (box x) = x 
                                   := by intros; rfl
                                 )
                   : MvQpf F
     where
-      P           := P
-      map f a     := unbox <| P.map f <| box a
-      abs         := @unbox
-      repr        := @box
-      abs_repr    := unbox_box_id
-      abs_map f x := by
+      P           := q.P
+      map f a     := unbox <| q.map f <| box a
+      abs         := unbox ∘ q.abs
+      repr        := q.repr ∘ box
+      abs_repr    := by 
+                      intros  
+                      simp only [q.abs_repr, unbox_box_id, Function.comp]
+      abs_map f x := by 
+                      dsimp
                       apply congrArg
-                      simp [box_unbox_id]
-                      rfl
+                      simp [box_unbox_id, q.abs_map]
+
+  /-- If `F` is isomorphic to a polynomial functor `P'`, then `F` is a QPF -/
+  def ofPolynomial  {F : TypeFun n} 
+                    (P : MvPFunctor n)
+    := @ofIsomorphism _ F P.Obj _
+  
 
 end MvQpf

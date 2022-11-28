@@ -1,4 +1,5 @@
 import Qpf.Macro.Data
+import Qpf.Qpf.Multivariate.Constructions.Quot
 
 -- set_option trace.Meta.debug true
 set_option pp.rawOnError true
@@ -16,6 +17,34 @@ data QpfTree α where
 
 codata QpfCoTree α where
   | node : α → QpfList (QpfCoTree α) → QpfCoTree α
+
+
+
+/-- If `a ∈ as`, return `as` with (a single occurence of) `a` removed.
+    Otherwise, if `a ∉ as`, return `none` -/
+def List.is_rem (a : α) : List α → List α → Prop
+  | b::bs, c::cs  =>    (a = c  ∧ bs = c::cs)
+                      ∨ (b = c  ∧ bs.is_rem a cs)
+  | _, _          => false
+
+/-- Equates lists up-to permutation -/
+def List.perm ⦃α⦄ : MyList.Internal α → MyList.Internal α → Prop
+  -- body omitted
+  := by sorry
+  -- | [],    []  =>  true
+  -- | a::as, bs  =>  ∃cs : List α, cs.is_rem a bs ∧ as.perm cs
+  -- | _, _       =>  false
+                      
+
+abbrev MultiSet.Internal := MvQpf.Quot1 List.perm
+abbrev MultiSet := TypeFun.curried MultiSet.Internal
+
+noncomputable instance : MvQpf MultiSet.Internal := MvQpf.relQuot List.perm (by sorry)
+
+#check (inferInstance : MvQpf MultiSet.Internal)
+
+-- data UnorderedTree α where
+--   | node : α → MultiSet (UnorderedTree α) → UnorderedTree α
 
 
 #print MyList
@@ -55,6 +84,11 @@ def MyList.length : MyList α → Nat :=
 inductive MyListInd α
  | nil
  | cons : α → MyListInd α → MyListInd α
+
+ #check @MyListInd.casesOn
+ #check @MyListInd.recOn
+ #check @MyListInd.rec
+ #check MyListInd.noConfusion (α:=Nat)
 
 
 codata QpfStream α where
@@ -103,8 +137,8 @@ def QpfStream.add (as bs : QpfStream Nat) : QpfStream Nat :=
 
 
 
-data QpfTest α β where
-  | A : α → α → β → β → QpfTest α β → QpfTree β → QpfCoTree (QpfTree (QpfTest α β)) → QpfTest α β
+-- data QpfTest α β where
+--   | A : α → α → β → β → QpfTest α β → QpfTree β → QpfCoTree (QpfTree (QpfTest α β)) → QpfTest α β
 
 
 
