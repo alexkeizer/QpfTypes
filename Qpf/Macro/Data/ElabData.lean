@@ -43,25 +43,21 @@ namespace Data.Command
 section
   open Lean.Parser Lean.Parser.Command
 
-  def dataDecl : Parser
+  def data : Parser
     := leading_parser "data " >> declId  >> optDeclSig  
                         >> Parser.optional  (symbol " :=" <|> " where") 
                         >> many ctor 
                         >> optDeriving
 
-  def codataDecl : Parser
+  def codata : Parser
     := leading_parser "codata " >> declId  >> optDeclSig  
                         >> Parser.optional  (symbol " :=" <|> " where") 
                         >> many ctor 
                         >> optDeriving
 
   @[commandParser]
-  def data : Parser
-    := leading_parser declModifiers false >> dataDecl
-
-  @[commandParser]
-  def codata : Parser
-    := leading_parser declModifiers false >> codataDecl
+  def declaration : Parser
+    := leading_parser declModifiers false >> (data <|> codata)
 end
 
 /-!
@@ -441,13 +437,23 @@ private inductive ElabType where
   deriving BEq
 
 open Macro in
+
+
+
 /--
-  Top-level elaboration for both `data` and `codata`, as distinghuished by `type`
+  Top-level elaboration for both `data` and `codata` declarations
 -/
-private def elabGeneric (stx : Syntax) (type : ElabType) : CommandElabM Unit := do
+@[commandElab «declaration»]
+def elabData : CommandElab := fun stx => do 
   let modifiers ← elabModifiers stx[0]
   let decl := stx[1]
   let view ← inductiveSyntaxToView modifiers decl
+
+  -- let type := match decl[0] with
+  let type ← match decl[0] with
+    | Syntax.atom _ "data"   => pure ElabType.Data
+    | Syntax.atom _ "codata" => pure ElabType.Codata
+    | _ => throwErrorAt decl[0] "Expected either `data` or `codata`"
 
   let (live, dead) ← splitLiveAndDeadBinders view.binders.getArgs
   if live.isEmpty then    
@@ -481,16 +487,5 @@ private def elabGeneric (stx : Syntax) (type : ElabType) : CommandElabM Unit := 
     abbrev $(view.declId) := _root_.TypeFun.curried $internal
   ) 
   elabCommand cmd
-
-
-/-- datatype, i.e., inductive type -/
-@[commandElab «data»]
-def elabData : CommandElab := fun stx => do 
-  elabGeneric stx .Data
-
-/-- codatatype, i.e., coinductive type -/
-@[commandElab «codata»]
-def elabCodata : CommandElab := fun stx => do 
-  elabGeneric stx .Codata
 
 end Data.Command
