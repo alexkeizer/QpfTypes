@@ -140,7 +140,7 @@ partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Synt
       throwError f!"Unexpected target expression :\n {target}\n{extra}\nNote that the expression contains live variables, hence, must be functorial"
     
 
-def elabQpfCommand (F : Syntax) (binders : Syntax) (type? : Option Syntax) (target : Syntax) : CommandElabM Unit := do
+def elabQpfComposition (F : Syntax) (binders : Syntax) (type? : Option Syntax) (target : Syntax) : CommandElabM Unit := do
   let (liveBinders, deadBinders) ← splitLiveAndDeadBinders binders.getArgs
 
   dbg_trace "live_vars:\n {liveBinders}\n"
@@ -213,7 +213,7 @@ def elabQpfCommand (F : Syntax) (binders : Syntax) (type? : Option Syntax) (targ
 
 elab "qpf " F:ident sig:optDeclSig " := " target:term : command => do  
   let type? := sig[1].getOptional?.map fun sigInner => sigInner[1]
-  elabQpfCommand F sig[0] type? target
+  elabQpfComposition F sig[0] type? target
 
   
 

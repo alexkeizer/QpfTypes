@@ -421,7 +421,7 @@ def mkBase (view : InductiveView) : CommandElabM Syntax := do
     $(mkIdent shape):ident $args*
   )
   dbg_trace "\n{target}\n"
-  elabQpfCommand declId binders none target  
+  elabQpfComposition declId binders none target  
 
   pure declId
 
