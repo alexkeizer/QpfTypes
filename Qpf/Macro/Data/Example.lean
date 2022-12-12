@@ -1,5 +1,6 @@
-import Qpf.Macro.Data
-import Qpf.Qpf.Multivariate.Constructions.Quot
+import Qpf
+
+#find Type → Type
 
 -- set_option trace.Meta.debug true
 set_option pp.rawOnError true
@@ -44,7 +45,7 @@ data QpfTree α where
   | node : α → QpfList (QpfTree α) → QpfTree α
 
 codata QpfCoTree α where
-  | node : α → QpfList (QpfCoTree α) → QpfCoTree α
+  | node : α → List (QpfCoTree α) → QpfCoTree α
 
 
 
@@ -162,11 +163,15 @@ def QpfStream.add (as bs : QpfStream Nat) : QpfStream Nat :=
 
 
 
+-- TODO: debug
+-- For some reason, this only works if we remove the second α
+-- data PairOf α β
+--   | mk : α → α → β → PairOf α β
 
 
-
+-- For some reason, this only works if we remove the second α
 -- data QpfTest α β where
---   | A : α → α → β → β → QpfTest α β → QpfTree β → QpfCoTree (QpfTree (QpfTest α β)) → QpfTest α β
+--   | A : α → α → β → QpfTest α β → QpfTree β → QpfCoTree (QpfTree (QpfTest α β)) → QpfTest α β
 
 
 
