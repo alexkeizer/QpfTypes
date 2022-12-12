@@ -31,7 +31,9 @@ leading_parser "inductive " >> declId >> optDeclSig >> optional ":=" >> many cto
 leading_parser atomic (group ("class " >> "inductive ")) >> declId >> optDeclSig >> optional ":=" >> many ctor >> optDeriving
 -/
 def inductiveSyntaxToView (modifiers : Modifiers) (decl : Syntax) : CommandElabM InductiveView := do
-  checkValidInductiveModifier modifiers
+  -- `data`/`codata` declarations may be noncomputable (not sure about partial, but we allow it for now)
+  -- checkValidInductiveModifier modifiers
+
   let (binders, type?) := expandOptDeclSig decl[2]
   let declId           := decl[1]
   let ⟨name, declName, levelNames⟩ ← expandDeclId declId modifiers

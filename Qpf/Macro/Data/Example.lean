@@ -1,6 +1,7 @@
 import Qpf
 
 -- set_option trace.Meta.debug true
+-- set_option trace.Elab.inductive true
 set_option pp.rawOnError true
 
 
@@ -26,8 +27,8 @@ namespace Quotient1
     )
 
 
-  -- noncomputable data Foo α where
-  --   | node : α → Multiset (Foo α) → Foo α
+  noncomputable data UnorderedTree α where
+  | node : α → Multiset (UnorderedTree α) → UnorderedTree α
 end Quotient1
 
 

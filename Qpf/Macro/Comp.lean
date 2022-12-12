@@ -26,6 +26,7 @@ namespace Macro.Comp
   open Syntax
   open Parser (ident)
   open Parser.Term (bracketedBinder)
+  open Parser.Command (declModifiers «def»)
 
 
 /--
@@ -138,10 +139,44 @@ partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Synt
         else
           ""
       throwError f!"Unexpected target expression :\n {target}\n{extra}\nNote that the expression contains live variables, hence, must be functorial"
-    
 
-def elabQpfComposition (F : Syntax) (binders : Syntax) (type? : Option Syntax) (target : Syntax) : CommandElabM Unit := do
-  let (liveBinders, deadBinders) ← splitLiveAndDeadBinders binders.getArgs
+
+#check mkNullNode
+
+open Parser.Command in
+private instance : Quote Modifiers where
+  quote mod :=
+    let isNoncomputable := 
+      if mod.isNoncomputable then 
+        mkNode ``«noncomputable» #[mkAtom "noncomputable "]
+      else 
+        mkNullNode
+
+    let visibility := match mod.visibility with
+      | .regular     => mkNullNode
+      | .«protected» => mkNode ``«protected» #[mkAtom "protected "]
+      | .«private»   => mkNode ``«private» #[mkAtom "private "]
+
+    mkNode ``declModifiers #[
+      mkNullNode, -- docComment
+      mkNullNode, -- Term.attributes
+      visibility, -- visibility
+      isNoncomputable, -- isNoncomputable
+      mkNullNode, -- unsafe
+      mkNullNode  -- partial / nonrec
+    ]
+
+
+structure QpfCompositionView where
+  (modifiers: Modifiers := {})
+  (F : Name)                        -- Name of the functor to be defined
+  (binders : Syntax)
+  (type? : Option Syntax := none)
+  (target: Syntax)
+
+
+def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
+  let (liveBinders, deadBinders) ← splitLiveAndDeadBinders view.binders.getArgs
 
   dbg_trace "live_vars:\n {liveBinders}\n"
   if deadBinders.size > 0 then
@@ -153,7 +188,7 @@ def elabQpfComposition (F : Syntax) (binders : Syntax) (type? : Option Syntax) (
   
   let body ← liftTermElabM none $ do
     let body_type ← 
-      if let some typeStx := type? then
+      if let some typeStx := view.type? then
         let u ← mkFreshLevelMVar;
         dbg_trace typeStx
         let type ← elabTermEnsuringType typeStx (mkSort <| mkLevelSucc u)
@@ -168,19 +203,22 @@ def elabQpfComposition (F : Syntax) (binders : Syntax) (type? : Option Syntax) (
       elabBinders deadBinders fun deadVars => 
         withLiveBinders liveBinders fun vars =>
           withoutAutoBoundImplicit <| do
-            let target_expr ← elabTermEnsuringType target body_type;
-            elabQpf vars target_expr target
+            let target_expr ← elabTermEnsuringType view.target body_type;
+            elabQpf vars target_expr view.target
 
   
   /-
     Define the qpf using the elaborated body
   -/
   
-  let F_internal := mkIdent $ Name.mkStr F.getId "typefun";
+  let F_internal := mkIdent $ Name.mkStr view.F "typefun";
+  let F := mkIdent view.F;
+  let modifiers := quote view.modifiers;
   
   let live_arity := mkNumLit liveBinders.size.repr;
   -- dbg_trace body
   elabCommand <|← `(
+      $modifiers:declModifiers
       def $F_internal:ident $deadBinders:bracketedBinder* : 
         TypeFun $live_arity := 
       $body:term
@@ -188,12 +226,16 @@ def elabQpfComposition (F : Syntax) (binders : Syntax) (type? : Option Syntax) (
 
   let deadBinderNamedArgs ← deadBinderNames.mapM fun n => `(Parser.Term.namedArgument| ($n:ident := $n:term))
   let F_internal_applied := mkApp F_internal deadBinderNamedArgs
+  
+  
 
   let cmd ← `(
-      def $F $deadBinders:bracketedBinder* :
+      $modifiers:declModifiers
+      def $F:ident $deadBinders:bracketedBinder* :
         CurriedTypeFun $live_arity := 
       TypeFun.curried $F_internal_applied
 
+      $modifiers:declModifiers
       instance $deadBinders:bracketedBinder* : 
         MvQpf ($F_internal_applied) := 
       by unfold $F_internal; infer_instance
@@ -204,6 +246,7 @@ def elabQpfComposition (F : Syntax) (binders : Syntax) (type? : Option Syntax) (
   let F_applied := mkApp F deadBinderNamedArgs
 
   let cmd ← `(command|
+    $modifiers:declModifiers
     instance $deadBindersNoHoles:bracketedBinder* : 
       MvQpf (TypeFun.ofCurried $F_applied) 
     := by unfold $F; infer_instance
@@ -213,7 +256,7 @@ def elabQpfComposition (F : Syntax) (binders : Syntax) (type? : Option Syntax) (
 
 elab "qpf " F:ident sig:optDeclSig " := " target:term : command => do  
   let type? := sig[1].getOptional?.map fun sigInner => sigInner[1]
-  elabQpfComposition F sig[0] type? target
+  elabQpfComposition ⟨{}, F.getId, sig[0], type?, target⟩
 
   
 

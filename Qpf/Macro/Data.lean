@@ -1,4 +1,3 @@
-
 import Lean.Expr
 import Lean.Meta
 import Lean.Elab.Command
@@ -135,6 +134,7 @@ def mkHeadT (view : InductiveView) : CommandElabM Name := do
     : InductiveView
   }
 
+  -- dbg_trace "mkHeadT :: elabInductiveViews"
   elabInductiveViews #[view]
   pure declName
 
@@ -192,6 +192,8 @@ def mkChildT (view : InductiveView) (r : Replace) (headTName : Name) : CommandEl
     def $declId : $headT → $target_type
       $body:declValEqns
   )
+
+  -- dbg_trace "mkChildT :: elabCommand"
   elabCommand cmd
 
   pure declName
@@ -369,6 +371,7 @@ def mkShape (view: InductiveView) : CommandElabM MkShapeResult := do
     : InductiveView
   }
 
+  -- dbg_trace "mkShape :: elabInductiveViews"
   elabInductiveViews #[view]
 
   let headTName ← mkHeadT view
@@ -408,8 +411,8 @@ open Parser Macro.Comp in
   the variable used for (co)-recursive occurences.
   It is the final step before taking the (co)fixpoint
 -/
-def mkBase (view : InductiveView) : CommandElabM Syntax := do
-  let declId := mkIdent $ Name.mkStr view.declName "Base"
+def mkBase (view : InductiveView) : CommandElabM Name := do
+  let declId := Name.mkStr view.declName "Base"
   
   let (view, _) ← makeNonRecursive view;
 
@@ -421,8 +424,11 @@ def mkBase (view : InductiveView) : CommandElabM Syntax := do
   let target ← `(
     $(mkIdent shape):ident $args*
   )
-  dbg_trace "\n{target}\n"
-  elabQpfComposition declId binders none target  
+  -- dbg_trace "\n{target}\n"
+  let modifiers := {
+    isNoncomputable := view.modifiers.isNoncomputable
+  };
+  elabQpfComposition ⟨modifiers, declId, binders, none, target⟩
 
   pure declId
 
@@ -478,6 +484,7 @@ def elabData : CommandElab := fun stx => do
   | none => pure ()
 
   let base ← mkBase view
+  let base := mkIdent base;
 
   let internal := mkIdent $ Name.mkStr view.declName "Internal"
   let fix_or_cofix := mkIdent $ match type with
