@@ -1,4 +1,4 @@
-import Qpf.All
+import Qpf
 
 #find Type → Type
 
