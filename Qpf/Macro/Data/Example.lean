@@ -1,5 +1,6 @@
-import Qpf.Macro.Data
-import Qpf.Qpf.Multivariate.Constructions.Quot
+import Qpf.All
+
+#find Type → Type
 
 -- set_option trace.Meta.debug true
 set_option pp.rawOnError true
@@ -16,7 +17,7 @@ data QpfTree α where
   | node : α → QpfList (QpfTree α) → QpfTree α
 
 codata QpfCoTree α where
-  | node : α → QpfList (QpfCoTree α) → QpfCoTree α
+  | node : α → List (QpfCoTree α) → QpfCoTree α
 
 
 

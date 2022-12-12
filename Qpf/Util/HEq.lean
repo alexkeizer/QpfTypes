@@ -182,6 +182,37 @@ import Mathlib
     rfl
 
 
+
+
+  /-
+  # Function Extensionality
+  -/
+
+  theorem heq_funext {α : Sort u} {β₁ β₂ : α → Sort _}
+                      {f₁ : (x : α) → β₁ x} 
+                      {f₂ : (x : α) → β₂ x} 
+                      (type_eq : β₁ = β₂ )
+                      :
+    (∀ (x : α), HEq (f₁ x) (f₂ x)) → HEq f₁ f₂ :=
+  by
+    intro h;
+    apply HEq.trans (b := cast (β:=(x : α) → β₂ x) ?castproof f₁);
+    case castproof =>
+      cases type_eq; rfl
+    case h₁ => 
+      apply HEq.symm;
+      apply cast_heq
+    case h₂ => 
+      apply heq_of_eq;
+      funext x;
+      apply eq_of_heq;
+      rw[cast_arg]
+      case h₁ => rfl
+      case h₃ => intros y; simp only [type_eq, cast_eq]
+      simp only [heq_cast_left, cast_eq]
+      apply h;
+
+
      
     
 

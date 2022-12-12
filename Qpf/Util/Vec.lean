@@ -183,3 +183,84 @@ namespace DVec
 
 
 end DVec
+
+
+
+namespace Vec
+  /-- Create a `Vec` from a `List`. Note that this conceptually reverses the list, since in a `Vec`
+      the 0th index points to the right-most element
+   -/
+  def ofList : (as : List α) → Vec α (as.length)
+    | List.nil        => Vec.nil
+    | List.cons a as  => Vec.append1 (ofList as) a
+  
+  
+  /-- Create a `List` from a `Vec`. Note that this conceptually reverses the vector, since in a `Vec`
+      the 0th index points to the right-most element
+   -/
+  def toList : {n : Nat} → Vec α n → List α
+    | 0,    _  => List.nil
+    | n+1,  v  => List.cons v.last (toList v.drop)
+
+
+  @[simp]
+  theorem toList_length_eq_n {v : Vec α n} : 
+    v.toList.length = n :=
+  by
+    induction n
+    case zero => rfl
+    case succ n ih =>
+      dsimp only [toList, List.length]
+      dsimp only [HAdd.hAdd, Add.add, Nat.add]
+      apply congrArg
+      apply ih
+
+  @[simp]
+  theorem ofList_toList_iso {v : Vec α n} :
+    HEq (ofList (toList v)) v :=
+  by
+    apply HEq.trans (b := cast (β:=Vec α (List.length (toList v))) ?hc v);
+    case hc =>
+      simp only [toList_length_eq_n]
+    case h₂ => 
+      apply cast_heq
+    case h₁ =>
+      apply heq_of_eq;
+      funext i;
+      apply eq_of_heq;
+      rw[cast_arg] <;> try (solve | simp);
+      simp_heq
+
+      induction n <;> cases i;
+      case succ.fz n ih => {
+        dsimp[ofList, toList, append1, last, DVec.last]
+        apply hcongr <;> (try solve | intros; rfl)
+        simp_heq;
+        simp only [OfNat.ofNat]
+        apply hcongr <;> (try solve | intros; rfl)
+        simp
+      }
+      case succ.fs n ih i => {
+        dsimp[ofList, toList, append1, drop]
+        
+        apply HEq.trans (@ih (fun i => v (Fin2.fs i)) i);
+        apply hcongr <;> (try solve | intros; rfl)
+        simp_heq
+        apply hcongr;
+        case H₂ => apply cast_heq
+        case H₃ => apply congrArg; simp
+        case H₄ => intro j; apply congrArg; simp
+        
+        apply hcongr <;> (try solve | intros; rfl);
+        simp
+      }
+
+  @[simp]
+  theorem toList_ofList_iso {as : List α} :
+    toList (ofList as) = as :=
+  by
+    induction as;
+    case nil          => rfl
+    case cons a as ih => simp only [toList, ofList, append1, last, DVec.last, drop, ih]
+
+end Vec
