@@ -4,6 +4,34 @@ import Qpf.Qpf.Multivariate.Constructions.Quot
 -- set_option trace.Meta.debug true
 set_option pp.rawOnError true
 
+
+
+namespace Quotient1
+  data List' α
+  | nil 
+  | cons : α → List' α → List' α
+
+  #print List'
+
+  def List'.perm ⦃α⦄: Quotient1.List'.Internal α → Quotient1.List'.Internal α → Prop
+    := by sorry
+
+  abbrev Multiset' : TypeFun 1 := MvQpf.Quot1 List'.perm
+  abbrev Multiset  := Multiset'.curried
+
+  noncomputable instance : MvQpf Multiset' := 
+    MvQpf.relQuot _ (
+      by
+        intros
+        sorry
+    )
+
+
+  -- noncomputable data Foo α where
+  --   | node : α → Multiset (Foo α) → Foo α
+end Quotient1
+
+
 data MyList α where
   | nil : MyList α
   | cons : α → MyList α → MyList α
@@ -200,7 +228,7 @@ namespace Quotient
     )
 
 
-  noncomputable data Foo α where
-    | node : α → Multiset (Foo α) → Foo α
+  -- noncomputable data Foo α where
+  --   | node : α → Multiset (Foo α) → Foo α
 end Quotient
 

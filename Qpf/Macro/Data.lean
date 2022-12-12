@@ -124,12 +124,11 @@ def mkHeadT (view : InductiveView) : CommandElabM Name := do
 
   -- TODO: make `HeadT` universe polymorphic
   let view := {
-    ctors, declId, declName, shortDeclName,
+    ctors, declId, declName, shortDeclName, modifiers,
     binders         := view.binders.setArgs #[]
     levelNames      := view.levelNames
 
     ref             := view.ref            
-    modifiers       := view.modifiers      
     type?           := view.type?
     
     derivingClasses := view.derivingClasses
@@ -355,13 +354,15 @@ def mkShape (view: InductiveView) : CommandElabM MkShapeResult := do
 
   -- Assemble it back together, into the shape inductive type
   let binders ← r.getBinders  
+  let binders := view.binders.setArgs #[binders]
+  let modifiers : Modifiers := {
+    isUnsafe := view.modifiers.isUnsafe
+  }
   let view := {
-    ctors, declId, declName, shortDeclName,
-    binders         := view.binders.setArgs #[binders]
+    ctors, declId, declName, shortDeclName, modifiers, binders,
     levelNames      := []
 
     ref             := view.ref            
-    modifiers       := view.modifiers      
     type?           := view.type?          
     
     derivingClasses := view.derivingClasses
