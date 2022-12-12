@@ -1,7 +1,5 @@
 import Qpf
 
-#find Type → Type
-
 -- set_option trace.Meta.debug true
 set_option pp.rawOnError true
 
