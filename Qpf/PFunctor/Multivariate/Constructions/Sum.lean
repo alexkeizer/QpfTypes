@@ -1,3 +1,7 @@
+/-
+  Provides an instance of `MvQpf` for (the uncurried version of) the `Sum` built-in type
+-/
+
 import Qpf.Qpf.Multivariate.Basic
 import Qpf.Qpf.Multivariate.ofPolynomial
 import Qpf.PFunctor.Multivariate.Constructions.Basic

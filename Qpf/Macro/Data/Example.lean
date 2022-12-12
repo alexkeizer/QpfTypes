@@ -134,11 +134,15 @@ def QpfStream.add (as bs : QpfStream Nat) : QpfStream Nat :=
 
 
 
+-- TODO: debug
+-- For some reason, this only works if we remove the second α
+-- data PairOf α β
+--   | mk : α → α → β → PairOf α β
 
 
-
+-- For some reason, this only works if we remove the second α
 -- data QpfTest α β where
---   | A : α → α → β → β → QpfTest α β → QpfTree β → QpfCoTree (QpfTree (QpfTest α β)) → QpfTest α β
+--   | A : α → α → β → QpfTest α β → QpfTree β → QpfCoTree (QpfTree (QpfTest α β)) → QpfTest α β
 
 
 
