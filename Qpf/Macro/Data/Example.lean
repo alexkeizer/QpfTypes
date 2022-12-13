@@ -4,44 +4,84 @@ import Qpf
 -- set_option trace.Elab.inductive true
 set_option pp.rawOnError true
 
+#print List.noConfusionType
+#check List.noConfusion
+
+theorem nil_neq_cons (a : α) (as : List α) : List.nil ≠ List.cons a as := 
+  by simp
+
+#print nil_neq_cons
 
 
-namespace Quotient1
-  data List' α
-  | nil 
-  | cons : α → List' α → List' α
-
-  #print List'
-
-  def List'.perm ⦃α⦄: Quotient1.List'.Internal α → Quotient1.List'.Internal α → Prop
-    := by sorry
-
-  abbrev Multiset' : TypeFun 1 := MvQpf.Quot1 List'.perm
-  abbrev Multiset  := Multiset'.curried
-
-  noncomputable instance : MvQpf Multiset' := 
-    MvQpf.relQuot _ (
-      by
-        intros
-        sorry
-    )
-
-
-  noncomputable data UnorderedTree α where
-  | node : α → Multiset (UnorderedTree α) → UnorderedTree α
-end Quotient1
-
-
-data MyList α where
-  | nil : MyList α
-  | cons : α → MyList α → MyList α
 
 data QpfList α where
-  | nil
+  | nil : QpfList α
   | cons : α → QpfList α → QpfList α
 
+-- #check (QpfList : Type 1 → Type 1)
+
+namespace QpfList
+  def nil : QpfList α
+    := MvQpf.Fix.mk QpfList.Shape.nil
+
+  def cons : α → QpfList α → QpfList α
+    := (MvQpf.Fix.mk $ QpfList.Shape.cons · ·)
+
+  def rec {α : Type _} {motive : QpfList α → Sort _} :
+    motive QpfList.nil 
+    → ((head : α) → (tail : QpfList α) → motive tail → motive (QpfList.cons head tail))
+    → (t : QpfList α) 
+    → motive t
+  :=
+    fun nil cons => MvQpf.Fix.drec (fun x => 
+      match x with
+      | .nil            => nil
+      | .cons head tail => cons head tail.fst tail.snd
+    )
+
+  @[reducible] protected def recOn {α : Type _} {motive : QpfList α → Sort _} :
+      (t : QpfList α) 
+      → motive QpfList.nil 
+      → ((head : α) → (tail : QpfList α) → motive tail → motive (QpfList.cons head tail)) 
+      → motive t 
+    :=
+      fun t nil cons => QpfList.rec nil cons t
+
+  #print List.recOn
+
+  #check @List.rec
+  #check @QpfList.rec
+
+  #print QpfList.Base
+  #print QpfList.Base.typefun
+
+  #check @MvQpf.Fix.drec 1 QpfList.Base.typefun _ ?α ?motive
+
+  
+
+  theorem nil_neq_cons (a : α) (as : QpfList α) : @QpfList.nil α ≠ QpfList.cons a as := 
+    by
+      intro neq; 
+      simp[MvQpf.Fix.mk, nil, cons] at neq
+      simp[MvPFunctor.W_mk', MvFunctor.map, MvQpf.repr] at neq
+
+      skip
+      sorry
+
+  #print nil_neq_cons
+end QpfList
+
+
+
+
+
+
+
+
+
+
 data QpfTree α where
-  | node : α → QpfList (QpfTree α) → QpfTree α
+  | node : α → List (QpfTree α) → QpfTree α
 
 codata QpfCoTree α where
   | node : α → List (QpfCoTree α) → QpfCoTree α
@@ -56,7 +96,7 @@ def List.is_rem (a : α) : List α → List α → Prop
   | _, _          => false
 
 /-- Equates lists up-to permutation -/
-def List.perm ⦃α⦄ : MyList.Internal α → MyList.Internal α → Prop
+def List.perm ⦃α⦄ : QpfList.Internal α → QpfList.Internal α → Prop
   -- body omitted
   := by sorry
   -- | [],    []  =>  true
@@ -75,7 +115,7 @@ noncomputable instance : MvQpf MultiSet.Internal := MvQpf.relQuot List.perm (by 
 --   | node : α → MultiSet (UnorderedTree α) → UnorderedTree α
 
 
-#print MyList
+#print QpfList
 
 
 
@@ -85,38 +125,30 @@ noncomputable instance : MvQpf MultiSet.Internal := MvQpf.relQuot List.perm (by 
 --   | cons : Nat → NatList α → NatList α
 
 
-
-def MyList.nil {α} : MyList α :=
-  MvQpf.Fix.mk MyList.Shape.nil
-
-def MyList.cons {α} : α → MyList α → MyList α :=
-  fun a as => MvQpf.Fix.mk (MyList.Shape.cons a as)
-
-
-def MyList.isNil : MyList α → Bool := 
+def QpfList.isNil : QpfList α → Bool := 
   MvQpf.Fix.rec fun as => match as with
     | .nil => true
     | _    => false
 
-def MyList.isCons : MyList α → Bool := 
+def QpfList.isCons : QpfList α → Bool := 
   fun as => match as.dest with
     | .cons .. => true
     | _        => false
 
-def MyList.length : MyList α → Nat :=
+def QpfList.length : QpfList α → Nat :=
   MvQpf.Fix.rec fun as => match as with
     | .nil                => 0
     | .cons a (as : Nat)  => as + 1 
 
 
-inductive MyListInd α
+inductive QpfListInd α
  | nil
- | cons : α → MyListInd α → MyListInd α
+ | cons : α → QpfListInd α → QpfListInd α
 
- #check @MyListInd.casesOn
- #check @MyListInd.recOn
- #check @MyListInd.rec
- #check MyListInd.noConfusion (α:=Nat)
+ #check @QpfListInd.casesOn
+ #check @QpfListInd.recOn
+ #check @QpfListInd.rec
+ #check QpfListInd.noConfusion (α:=Nat)
 
 
 codata QpfStream α where
@@ -148,13 +180,13 @@ def QpfStream.add (as bs : QpfStream Nat) : QpfStream Nat :=
     ) (as, bs)
 
 
--- data MyListPair α β where
+-- data QpfListPair α β where
 --   | nil_nil
---   | cons_nil  : α → MyListPair α β
---   | nil_cons  : β → MyListPair α β
---   | cons_cons : α → β → MyListPair α β
+--   | cons_nil  : α → QpfListPair α β
+--   | nil_cons  : β → QpfListPair α β
+--   | cons_cons : α → β → QpfListPair α β
 
--- def MyListPair.of (as : MyList α) (bs : MyList β) : MyListPair α β
+-- def QpfListPair.of (as : QpfList α) (bs : QpfList β) : QpfListPair α β
 
 
 
@@ -177,23 +209,23 @@ def QpfStream.add (as bs : QpfStream Nat) : QpfStream Nat :=
 
 
 
-#print MyList.Internal
-#print MyList.Shape
-#print MyList.Shape.P
+#print QpfList.Internal
+#print QpfList.Shape
+#print QpfList.Shape.P
 
   
 
-data MyList₂ α where
-  | My.nil : MyList₂ α
-  | My2.nil : α → MyList₂ α
+data QpfList₂ α where
+  | My.nil : QpfList₂ α
+  | My2.nil : α → QpfList₂ α
 
-#check MyList₂
+#check QpfList₂
 
-#dbg_syntax (a : α) → MyList₂ α → MyList₂ α
+#dbg_syntax (a : α) → QpfList₂ α → QpfList₂ α
 
-data MyList₃ α where
-  | My.nil : MyList₃ α
-  | My2.nil : α → MyList₃ α → MyList₃ α
+data QpfList₃ α where
+  | My.nil : QpfList₃ α
+  | My2.nil : α → QpfList₃ α → QpfList₃ α
 
 
 -- 
@@ -232,7 +264,14 @@ namespace Quotient
     )
 
 
-  -- noncomputable data Foo α where
-  --   | node : α → Multiset (Foo α) → Foo α
+  noncomputable data Foo α where
+    | node : α → Multiset (Foo α) → Foo α
+
+
+
+  def List.perm : List α → List α → Prop
+    := by sorry
+
+  def NativeMultiset α := Quot.mk (@List.perm α)
 end Quotient
 

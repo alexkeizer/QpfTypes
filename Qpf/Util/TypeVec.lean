@@ -781,6 +781,16 @@ by
   ext i x <;> induction i <;> simp only [id, toSubtype', comp, subtypeVal, Prod.mk]  at * <;> simp [*]
 
 
+
+/-
+Reverse an arrow
+-/
+def Arrow.reverse (f : α ⟹ β) : α.reverse ⟹ β.reverse :=
+  fun i v => cast (
+    by simp[Vec.reverse, Vec.normalize_lawful]
+  ) $ f i.inv (cast (by simp[Vec.reverse, Vec.normalize_lawful]) v)
+
+
 end TypeVec
 
 
