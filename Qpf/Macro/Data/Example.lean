@@ -142,8 +142,8 @@ def QpfList.length : QpfList α → Nat :=
 
 
 inductive QpfListInd α
- | nil
- | cons : α → QpfListInd α → QpfListInd α
+  | nil
+  | cons : α → QpfListInd α → QpfListInd α
 
  #check @QpfListInd.casesOn
  #check @QpfListInd.recOn
@@ -267,6 +267,8 @@ namespace Quotient
   noncomputable data Foo α where
     | node : α → Multiset (Foo α) → Foo α
 
+  #check Foo
+
 
 
   def List.perm : List α → List α → Prop
@@ -275,3 +277,15 @@ namespace Quotient
   def NativeMultiset α := Quot.mk (@List.perm α)
 end Quotient
 
+-- example {as : QpfList α} : 
+--   as.length > 0 → as ≠ QpfList.nil :=
+-- by
+--   intro h;
+--   induction as using MvQpf.Fix.ind;
+--   case h x ih =>
+--     cases x
+--     case nil =>
+--       contradiction
+--     case cons a as =>
+--       rw [←QpfList.cons];
+--       apply QpfList.nil_neq_cons
