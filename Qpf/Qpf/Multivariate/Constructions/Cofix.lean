@@ -383,61 +383,61 @@ by
 open Function
 variable {F: TypeFun (n + 1)} [instMvFunctor : MvFunctor F] [instLawful : LawfulMvFunctor F] 
 
-theorem liftr_map_last  {α : TypeVec n}
-                        {ι ι'}
-                        (R : ι' → ι' → Prop) 
-                        (x : F (α ::: ι))
-                        (f g : ι → ι')
-                        (hh : ∀ x : ι, R (f x) (g x)) : 
-      Liftr' (relLast' _ R) ((id ::: f) <$$> x) ((id ::: g) <$$> x) :=
-by
-  stop
+-- theorem liftr_map_last  {α : TypeVec n}
+--                         {ι ι'}
+--                         (R : ι' → ι' → Prop) 
+--                         (x : F (α ::: ι))
+--                         (f g : ι → ι')
+--                         (hh : ∀ x : ι, R (f x) (g x)) : 
+--       Liftr' (relLast' _ R) ((id ::: f) <$$> x) ((id ::: g) <$$> x) :=
+-- by
+--   stop
 
-  let h : ι → { x : ι' × ι' // uncurry R x } 
-    := fun x => ⟨(f x, g x), hh x⟩
-  apply liftr_map _ _ _ _ (toSubtype _ ⊚ from_append1_drop_last ⊚ ?c ⊚ ?b) ?hh
-  case b => exact @diagSub n α ::: h  
-  case c => exact (ofSubtype α.repeatEq) ::: id  
+--   let h : ι → { x : ι' × ι' // uncurry R x } 
+--     := fun x => ⟨(f x, g x), hh x⟩
+--   apply liftr_map _ _ _ _ (toSubtype _ ⊚ from_append1_drop_last ⊚ ?c ⊚ ?b) ?hh
+--   case b => exact @diagSub n α ::: h  
+--   case c => exact (ofSubtype α.repeatEq) ::: id  
 
-  case hh =>
-    apply eq_of_drop_last_eq
-    · simp [prod_map_id, drop_fun_prod, drop_fun_append_fun, drop_fun_diag, id_comp, drop_fun_to_subtype]
-      erw [to_subtype_of_subtype_assoc, id_comp]
-      intro i
-      funext x
-      simp [diagSub, Prod.diag]
-      clear instLawful
-      induction i
-      . rfl
+--   case hh =>
+--     apply eq_of_drop_last_eq
+--     · simp [prod_map_id, drop_fun_prod, drop_fun_append_fun, drop_fun_diag, id_comp, drop_fun_to_subtype]
+--       erw [to_subtype_of_subtype_assoc, id_comp]
+--       intro i
+--       funext x
+--       simp [diagSub, Prod.diag]
+--       clear instLawful
+--       induction i
+--       . rfl
       
-      . rename_i n' i i_ih _
-        simp [diagSub, Prod.diag, subtypeVal, *]
+--       . rename_i n' i i_ih _
+--         simp [diagSub, Prod.diag, subtypeVal, *]
 
-        sorry; stop
-        apply i_ih
-        apply @i_ih F' (cast _ PUnit.unit) (cast _ PUnit.unit) (cast _ PUnit.unit)
+--         sorry; stop
+--         apply i_ih
+--         apply @i_ih F' (cast _ PUnit.unit) (cast _ PUnit.unit) (cast _ PUnit.unit)
         
         
-    simp [last_fun_from_append1_drop_last, last_fun_to_subtype, last_fun_append_fun, last_fun_subtype_val,
-          comp.left_id, last_fun_comp, last_fun_prod]
-    ext1
-    intros;
-    rfl
+--     simp [last_fun_from_append1_drop_last, last_fun_to_subtype, last_fun_append_fun, last_fun_subtype_val,
+--           comp.left_id, last_fun_comp, last_fun_prod]
+--     ext1
+--     intros;
+--     rfl
 
 
-theorem liftr_map_last' [LawfulMvFunctor F] {α : TypeVec n} {ι} (R : ι → ι → Prop) (x : F (α ::: ι)) (f : ι → ι)
-    (hh : ∀ x : ι, R (f x) x) : Liftr' (relLast' _ R) ((id ::: f) <$$> x) x := by
-  have : @TypeVec.id (.succ n) (α ::: ι) = (@TypeVec.id n α) ::: id;
-  . funext i; simp[appendFun,splitFun]; cases i <;> rfl
-  conv => {
-    arg 3
-    rw [←MvFunctor.id_map x, this]
-  }
-  apply liftr_map_last (F:=F) (α:=α) R x f id hh
-
+-- theorem liftr_map_last' [LawfulMvFunctor F] {α : TypeVec n} {ι} (R : ι → ι → Prop) (x : F (α ::: ι)) (f : ι → ι)
+--     (hh : ∀ x : ι, R (f x) x) : Liftr' (relLast' _ R) ((id ::: f) <$$> x) x := by
+--   have : @TypeVec.id (.succ n) (α ::: ι) = (@TypeVec.id n α) ::: id;
+--   . funext i; simp[appendFun,splitFun]; cases i <;> rfl
+--   conv => {
+--     arg 3
+--     rw [←MvFunctor.id_map x, this]
+--   }
+--   apply liftr_map_last (F:=F) (α:=α) R x f id hh
 
 
 end LiftrMap
+
 
 variable {F: TypeVec (n + 1) → Type u} [q : MvQpf F]
 
