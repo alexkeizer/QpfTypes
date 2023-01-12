@@ -6,6 +6,10 @@ set_option pp.rawOnError true
 
 #print List.noConfusionType
 #check List.noConfusion
+#check List.recOn
+#check List.casesOn
+
+#print prefix List
 
 theorem nil_neq_cons (a : α) (as : List α) : List.nil ≠ List.cons a as := 
   by simp
@@ -18,7 +22,7 @@ data QpfList α where
   | nil : QpfList α
   | cons : α → QpfList α → QpfList α
 
--- #check (QpfList : Type 1 → Type 1)
+#check @MvQpf.Fix.drec _ QpfList.Internal _
 
 namespace QpfList
   def nil : QpfList α
@@ -26,6 +30,7 @@ namespace QpfList
 
   def cons : α → QpfList α → QpfList α
     := (MvQpf.Fix.mk $ QpfList.Shape.cons · ·)
+
 
   def rec {α : Type _} {motive : QpfList α → Sort _} :
     motive QpfList.nil 
@@ -139,6 +144,7 @@ def QpfList.length : QpfList α → Nat :=
   MvQpf.Fix.rec fun as => match as with
     | .nil                => 0
     | .cons a (as : Nat)  => as + 1 
+
 
 
 inductive QpfListInd α
@@ -276,16 +282,3 @@ namespace Quotient
 
   def NativeMultiset α := Quot.mk (@List.perm α)
 end Quotient
-
--- example {as : QpfList α} : 
---   as.length > 0 → as ≠ QpfList.nil :=
--- by
---   intro h;
---   induction as using MvQpf.Fix.ind;
---   case h x ih =>
---     cases x
---     case nil =>
---       contradiction
---     case cons a as =>
---       rw [←QpfList.cons];
---       apply QpfList.nil_neq_cons
