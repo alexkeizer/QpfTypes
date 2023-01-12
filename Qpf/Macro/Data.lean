@@ -398,40 +398,7 @@ def mkShape (view: InductiveView) : CommandElabM MkShapeResult := do
   mkQpf view ctorArgs headTId childTId PId r.arity
   
 
-  pure ⟨r, declName, PName⟩
-
-
-
-
-open Parser Macro.Comp in
-/--
-  The "base" type is the shape type with all variables set to the appropriate expressions, besides
-  the variable used for (co)-recursive occurences.
-  It is the final step before taking the (co)fixpoint
--/
-def mkBase (view : InductiveView) : CommandElabM Name := do
-  let declId := Name.mkStr view.declName "Base"
-  
-  let (view, _) ← makeNonRecursive view;
-
-  let ⟨r, shape, P⟩ ← mkShape view
-
-  let binders := view.binders
-  let args := r.expr
-
-  let target ← `(
-    $(mkIdent shape):ident $args*
-  )
-  -- dbg_trace "\n{target}\n"
-  let modifiers := {
-    isNoncomputable := view.modifiers.isNoncomputable
-  };
-  elabQpfComposition ⟨modifiers, declId, binders, none, target⟩
-
-  pure declId
-
-
-
+  pure ⟨r, declName, PName⟩  
 
 
 
@@ -441,26 +408,25 @@ private inductive ElabType where
   | Codata
   deriving BEq
 
-open Macro in
-
+def ElabType.fromSyntax : Syntax → CommandElabM ElabType
+  | Syntax.atom _ "data"   => pure ElabType.Data
+  | Syntax.atom _ "codata" => pure ElabType.Codata
+  | stx => throwErrorAt stx "Expected either `data` or `codata`"
 
 
 /--
-  Top-level elaboration for both `data` and `codata` declarations
+  Return a syntax tree for `MvQpf.Fix` or `MvQpf.Cofix` when self is `Data`, resp. `Codata`.
 -/
-@[commandElab declaration]
-def elabData : CommandElab := fun stx => do 
-  let modifiers ← elabModifiers stx[0]
-  let decl := stx[1]
-  let view ← inductiveSyntaxToView modifiers decl
+def ElabType.fixOrCofix : ElabType → Syntax
+  := fun typ => mkIdent $ match typ with
+      | .Data   => ``_root_.MvQpf.Fix
+      | .Codata => ``_root_.MvQpf.Cofix
 
-  -- let type := match decl[0] with
-  let type ← match decl[0] with
-    | Syntax.atom _ "data"   => pure ElabType.Data
-    | Syntax.atom _ "codata" => pure ElabType.Codata
-    | _ => throwErrorAt decl[0] "Expected either `data` or `codata`"
-
-  let (live, dead) ← splitLiveAndDeadBinders view.binders.getArgs
+/--
+  Raises (hopefully) more informative errors when `data` or `codata` are used with unsupported
+  specifications
+-/
+def sanityChecks (view : InductiveView) (type : ElabType) (live dead : Array Syntax) : CommandElabM Unit := do  
   if live.isEmpty then    
     if dead.isEmpty then
       if type == .Codata then
@@ -481,16 +447,45 @@ def elabData : CommandElab := fun stx => do
   | some t => throwErrorAt t "Unexpected type; type will be automatically inferred. Note that inductive families are not supported due to inherent limitations of QPFs"
   | none => pure ()
 
-  let base ← mkBase view
-  let base := mkIdent base;
+open Macro Comp in
+/--
+  Top-level elaboration for both `data` and `codata` declarations
+-/
+@[commandElab declaration]
+def elabData : CommandElab := fun stx => do 
+  let modifiers ← elabModifiers stx[0]
+  let decl := stx[1]
+  let view ← inductiveSyntaxToView modifiers decl
+  let cmd ← ElabType.fromSyntax decl[0]
+  let (liveBinders, deadBinders) ← splitLiveAndDeadBinders view.binders.getArgs
+  
 
-  let internal := mkIdent $ Name.mkStr view.declName "Internal"
-  let fix_or_cofix := mkIdent $ match type with
-    | .Data   => ``_root_.MvQpf.Fix
-    | .Codata => ``_root_.MvQpf.Cofix
+  sanityChecks view cmd liveBinders deadBinders
+  
+
+  let (view, rho) ← makeNonRecursive view;
+  let liveBinders := liveBinders.push <| mkIdent rho
+
+  let ⟨r, shape, P⟩ ← mkShape view
+
+    
+  let target ← `(
+    $(mkIdent shape):ident $r.expr*
+  )
+
+  
+  let base ← elabQpfCompositionBody {
+    liveBinders, deadBinders,    
+    type? := none,
+    target
+  }
+
+
+  let ident := mkIdent $ Name.mkStr view.declName "Internal"
+  let fix_or_cofix := ElabType.fixOrCofix cmd
   let cmd ← `(
-    abbrev $internal := $fix_or_cofix (_root_.TypeFun.ofCurried $base)
-    abbrev $(view.declId) := _root_.TypeFun.curried $internal
+    abbrev $ident := $fix_or_cofix $base
+    abbrev $(view.declId) := _root_.TypeFun.curried $ident
   ) 
   elabCommand cmd
 

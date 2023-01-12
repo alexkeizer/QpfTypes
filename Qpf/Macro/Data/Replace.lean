@@ -218,7 +218,7 @@ private partial def replaceStx (find replace : Syntax) : Syntax → Syntax := fu
 
 open Parser
 /--
-  Makes a type non-recursive, by replacing all recursive occurences by a fresh bound variable.
+  Makes a type spefication non-recursive, by replacing all recursive occurences by a fresh bound variable.
 -/
 def makeNonRecursive (view : InductiveView) : CommandElabM (InductiveView × Name) := do
   let expected := Syntax.mkApp (mkIdent view.shortDeclName) (

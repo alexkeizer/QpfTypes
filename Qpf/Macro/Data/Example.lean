@@ -22,6 +22,8 @@ data QpfList α where
   | nil : QpfList α
   | cons : α → QpfList α → QpfList α
 
+#check QpfList
+
 #check @MvQpf.Fix.drec _ QpfList.Internal _
 
 namespace QpfList
@@ -56,11 +58,6 @@ namespace QpfList
 
   #check @List.rec
   #check @QpfList.rec
-
-  #print QpfList.Base
-  #print QpfList.Base.typefun
-
-  #check @MvQpf.Fix.drec 1 QpfList.Base.typefun _ ?α ?motive
 
   
 
@@ -282,3 +279,17 @@ namespace Quotient
 
   def NativeMultiset α := Quot.mk (@List.perm α)
 end Quotient
+
+
+#check Nat
+
+qpf P₁ α β := α
+qpf P₂ α β := β
+
+qpf C₁ α β := Nat
+qpf C₂ (n : Nat) α β := PFin2 n
+
+qpf G₄ α β ρ := QpfList ρ
+
+#print G₄.typefun
+

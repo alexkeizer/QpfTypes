@@ -167,26 +167,23 @@ private instance : Quote Modifiers where
     ]
 
 
-structure QpfCompositionView where
-  (modifiers: Modifiers := {})
-  (F : Name)                        -- Name of the functor to be defined
-  (binders : Syntax)
-  (type? : Option Syntax := none)
-  (target: Syntax)
+
+structure QpfCompositionBodyView where
+  (type?  : Option Syntax := none)
+  (target : Syntax)
+  (liveBinders deadBinders : Array Syntax)
 
 
-def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
-  let (liveBinders, deadBinders) ← splitLiveAndDeadBinders view.binders.getArgs
 
-  dbg_trace "live_vars:\n {liveBinders}\n"
-  if deadBinders.size > 0 then
-    dbg_trace "dead_vars:\n {deadBinders}\n"
+structure QpfCompositionBinders where
+  (liveBinders deadBinders : Array Syntax)
 
-  let (deadBindersNoHoles, deadBinderNames) ← mkFreshNamesForBinderHoles deadBinders
-
-  dbg_trace "dead_vars_no_holes:\n {deadBindersNoHoles}\n"
-  
-  let body ← liftTermElabM none $ do
+/--
+  Given the description of a QPF composition (`QpfCompositionView`), generate the syntax for a term
+  that represents the desired functor (in uncurried form)
+-/
+def elabQpfCompositionBody (view: QpfCompositionBodyView) : CommandElabM Syntax := do  
+  liftTermElabM none $ do
     let body_type ← 
       if let some typeStx := view.type? then
         let u ← mkFreshLevelMVar;
@@ -200,17 +197,41 @@ def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
         pure <| mkSort <| mkLevelSucc u
   
     withAutoBoundImplicit <|
-      elabBinders deadBinders fun deadVars => 
-        withLiveBinders liveBinders fun vars =>
+      elabBinders view.deadBinders fun deadVars => 
+        withLiveBinders view.liveBinders fun vars =>
           withoutAutoBoundImplicit <| do
             let target_expr ← elabTermEnsuringType view.target body_type;
             elabQpf vars target_expr view.target
 
+
+structure QpfCompositionView where
+  (modifiers  : Modifiers := {})
+  (F          : Name)                        -- Name of the functor to be defined
+  (binders    : Syntax)
+  (type?      : Option Syntax := none)
+  (target     : Syntax)
+
+/--
+  Given the description of a QPF composition (`QpfCompositionView`), add a declaration for the 
+  desired functor (in both curried form as the `F` and uncurried form as `F.typefun`)
+-/
+def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
+  let (liveBinders, deadBinders) ← splitLiveAndDeadBinders view.binders.getArgs
+  let (deadBindersNoHoles, deadBinderNames) ← mkFreshNamesForBinderHoles deadBinders
+
+  /-
+    Elaborate body
+  -/
+  let body ← elabQpfCompositionBody {
+    type?   := view.type?
+    target  := view.target
+    liveBinders,
+    deadBinders,
+  }
   
   /-
     Define the qpf using the elaborated body
-  -/
-  
+  -/  
   let F_internal := mkIdent $ Name.mkStr view.F "typefun";
   let F := mkIdent view.F;
   let modifiers := quote view.modifiers;
@@ -257,6 +278,7 @@ def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
 elab "qpf " F:ident sig:optDeclSig " := " target:term : command => do  
   let type? := sig[1].getOptional?.map fun sigInner => sigInner[1]
   elabQpfComposition ⟨{}, F.getId, sig[0], type?, target⟩
+  -- elabQpfComposition ⟨{}, F.getId, ⟨sig[0], type?, target⟩⟩
 
   
 
