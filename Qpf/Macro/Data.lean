@@ -466,18 +466,16 @@ def elabData : CommandElab := fun stx => do
   let (view, rho) ← makeNonRecursive view;
   let liveBinders := liveBinders.push <| mkIdent rho
 
+
   let ⟨r, shape, P⟩ ← mkShape view
 
-    
-  let target ← `(
-    $(mkIdent shape):ident $r.expr*
-  )
-
-  
+      
   let base ← elabQpfCompositionBody {
     liveBinders, deadBinders,    
-    type? := none,
-    target
+    type?   := none,
+    target  := ←`(
+      $(mkIdent shape):ident $r.expr*
+    )
   }
 
 
