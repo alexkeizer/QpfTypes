@@ -24,7 +24,7 @@ data QpfList α where
 
 #check QpfList
 
-#check @MvQpf.Fix.drec _ QpfList.Internal _
+#check @MvQpf.Fix.drec _ QpfList.Uncurried _
 
 namespace QpfList
   def nil : QpfList α
@@ -98,7 +98,7 @@ def List.is_rem (a : α) : List α → List α → Prop
   | _, _          => false
 
 /-- Equates lists up-to permutation -/
-def List.perm ⦃α⦄ : QpfList.Internal α → QpfList.Internal α → Prop
+def List.perm ⦃α⦄ : QpfList.Uncurried α → QpfList.Uncurried α → Prop
   -- body omitted
   := by sorry
   -- | [],    []  =>  true
@@ -106,12 +106,12 @@ def List.perm ⦃α⦄ : QpfList.Internal α → QpfList.Internal α → Prop
   -- | _, _       =>  false
                       
 
-abbrev MultiSet.Internal := MvQpf.Quot1 List.perm
-abbrev MultiSet := TypeFun.curried MultiSet.Internal
+abbrev MultiSet.Uncurried := MvQpf.Quot1 List.perm
+abbrev MultiSet := TypeFun.curried MultiSet.Uncurried
 
-noncomputable instance : MvQpf MultiSet.Internal := MvQpf.relQuot List.perm (by sorry)
+noncomputable instance : MvQpf MultiSet.Uncurried := MvQpf.relQuot List.perm (by sorry)
 
-#check (inferInstance : MvQpf MultiSet.Internal)
+#check (inferInstance : MvQpf MultiSet.Uncurried)
 
 -- data UnorderedTree α where
 --   | node : α → MultiSet (UnorderedTree α) → UnorderedTree α
@@ -212,7 +212,7 @@ def QpfStream.add (as bs : QpfStream Nat) : QpfStream Nat :=
 
 
 
-#print QpfList.Internal
+#print QpfList.Uncurried
 #print QpfList.Shape
 #print QpfList.Shape.P
 
@@ -253,7 +253,7 @@ namespace Quotient
 
   #print List'
 
-  def List'.perm ⦃α⦄: Quotient.List'.Internal α → Quotient.List'.Internal α → Prop
+  def List'.perm ⦃α⦄: Quotient.List'.Uncurried α → Quotient.List'.Uncurried α → Prop
     := by sorry
 
   abbrev Multiset' : TypeFun 1 := MvQpf.Quot1 List'.perm
@@ -291,5 +291,5 @@ qpf C₂ (n : Nat) α β := PFin2 n
 
 qpf G₄ α β ρ := QpfList ρ
 
-#print G₄.typefun
+#print G₄.Uncurried
 

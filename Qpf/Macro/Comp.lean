@@ -232,7 +232,7 @@ def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
   /-
     Define the qpf using the elaborated body
   -/  
-  let F_internal := mkIdent $ Name.mkStr view.F "typefun";
+  let F_internal := mkIdent $ Name.mkStr view.F "Uncurried";
   let F := mkIdent view.F;
   let modifiers := quote view.modifiers;
   

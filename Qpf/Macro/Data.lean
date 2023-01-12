@@ -479,7 +479,7 @@ def elabData : CommandElab := fun stx => do
   }
 
 
-  let ident := mkIdent $ Name.mkStr view.declName "Internal"
+  let ident := mkIdent $ Name.mkStr view.declName "Uncurried"
   let fix_or_cofix := ElabType.fixOrCofix cmd
   let cmd ← `(
     abbrev $ident := $fix_or_cofix $base
@@ -488,3 +488,11 @@ def elabData : CommandElab := fun stx => do
   elabCommand cmd
 
 end Data.Command
+
+
+
+
+qpf F α   := α
+qpf G α ρ := α
+
+-- abbrev F' := MvQpf.Fix F.Uncurried
