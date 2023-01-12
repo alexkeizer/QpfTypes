@@ -448,7 +448,7 @@ open Macro in
 /--
   Top-level elaboration for both `data` and `codata` declarations
 -/
-@[commandElab «declaration»]
+@[commandElab declaration]
 def elabData : CommandElab := fun stx => do 
   let modifiers ← elabModifiers stx[0]
   let decl := stx[1]
