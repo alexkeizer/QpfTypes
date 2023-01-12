@@ -31,10 +31,12 @@ namespace QpfTree
       Since there is only one constructor, `def HeadT := Unit` would also have sufficed
     -/
     inductive HeadT
+      | leaf
       | node
 
-    abbrev ChildT : HeadT → TypeVec 2
-      | _, _ => Unit
+    abbrev ChildT : HeadT → TypeVec 4
+      | .leaf => ![PFin2 1, PFin2 0, PFin2 0, PFin2 0]
+      | .node => ![PFin2 0, PFin2 1, PFin2 1, PFin2 1]
 
     abbrev P := MvPFunctor.mk HeadT ChildT
 
@@ -65,8 +67,10 @@ namespace QpfTree
     ```
   -/
 
-  abbrev Manual.F : TypeFun 2
+  abbrev Base : TypeFun 2
     := Comp Shape.P.Obj ![
+        Prj 1,
+        Prj 1,
         Prj 1,
         Comp QpfList' ![Prj 0]
     ]
