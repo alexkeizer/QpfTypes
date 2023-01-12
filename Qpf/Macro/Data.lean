@@ -42,17 +42,14 @@ namespace Data.Command
 section
   open Lean.Parser Lean.Parser.Command
 
-  def data : Parser
-    := leading_parser "data " >> declId  >> optDeclSig  
+  def inductive_like (cmd : String) : Parser
+    := leading_parser cmd >> declId  >> optDeclSig  
                         >> Parser.optional  (symbol " :=" <|> " where") 
                         >> many ctor 
                         >> optDeriving
 
-  def codata : Parser
-    := leading_parser "codata " >> declId  >> optDeclSig  
-                        >> Parser.optional  (symbol " :=" <|> " where") 
-                        >> many ctor 
-                        >> optDeriving
+  def data := inductive_like "data "
+  def codata := inductive_like "codata "
 
   @[commandParser]
   def declaration : Parser
@@ -274,6 +271,7 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT childT 
     | MyList.Shape.HeadT.cons => MyList.Shape.cons (child 2 .fz) (child 0 .fz)
   -/
 
+  /- the `child` variable in the example above -/
   let unbox_child := mkIdent <|<- Elab.Term.mkFreshBinderName;
   let unboxBody ← ctors.mapM fun (ctor, args) => do
     let alt     := mkIdent ctor.declName
