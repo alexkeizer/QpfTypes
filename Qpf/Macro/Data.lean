@@ -177,7 +177,6 @@ def mkChildT (view : InductiveView) (r : Replace) (headTName : Name) : CommandEl
     let counts := countVarOccurences r ctor.type?
     let counts := counts.map fun n => 
                     Syntax.mkApp (mkIdent ``PFin2) #[quote n]
-    let counts := counts.reverse
 
     `(matchAltExpr| | $head => (![ $counts,* ]))
 

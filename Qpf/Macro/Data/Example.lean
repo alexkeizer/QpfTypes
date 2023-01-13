@@ -117,13 +117,6 @@ noncomputable instance : MvQpf MultiSet.Uncurried := MvQpf.relQuot List.perm (by
 #print QpfList
 
 
-
--- TODO: find out why the following won't work
--- codata NatList α where
---   | nil : NatList α
---   | cons : Nat → NatList α → NatList α
-
-
 def QpfList.isNil : QpfList α → Bool := 
   MvQpf.Fix.rec fun as => match as with
     | .nil => true
@@ -193,15 +186,6 @@ def QpfStream.add (as bs : QpfStream Nat) : QpfStream Nat :=
 
 
 
--- TODO: debug
--- For some reason, this only works if we remove the second α
--- data PairOf α β
---   | mk : α → α → β → PairOf α β
-
-
--- For some reason, this only works if we remove the second α
--- data QpfTest α β where
---   | A : α → α → β → QpfTest α β → QpfTree β → QpfCoTree (QpfTree (QpfTest α β)) → QpfTest α β
 
 
 
@@ -298,3 +282,15 @@ data QpfList₄ (dead : Type) β γ where
   | nil   : QpfList₄ dead β γ
   | cons  : QpfList₄ dead β γ → QpfList₄ dead β γ
 
+
+
+/-
+  # Repeated occurences
+  regression test
+-/
+
+data PairOf α β
+  | mk : α → β → β → PairOf α β
+
+data QpfTest α β where
+  | A : α → α → β → QpfTest α β → QpfTree β → QpfCoTree (QpfTree (QpfTest α β)) → QpfTest α β

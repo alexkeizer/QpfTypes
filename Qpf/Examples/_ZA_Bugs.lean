@@ -11,11 +11,15 @@ import Qpf
 data HigherUniv (α : Type 2) β
   | mk : (α → β) → β → HigherUniv α β
 
+
 /- Fails when β is repeated after a constant -/
 data RepAfterConst β
   | mk : Nat → β → β → RepAfterConst β
 
 
+codata NatList α where
+  | nil : NatList α
+  | cons : Nat → NatList α → NatList α
 
 
 
