@@ -305,7 +305,6 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT childT 
           <;> rfl          
       ) (
         by 
-          simp only [$box:ident, $unbox:ident];
           intro _ x;
           cases x
           <;> rfl

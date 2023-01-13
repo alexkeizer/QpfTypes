@@ -9,7 +9,7 @@ set_option pp.rawOnError true
 #check List.recOn
 #check List.casesOn
 
-#print prefix List
+-- #print prefix List
 
 theorem nil_neq_cons (a : α) (as : List α) : List.nil ≠ List.cons a as := 
   by simp
@@ -303,4 +303,4 @@ data Arrow (α : Type _) β
   | mk : (α → β) → Arrow α β
 
 data FinAlt {n : Nat} β
-  | mk : PFin2 n → FinAlt n β
+  | mk : PFin2 n → FinAlt β
