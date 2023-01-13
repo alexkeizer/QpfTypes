@@ -11,6 +11,7 @@ import Lean.Parser.Command
 import Qpf.Macro.Data.Internals
 import Qpf.Macro.Data.Replace
 import Qpf.Macro.Data.Count
+import Qpf.Macro.Data.View
 import Qpf.Macro.Common
 import Qpf.Macro.Comp
 
@@ -403,49 +404,16 @@ def mkShape (view: InductiveView) : CommandElabM MkShapeResult := do
 
 
 
-private inductive ElabType where
-  | Data
-  | Codata
-  deriving BEq
 
-def ElabType.fromSyntax : Syntax → CommandElabM ElabType
-  | Syntax.atom _ "data"   => pure ElabType.Data
-  | Syntax.atom _ "codata" => pure ElabType.Codata
-  | stx => throwErrorAt stx "Expected either `data` or `codata`"
 
 
 /--
   Return a syntax tree for `MvQpf.Fix` or `MvQpf.Cofix` when self is `Data`, resp. `Codata`.
 -/
-def ElabType.fixOrCofix : ElabType → Syntax
-  := fun typ => mkIdent $ match typ with
+def DataCommand.fixOrCofix : DataCommand → Syntax
+  := fun cmd => mkIdent $ match cmd with
       | .Data   => ``_root_.MvQpf.Fix
       | .Codata => ``_root_.MvQpf.Cofix
-
-/--
-  Raises (hopefully) more informative errors when `data` or `codata` are used with unsupported
-  specifications
--/
-def sanityChecks (view : InductiveView) (type : ElabType) (live dead : Array Syntax) : CommandElabM Unit := do  
-  if live.isEmpty then    
-    if dead.isEmpty then
-      if type == .Codata then
-        throwError "Due to a bug, codatatype without any parameters don't quite work yet. Please try adding parameters to your type"
-      else 
-        throwError "Trying to define a data without variables, you probably want an `inductive` type instead"
-    else
-      throwErrorAt view.binders "You should mark some variables as live by removing the type ascription (they will be automatically inferred as `Type _`), or if you don't have variables of type `Type _`, you probably want an `inductive` type"
-
-  -- TODO: remove once dead variables are fully supported
-  if !dead.isEmpty then
-    throwErrorAt dead[0] "Dead variables are not supported yet, please make the variable live by removing the type ascription (it will be automatically inferred as `Type _`)"
-
-
-  -- TODO: make this more intelligent. In particular, allow types like `Type`, `Type 3`, or `Type u`
-  --       and only throw an error if the user tries to define a family of types
-  match view.type? with
-  | some t => throwErrorAt t "Unexpected type; type will be automatically inferred. Note that inductive families are not supported due to inherent limitations of QPFs"
-  | none => pure ()
 
 open Macro Comp in
 /--
@@ -455,23 +423,17 @@ open Macro Comp in
 def elabData : CommandElab := fun stx => do 
   let modifiers ← elabModifiers stx[0]
   let decl := stx[1]
-  let view ← inductiveSyntaxToView modifiers decl
-  let cmd ← ElabType.fromSyntax decl[0]
-  let (liveBinders, deadBinders) ← splitLiveAndDeadBinders view.binders.getArgs
-  
-
-  sanityChecks view cmd liveBinders deadBinders
+  let view ← dataSyntaxToView modifiers decl
   
 
   let (view, rho) ← makeNonRecursive view;
-  let liveBinders := liveBinders.push <| mkIdent rho
 
-
-  let ⟨r, shape, P⟩ ← mkShape view
+  let ⟨r, shape, P⟩ ← mkShape view.asInductive
 
       
   let base ← elabQpfCompositionBody {
-    liveBinders, deadBinders,    
+    liveBinders := view.liveBinders, 
+    deadBinders := view.deadBinders,     
     type?   := none,
     target  := ←`(
       $(mkIdent shape):ident $r.expr*
@@ -480,7 +442,7 @@ def elabData : CommandElab := fun stx => do
 
 
   let ident := mkIdent $ Name.mkStr view.declName "Uncurried"
-  let fix_or_cofix := ElabType.fixOrCofix cmd
+  let fix_or_cofix := DataCommand.fixOrCofix view.command
   let cmd ← `(
     abbrev $ident := $fix_or_cofix $base
     abbrev $(view.declId) := _root_.TypeFun.curried $ident

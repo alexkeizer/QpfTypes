@@ -278,7 +278,6 @@ def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
 elab "qpf " F:ident sig:optDeclSig " := " target:term : command => do  
   let type? := sig[1].getOptional?.map fun sigInner => sigInner[1]
   elabQpfComposition ⟨{}, F.getId, sig[0], type?, target⟩
-  -- elabQpfComposition ⟨{}, F.getId, ⟨sig[0], type?, target⟩⟩
 
   
 

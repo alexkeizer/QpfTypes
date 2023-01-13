@@ -3,6 +3,7 @@ import Lean.Parser.Term
 import Lean.Elab.Command
 
 import Qpf.Macro.Common
+import Qpf.Macro.Data.View
 
 open Lean Meta Elab.Command Elab.Term
 
@@ -219,8 +220,10 @@ private partial def replaceStx (find replace : Syntax) : Syntax → Syntax := fu
 open Parser
 /--
   Makes a type spefication non-recursive, by replacing all recursive occurences by a fresh bound variable.
+  Simultaneously checks that each constructor type, if given, is indeed a sequence of arrows
+  ... → ... → ... culminating in the type to be defined.
 -/
-def makeNonRecursive (view : InductiveView) : CommandElabM (InductiveView × Name) := do
+def makeNonRecursive (view : DataView) : CommandElabM (DataView × Name) := do
   let expected := Syntax.mkApp (mkIdent view.shortDeclName) (
     (Macro.getBinderIdents view.binders.getArgs)
   )  
@@ -228,9 +231,7 @@ def makeNonRecursive (view : InductiveView) : CommandElabM (InductiveView × Nam
   let rec ← mkFreshBinderName
   let recId := mkIdent rec
 
-  let newBinder := mkNode ``Term.simpleBinder #[mkNullNode #[recId], mkNullNode]
-  let binders := view.binders
-  let binders := binders.setArgs (binders.getArgs.push newBinder)
+  let view := view.pushLiveBinder recId
 
   let ctors ← view.ctors.mapM fun ctor => do
     pure $ CtorView.withType? ctor $ ← ctor.type?.mapM (fun type => do
@@ -238,15 +239,5 @@ def makeNonRecursive (view : InductiveView) : CommandElabM (InductiveView × Nam
       pure $ replaceStx expected recId type
     )
 
-  pure ({
-    binders, ctors,
-
-    ref             := view.ref             
-    declId          := view.declId          
-    modifiers       := view.modifiers       
-    shortDeclName   := view.shortDeclName   
-    declName        := view.declName        
-    levelNames      := view.levelNames      
-    type?           := view.type?           
-    derivingClasses := view.derivingClasses 
-  }, rec)
+  let view := view.setCtors ctors
+  pure (view, rec)
