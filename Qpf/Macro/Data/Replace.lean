@@ -225,7 +225,7 @@ open Parser
 -/
 def makeNonRecursive (view : DataView) : CommandElabM (DataView × Name) := do
   let expected := Syntax.mkApp (mkIdent view.shortDeclName) (
-    (Macro.getBinderIdents view.binders.getArgs)
+    (Macro.getBinderIdents view.binders.getArgs false)
   )  
 
   let rec ← mkFreshBinderName

@@ -142,13 +142,16 @@ namespace Macro
     Takes a list of binders, and returns an array of just the bound identifiers, 
     for use in applications
   -/
-  def getBinderIdents (binders : Array Syntax) : Array Syntax := Id.run do
+  def getBinderIdents (binders : Array Syntax) (includeImplicits := true) : Array Syntax := Id.run do
     let mut idents := #[]
 
     for binder in binders do
       let kind := binder.getKind
 
-      if kind == ``Lean.binderIdent then
+      if kind == ``Lean.Parser.Term.implicitBinder && !includeImplicits then
+        continue
+
+      else if kind == ``Lean.binderIdent then
         idents := idents.push binder
 
       else if kind == ``Lean.Parser.Term.simpleBinder then
