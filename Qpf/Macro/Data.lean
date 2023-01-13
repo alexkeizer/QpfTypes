@@ -204,7 +204,6 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT childT 
   let shapeN := shapeView.declName
   let q := mkIdent $ Name.mkStr shapeN "qpf"
   let shape := mkIdent shapeN
-  let ofCurriedShape ← `(@TypeFun.ofCurried $(quote arity) $shape)
 
   let n_ctors := shapeView.ctors.size;
   let ctors := shapeView.ctors.zip ctorArgs
@@ -255,14 +254,10 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT childT 
             `(matchAltExpr| | $(PFin2.quoteOfNat i) => $body)
         ):matchAlt*
     ⟩)
-  let box := mkIdent $ Name.mkStr shapeN "box"
-  let cmd ← `(
-    def $box:ident : ∀{α}, $ofCurriedShape α → $(P).Obj α :=
+  let box ← `(
     fun x => match x with
       $boxBody:matchAlt*
   )
-  -- dbg_trace f!"\nbox: {cmd}\n"
-  elabCommand cmd
 
   /-
     `unbox` does the opposite of `box`; it maps from uncurried to curried
@@ -292,20 +287,15 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT childT 
 
     `(matchAltExpr| | $headAlt:ident => $body)
 
-  let unbox := mkIdent $ Name.mkStr shapeN "unbox"
-  let cmd ← `(
-    def $unbox:ident : ∀{α}, $(P).Obj α → $ofCurriedShape α :=
-      fun ⟨head, $unbox_child⟩ => match head with
-          $unboxBody:matchAlt*
+  let unbox ← `(
+    fun ⟨head, $unbox_child⟩ => match head with
+        $unboxBody:matchAlt*
   )
-  -- dbg_trace f!"\nunbox: {cmd}\n"
-  elabCommand cmd
 
   let cmd ← `(
-    instance $q:ident : MvQpf $ofCurriedShape :=
+    instance $q:ident : MvQpf (@TypeFun.ofCurried $(quote arity) $shape) :=
       MvQpf.ofPolynomial $P $box $unbox (
         by 
-          simp only [$box:ident, $unbox:ident];
           intro _ x;
           rcases x with ⟨head, child⟩;
           cases head
@@ -462,5 +452,4 @@ def elabData : CommandElab := fun stx => do
 
 end Data.Command
 
--- abbrev F' := MvQpf.Fix F.Uncurried
 
