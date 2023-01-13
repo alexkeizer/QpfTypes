@@ -141,30 +141,7 @@ partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Synt
       throwError f!"Unexpected target expression :\n {target}\n{extra}\nNote that the expression contains live variables, hence, must be functorial"
 
 
-#check mkNullNode
 
-open Parser.Command in
-private instance : Quote Modifiers where
-  quote mod :=
-    let isNoncomputable := 
-      if mod.isNoncomputable then 
-        mkNode ``«noncomputable» #[mkAtom "noncomputable "]
-      else 
-        mkNullNode
-
-    let visibility := match mod.visibility with
-      | .regular     => mkNullNode
-      | .«protected» => mkNode ``«protected» #[mkAtom "protected "]
-      | .«private»   => mkNode ``«private» #[mkAtom "private "]
-
-    mkNode ``declModifiers #[
-      mkNullNode, -- docComment
-      mkNullNode, -- Term.attributes
-      visibility, -- visibility
-      isNoncomputable, -- isNoncomputable
-      mkNullNode, -- unsafe
-      mkNullNode  -- partial / nonrec
-    ]
 
 
 

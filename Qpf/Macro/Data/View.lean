@@ -80,6 +80,29 @@ def DataView.pushLiveBinder (view : DataView) (binderIdent : Syntax) : DataView
         deadBinders     := view.deadBinders
       }
 
+def DataView.popLiveBinder (view : DataView) : DataView
+  :=  if view.liveBinders.size == 0 then
+        view
+      else
+        let liveBinders := view.liveBinders.pop
+        let binders := view.binders
+        let binders := binders.setArgs (binders.getArgs.pop)
+        {
+          liveBinders, binders,
+
+          ref             := view.ref
+          declId          := view.declId
+          modifiers       := view.modifiers      
+          shortDeclName   := view.shortDeclName  
+          declName        := view.declName       
+          levelNames      := view.levelNames     
+          type?           := view.type?          
+          ctors           := view.ctors          
+          derivingClasses := view.derivingClasses
+          command         := view.command
+          deadBinders     := view.deadBinders
+        }
+
 
 def DataView.setCtors (view : DataView) (ctors : Array CtorView) : DataView
   := {
@@ -101,6 +124,18 @@ def DataView.setCtors (view : DataView) (ctors : Array CtorView) : DataView
 
 
 
+/-- Returns the fully applied form of the type to be defined -/
+def DataView.getExpectedType (view : DataView) : Syntax
+  := Syntax.mkApp (mkIdent view.shortDeclName) (
+    (Macro.getBinderIdents view.binders.getArgs false)
+  )  
+
+/-- Returns the fully applied, explicit (`@`) form of the type to be defined -/
+def DataView.getExplicitExpectedType (view : DataView) : CommandElabM Syntax
+  :=  let args := Macro.getBinderIdents view.binders.getArgs true
+      `(
+        @$(mkIdent view.shortDeclName):ident $args*
+      )
 
 
 

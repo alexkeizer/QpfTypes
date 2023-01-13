@@ -169,13 +169,36 @@ namespace Macro
 
 
 
+
+open Parser.Command in
+instance : Quote Modifiers where
+  quote mod :=
+    let isNoncomputable := 
+      if mod.isNoncomputable then 
+        mkNode ``«noncomputable» #[mkAtom "noncomputable "]
+      else 
+        mkNullNode
+
+    let visibility := match mod.visibility with
+      | .regular     => mkNullNode
+      | .«protected» => mkNode ``«protected» #[mkAtom "protected "]
+      | .«private»   => mkNode ``«private» #[mkAtom "private "]
+
+    mkNode ``declModifiers #[
+      mkNullNode, -- docComment
+      mkNullNode, -- Term.attributes
+      visibility, -- visibility
+      isNoncomputable, -- isNoncomputable
+      mkNullNode, -- unsafe
+      mkNullNode  -- partial / nonrec
+    ]
+
   
   open Lean.Parser.Term in
   elab "#dbg_syntax " t:term : command => do
     dbg_trace t
 
-  -- #dbg_syntax F (a:=2)
-  
+    
   open Lean.Parser.Term Elab.Command in
   elab "#dbg_expr " t:term : command => do
     let expr ← liftTermElabM none $ elabTerm t none

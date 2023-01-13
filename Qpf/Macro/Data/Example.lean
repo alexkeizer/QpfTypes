@@ -27,11 +27,8 @@ data QpfList α where
 #check @MvQpf.Fix.drec _ QpfList.Uncurried _
 
 namespace QpfList
-  def nil : QpfList α
-    := MvQpf.Fix.mk QpfList.Shape.nil
-
-  def cons : α → QpfList α → QpfList α
-    := (MvQpf.Fix.mk $ QpfList.Shape.cons · ·)
+  #print QpfList.nil
+  #print QpfList.cons
 
 
   def rec {α : Type _} {motive : QpfList α → Sort _} :
@@ -157,8 +154,7 @@ inductive QpfListInd α
 codata QpfStream α where
   | mk : α → QpfStream α → QpfStream α
 
-def QpfStream.mk : α → QpfStream α → QpfStream α :=
-  fun a as => MvQpf.Cofix.mk (Shape.mk a as)
+#print QpfStream.mk
 
 
 /-- The stream `0,0,0,...` -/
@@ -270,7 +266,8 @@ namespace Quotient
   noncomputable data Foo α where
     | node : α → Multiset (Foo α) → Foo α
 
-  #check Foo
+  #print Foo
+  #print Quotient.Foo.node
 
 
 
@@ -302,5 +299,7 @@ qpf G₄ α β ρ := QpfList ρ
 data Arrow (α : Type _) β
   | mk : (α → β) → Arrow α β
 
-data FinAlt {n : Nat} β
+codata FinAlt {n : Nat} β
   | mk : PFin2 n → FinAlt β
+
+#print FinAlt.mk

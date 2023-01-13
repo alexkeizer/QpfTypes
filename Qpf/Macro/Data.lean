@@ -63,13 +63,13 @@ end
 open Internals
 open Elab.Term (TermElabM)
 
-def Name.replacePrefix (pref new_pref : Name) : Name → Name
+def Name.replacePrefix (old_pref new_pref : Name) : Name → Name
   | Name.anonymous => Name.anonymous
-  | Name.str p s _ => let p' := if p == pref then new_pref
-                                else replacePrefix pref new_pref p
+  | Name.str p s _ => let p' := if p == old_pref then new_pref
+                                else replacePrefix old_pref new_pref p
                       Name.mkStr p' s
-  | Name.num p v _ => let p' := if p == pref then new_pref
-                                else replacePrefix pref new_pref p
+  | Name.num p v _ => let p' := if p == old_pref then new_pref
+                                else replacePrefix old_pref new_pref p
                       Name.mkNum p' v
 
 
@@ -392,17 +392,73 @@ def mkShape (view: InductiveView) : CommandElabM MkShapeResult := do
 
 
 
-
-
-
-
 /--
   Return a syntax tree for `MvQpf.Fix` or `MvQpf.Cofix` when self is `Data`, resp. `Codata`.
 -/
-def DataCommand.fixOrCofix : DataCommand → Syntax
-  := fun cmd => mkIdent $ match cmd with
-      | .Data   => ``_root_.MvQpf.Fix
-      | .Codata => ``_root_.MvQpf.Cofix
+def DataCommand.fixOrCofix : DataCommand → Name
+  | .Data   => ``_root_.MvQpf.Fix
+  | .Codata => ``_root_.MvQpf.Cofix
+
+
+open Parser in
+/--
+  Count the number of arguments to a constructor
+-/
+partial def countConstructorArgs : Syntax → Nat
+  | Syntax.node _ ``Term.arrow #[_, _, tail]  =>  1 + (countConstructorArgs tail)
+  | _                                         => 0
+
+#check Modifiers
+
+open Elab
+/--
+  Add convenient constructor functions to the environment
+-/
+def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
+  for ctor in view.ctors do
+    dbg_trace "mkConstructors\n{ctor.declName} : {ctor.type?}"
+    let n_args := (ctor.type?.map countConstructorArgs).getD 0
+
+    let args ← (List.range n_args).mapM fun _ => 
+      do pure <| mkIdent <|← Elab.Term.mkFreshBinderName
+    let args := args.toArray
+
+    dbg_trace args
+
+    let mk := mkIdent ((DataCommand.fixOrCofix view.command) ++ `mk)
+    let shapeCtor := mkIdent <| Name.replacePrefix view.declName shape ctor.declName
+    dbg_trace "shapeCtor = {shapeCtor}"
+
+    
+
+    let body := if n_args = 0 then
+        `($mk $shapeCtor)
+      else
+        `(fun $args:ident* => $mk ($shapeCtor $args:ident*))
+    let body ← body
+    
+    let explicit ← view.getExplicitExpectedType
+    let type := (ctor.type?.map fun type => 
+      Replace.replaceAllStx view.getExpectedType explicit type
+    ).getD explicit
+    let modifiers : Modifiers := {
+      isNoncomputable := view.modifiers.isNoncomputable
+      attrs := #[{
+        name := `matchPattern
+      }]
+    }
+    let cmd ← `(
+      $(quote modifiers):declModifiers
+      def $(mkIdent ctor.declName) : $type
+        := $body:term
+    )
+
+    dbg_trace "cmd = {cmd}"
+    elabCommand cmd
+  return ()
+
+
+
 
 open Macro Comp in
 /--
@@ -413,16 +469,15 @@ def elabData : CommandElab := fun stx => do
   let modifiers ← elabModifiers stx[0]
   let decl := stx[1]
   let view ← dataSyntaxToView modifiers decl
-  
 
-  let (view, rho) ← makeNonRecursive view;
+  let (nonRecView, rho) ← makeNonRecursive view;
 
-  let ⟨r, shape, P⟩ ← mkShape view.asInductive
+  let ⟨r, shape, P⟩ ← mkShape nonRecView.asInductive
 
       
   let base ← elabQpfCompositionBody {
-    liveBinders := view.liveBinders, 
-    deadBinders := view.deadBinders,     
+    liveBinders := nonRecView.liveBinders, 
+    deadBinders := nonRecView.deadBinders,     
     type?   := none,
     target  := ←`(
       $(mkIdent shape):ident $r.expr*
@@ -430,15 +485,15 @@ def elabData : CommandElab := fun stx => do
   }
 
 
-  let uncurried := mkIdent $ Name.mkStr view.declName "Uncurried"
+  let uncurried := mkIdent $ Name.mkStr nonRecView.declName "Uncurried"
 
-  let (deadBindersNoHoles, deadBinderNames) ← mkFreshNamesForBinderHoles view.deadBinders
+  let (deadBindersNoHoles, deadBinderNames) ← mkFreshNamesForBinderHoles nonRecView.deadBinders
   let deadBinderNamedArgs ← deadBinderNames.mapM fun n => `(Parser.Term.namedArgument| ($n:ident := $n:term))
   let uncurried_applied := Syntax.mkApp uncurried deadBinderNamedArgs
 
-  /- At this point, `view` still contains the extra recursive parameter, so the final arity is 1 less -/
-  let arity := quote (view.liveBinders.size - 1)
-  let fix_or_cofix := DataCommand.fixOrCofix view.command
+  /- At this point, go back to considering the original `view` -/
+  let arity := quote view.liveBinders.size
+  let fix_or_cofix := mkIdent <| DataCommand.fixOrCofix view.command
   let cmd ← `(
     abbrev $uncurried:ident $deadBindersNoHoles:bracketedBinder* : _root_.TypeFun $arity
       := $fix_or_cofix $base
@@ -449,6 +504,8 @@ def elabData : CommandElab := fun stx => do
   -- dbg_trace "{cmd}"
   elabCommand cmd
 
+  /- Finally, auxiliarry constructions-/
+  mkConstructors view shape
+
+
 end Data.Command
-
-

@@ -80,25 +80,6 @@ private def ReplaceM.identFor (stx : Syntax) : ReplaceM Syntax := do
   
 
 
-open Parser in
-/--
-  Checks that the given type is a sequence of (non-depenedent) arrows, ending in `expected`
--/
-private partial def checkResultingType (expected : Syntax) : Syntax → CommandElabM Unit
-  | Syntax.node _ ``Term.arrow #[arg, arrow, tail] =>
-      checkResultingType expected tail
-
-  | stx@(Syntax.node _ ``Term.arrow _) =>
-      throwErrorAt stx "Internal bug: encountered an unexpected form of arrow syntax"
-
-  | stx@(Syntax.node _ ``Term.depArrow _) =>
-      throwErrorAt stx "Dependent arrows are not supported, please only use plain arrow types"
-
-  | ctor_type => 
-      if ctor_type != expected then
-        throwErrorAt ctor_type m!"Unexpected constructor resulting type; expected {expected}, found {ctor_type}"
-      else
-        pure ()
 
 open Lean.Parser in
 /--
@@ -208,12 +189,40 @@ def Replace.run : ReplaceM α → CommandElabM (α × Replace) :=
     StateT.run x r
 
 
-private partial def replaceStx (find replace : Syntax) : Syntax → Syntax := fun stx =>
+/-- Replace syntax in *all* subexpressions -/
+partial def Replace.replaceAllStx (find replace : Syntax) : Syntax → Syntax := fun stx =>
   if stx == find then
     replace
   else
-    stx.setArgs (stx.getArgs.map (replaceStx find replace))
+    stx.setArgs (stx.getArgs.map (replaceAllStx find replace))
 
+
+
+open Parser in
+/--
+  Given a sequence of arrows e₁ → e₂ → ... → eₙ, check that `eₙ == recType`, and replace all
+  *other* occurences (i.e., in e₁ ... eₖ₋₁) of `recType` with `newParam`.
+
+-/
+partial def Replace.replaceStx (recType newParam : Syntax) : Syntax → CommandElabM Syntax
+  | stx@(Syntax.node _ ``Term.arrow #[arg, arrow, tail]) => do
+      pure <| stx.setArgs #[
+        replaceAllStx recType newParam arg,
+        arrow,
+        ←replaceStx recType newParam tail
+      ]
+
+  | stx@(Syntax.node _ ``Term.arrow _) =>
+      throwErrorAt stx "Internal bug: encountered an unexpected form of arrow syntax"
+
+  | stx@(Syntax.node _ ``Term.depArrow _) =>
+      throwErrorAt stx "Dependent arrows are not supported, please only use plain arrow types"
+
+  | ctor_type => 
+      if ctor_type != recType then
+        throwErrorAt ctor_type m!"Unexpected constructor resulting type; expected {recType}, found {ctor_type}"
+      else
+        pure ctor_type
 
 
 
@@ -224,9 +233,7 @@ open Parser
   ... → ... → ... culminating in the type to be defined.
 -/
 def makeNonRecursive (view : DataView) : CommandElabM (DataView × Name) := do
-  let expected := Syntax.mkApp (mkIdent view.shortDeclName) (
-    (Macro.getBinderIdents view.binders.getArgs false)
-  )  
+  let expected := view.getExpectedType
 
   let rec ← mkFreshBinderName
   let recId := mkIdent rec
@@ -234,10 +241,8 @@ def makeNonRecursive (view : DataView) : CommandElabM (DataView × Name) := do
   let view := view.pushLiveBinder recId
 
   let ctors ← view.ctors.mapM fun ctor => do
-    pure $ CtorView.withType? ctor $ ← ctor.type?.mapM (fun type => do
-      checkResultingType expected type
-      pure $ replaceStx expected recId type
-    )
+    let type? ← ctor.type?.mapM (Replace.replaceStx expected recId ·)
+    return CtorView.withType? ctor type?
 
   let view := view.setCtors ctors
   pure (view, rec)
