@@ -227,17 +227,6 @@ data QpfList₃ α where
   | My2.nil : α → QpfList₃ α → QpfList₃ α
 
 
--- 
---  Dead variables are not supported yet
---
-
--- data QpfList₂ (dead : Type) β γ where
---   | nil   : QpfList₂ dead β γ
---   | cons  : QpfList₂ dead β γ → QpfList₂ dead β γ
-
--- data QpfList (A : Type) (dead : Type) β where
---   | nil   : QpfList A dead β
---   | cons  : A → (dead → β) → QpfList A dead β → QpfList A dead β
 
 #check QpfList
 
@@ -303,3 +292,9 @@ codata FinAlt {n : Nat} β
   | mk : PFin2 n → FinAlt β
 
 #print FinAlt.mk
+
+
+data QpfList₄ (dead : Type) β γ where
+  | nil   : QpfList₄ dead β γ
+  | cons  : QpfList₄ dead β γ → QpfList₄ dead β γ
+

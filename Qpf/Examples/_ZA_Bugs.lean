@@ -19,6 +19,21 @@ data RepAfterConst β
 
 
 
+data QpfList₅ (A : Type) (dead : Type) β where
+  | nil   : QpfList₅ A dead β
+  | cons  : A → (dead → β) → QpfList₅ A dead β → QpfList₅ A dead β
+
+
+
+
+
+
+/-
+  Big issue for dead variables, it seems partial applications of QPFs don't automatically get
+  an instance of MvQpf
+-/
+
+
 -- qpf F α β γ := α
 
 -- instance (F : CurriedTypeFun (n + 2)) (α : Type _) [q : MvQpf (TypeFun.ofCurried F)] : 
