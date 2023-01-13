@@ -155,6 +155,10 @@ namespace Macro
         for id in binder[0].getArgs do
           idents := idents.push id
 
+      else if kind == ``Lean.Parser.Term.explicitBinder || kind == ``Lean.Parser.Term.implicitBinder then
+        for id in binder[1].getArgs do
+          idents := idents.push id
+
       else
         dbg_trace "{binder}"
 

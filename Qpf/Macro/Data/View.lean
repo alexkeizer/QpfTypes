@@ -84,7 +84,7 @@ def DataView.pushLiveBinder (view : DataView) (binderIdent : Syntax) : DataView
 def DataView.setCtors (view : DataView) (ctors : Array CtorView) : DataView
   := {
         ctors,
-        
+
         ref             := view.ref
         declId          := view.declId
         modifiers       := view.modifiers      
@@ -126,7 +126,7 @@ def sanityChecks (view : DataView) : CommandElabM Unit := do
 
   -- TODO: remove once dead variables are fully supported
   if !view.deadBinders.isEmpty then
-    throwErrorAt view.deadBinders[0] "Dead variables are not supported yet, please make the variable live by removing the type ascription (it will be automatically inferred as `Type _`)"
+    dbg_trace "Dead variables are not fully supported yet"
 
 
   -- TODO: make this more intelligent. In particular, allow types like `Type`, `Type 3`, or `Type u`

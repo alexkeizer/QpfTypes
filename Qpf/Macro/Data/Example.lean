@@ -281,7 +281,9 @@ namespace Quotient
 end Quotient
 
 
-#check Nat
+/-
+  # Composition pipeline
+-/
 
 qpf P₁ α β := α
 qpf P₂ α β := β
@@ -291,5 +293,14 @@ qpf C₂ (n : Nat) α β := PFin2 n
 
 qpf G₄ α β ρ := QpfList ρ
 
-#print G₄.Uncurried
 
+
+/-
+  # Dead variables
+-/
+
+data Arrow (α : Type _) β
+  | mk : (α → β) → Arrow α β
+
+data FinAlt {n : Nat} β
+  | mk : PFin2 n → FinAlt n β

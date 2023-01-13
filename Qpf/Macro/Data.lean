@@ -441,20 +441,26 @@ def elabData : CommandElab := fun stx => do
   }
 
 
-  let ident := mkIdent $ Name.mkStr view.declName "Uncurried"
+  let uncurried := mkIdent $ Name.mkStr view.declName "Uncurried"
+
+  let (deadBindersNoHoles, deadBinderNames) ← mkFreshNamesForBinderHoles view.deadBinders
+  let deadBinderNamedArgs ← deadBinderNames.mapM fun n => `(Parser.Term.namedArgument| ($n:ident := $n:term))
+  let uncurried_applied := Syntax.mkApp uncurried deadBinderNamedArgs
+
+  /- At this point, `view` still contains the extra recursive parameter, so the final arity is 1 less -/
+  let arity := quote (view.liveBinders.size - 1)
   let fix_or_cofix := DataCommand.fixOrCofix view.command
   let cmd ← `(
-    abbrev $ident := $fix_or_cofix $base
-    abbrev $(view.declId) := _root_.TypeFun.curried $ident
+    abbrev $uncurried:ident $deadBindersNoHoles:bracketedBinder* : _root_.TypeFun $arity
+      := $fix_or_cofix $base
+
+    abbrev $(view.declId)   $deadBindersNoHoles:bracketedBinder*
+      := _root_.TypeFun.curried $uncurried_applied
   ) 
+  -- dbg_trace "{cmd}"
   elabCommand cmd
 
 end Data.Command
 
-
-
-
-qpf F α   := α
-qpf G α ρ := α
-
 -- abbrev F' := MvQpf.Fix F.Uncurried
+
