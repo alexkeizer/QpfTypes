@@ -3,7 +3,7 @@ import Qpf.Qpf
 namespace Macro
   open Lean Meta Elab Term
 
-  builtin_initialize
+  initialize
     registerTraceClass `Qpf.Common
 
   variable [MonadControlT MetaM n] [Monad n] [MonadLiftT MetaM n] 

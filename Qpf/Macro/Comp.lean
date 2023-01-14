@@ -28,7 +28,7 @@ namespace Macro.Comp
   open Parser.Term (bracketedBinder)
   open Parser.Command (declModifiers «def»)
 
-  builtin_initialize
+  initialize
     registerTraceClass `Qpf.Comp
 
 

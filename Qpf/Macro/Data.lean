@@ -20,7 +20,7 @@ import Qpf.Qpf.Multivariate.Constructions.Fix
 open Lean Meta Elab.Command
 open Elab (Modifiers elabModifiers)
 
-builtin_initialize
+initialize
   registerTraceClass `Qpf.Data
 
 private def Array.enum (as : Array α) : Array (Nat × α) :=
@@ -512,6 +512,3 @@ def elabData : CommandElab := fun stx => do
 end Data.Command
 
 
-/- Fails when β is repeated after a constant -/
--- data RepAfterConst β
---   | mk : Nat → β → β → RepAfterConst β
