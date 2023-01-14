@@ -34,8 +34,9 @@ namespace Macro.Comp
 
 /--
   Given an expression `e`, tries to find the largest subexpression `F` such that 
-    * `e = F α₀ ... αₙ`, for some list of arguments `α_i` and
-    * `F` contains no live variables
+    * `e = F α₀ ... αₙ`, for some list of arguments `α_i`, and
+    * `F` contains no live variables, and
+    * `F` is a QPF
   Then, tries to infer an instance of `MvQpf (TypeFun.curried F)`
 -/
 protected def parseApp (isLiveVar : FVarId → Bool) (e : Expr) : TermElabM (Expr × (List Expr))
@@ -43,23 +44,28 @@ protected def parseApp (isLiveVar : FVarId → Bool) (e : Expr) : TermElabM (Exp
     if !e.isApp then
       throwError "application expected:\n {e}"
     else
-      parseAppAux 1 e
+      parseAppAux 1 e []
 where
-  parseAppAux : Nat → Expr → _
-  | depth, Expr.app F a _ => do
-    -- If `F` contains live variables, recurse
-    if F.hasAnyFVar isLiveVar then
-      let (G, args) ← parseAppAux (depth+1) F;
-      return (G, args ++ [a])
-    else
-      let F ← uncurry F (mkNatLit depth)
-      let inst_type ← mkAppM ``MvQpf #[F];
-      -- We don't need the instance, we just need to know it exists
-      let _ ← synthesizeInst inst_type    
+  parseAppAux : Nat → Expr → List Expr → _
+  | depth, Expr.app F a _, args => do
+    let args := a :: args
+    
+    (do
+      -- Only try to infer QPF if `F` contains no live variables
+      if !F.hasAnyFVar isLiveVar then
+        let F ← uncurry F (mkNatLit depth)
+        let inst_type ← mkAppM ``MvQpf #[F];
+        -- We don't need the instance, we just need to know it exists
+        let _ ← synthesizeInst inst_type      
         
-      return (F, [a])
+        return (F, args)
+      else
+        throwError "" -- No error message needed, since we disregard it below
+    ) <|> (
+      parseAppAux (depth+1) F args
+    )
 
-  | _, ex => 
+  | _, ex, _ => 
     throwError "Smallest function subexpression still contains live variables:\n  {ex}\ntry marking more variables as dead "
 
 

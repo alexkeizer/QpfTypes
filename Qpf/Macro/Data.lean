@@ -198,11 +198,25 @@ def mkChildT (view : InductiveView) (r : Replace) (headTName : Name) : CommandEl
 
   pure declName
 
+
+
+
+
+-- def mkPFunctor 
+
+
+
+
+
+
+
+
+
 open Parser.Term in
 /--
   Show that the `Shape` type is a qpf, through an isomorphism with the `Shape.P` pfunctor
 -/
-def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT childT P : Syntax) (arity : Nat) : CommandElabM Unit := do
+def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT P : Syntax) (arity : Nat) : CommandElabM Unit := do
   let shapeN := shapeView.declName
   let q := mkIdent $ Name.mkStr shapeN "qpf"
   let shape := mkIdent shapeN
@@ -387,7 +401,7 @@ def mkShape (view: InductiveView) : CommandElabM MkShapeResult := do
   )
 
  
-  mkQpf view ctorArgs headTId childTId PId r.arity
+  mkQpf view ctorArgs headTId PId r.arity
   
 
   pure ⟨r, declName, PName⟩  
@@ -413,14 +427,18 @@ def DataCommand.fixOrCofix : DataCommand → Name
 -/
 def mkType (view : DataView) (base : Syntax) : CommandElabM Unit := do
   let uncurriedIdent := mkIdent $ Name.mkStr view.declName "Uncurried"
+  let baseIdent := mkIdent $ Name.mkStr view.declName "Base"
 
   let deadBinderNamedArgs ← view.deadBinderNames.mapM fun n => `(Parser.Term.namedArgument| ($n:ident := $n:term))
   let uncurriedApplied := Syntax.mkApp uncurriedIdent deadBinderNamedArgs
 
-  let arity := quote view.liveBinders.size
+  let arity := view.liveBinders.size
   let fix_or_cofix := mkIdent <| DataCommand.fixOrCofix view.command
   let cmd ← `(
-    abbrev $uncurriedIdent:ident $view.deadBinders:bracketedBinder* : _root_.TypeFun $arity
+    abbrev $baseIdent:ident $view.deadBinders:bracketedBinder* : _root_.TypeFun $(quote <| arity + 1)
+      := $base
+
+    abbrev $uncurriedIdent:ident $view.deadBinders:bracketedBinder* : _root_.TypeFun $(quote arity)
       := $fix_or_cofix $base
 
     abbrev $(view.declId)   $view.deadBinders:bracketedBinder*

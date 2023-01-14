@@ -283,8 +283,9 @@ data QpfList₄ (dead : Type) β γ where
 
 
 /-
-  # Repeated occurences
-  regression test
+  # Regression tests
+
+  These cases failed at some point, include them here as a regression test
 -/
 
 data PairOf α β
@@ -292,3 +293,6 @@ data PairOf α β
 
 data QpfTest α β where
   | A : α → α → β → QpfTest α β → QpfTree β → QpfCoTree (QpfTree (QpfTest α β)) → QpfTest α β
+
+data RepAfterConst β
+  | mk : Nat →  β → β → RepAfterConst β
