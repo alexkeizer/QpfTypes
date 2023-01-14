@@ -66,7 +66,10 @@ where
     )
 
   | _, ex, _ => 
-    throwError "Smallest function subexpression still contains live variables:\n  {ex}\ntry marking more variables as dead "
+    if ex.hasAnyFVar isLiveVar then
+      throwError "Smallest function subexpression still contains live variables:\n  {ex}\ntry marking more variables as dead "
+    else
+      throwError "Failed to infer an instance of `MvQpf ({ex})`, even though it is the smallest possible prefix expression"
 
 
 
