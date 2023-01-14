@@ -149,7 +149,7 @@ def Replace.shapeOfCtors (view : InductiveView)
     if !ctor.binders.isNone then
       throwErrorAt ctor.binders "Constructor binders are not supported yet, please provide all arguments in the type"
 
-    dbg_trace "{ctor.declName}: {ctor.type?}"
+    trace[Qpf.Data] "{ctor.declName}: {ctor.type?}"
 
     CtorArgs.reset
 

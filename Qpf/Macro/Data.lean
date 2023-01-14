@@ -20,6 +20,9 @@ import Qpf.Qpf.Multivariate.Constructions.Fix
 open Lean Meta Elab.Command
 open Elab (Modifiers elabModifiers)
 
+builtin_initialize
+  registerTraceClass `Qpf.Data
+
 private def Array.enum (as : Array α) : Array (Nat × α) :=
   (Array.range as.size).zip as
 
@@ -132,7 +135,7 @@ def mkHeadT (view : InductiveView) : CommandElabM Name := do
     : InductiveView
   }
 
-  -- dbg_trace "mkHeadT :: elabInductiveViews"
+  trace[Qpf.Data] "mkHeadT :: elabInductiveViews"
   elabInductiveViews #[view]
   pure declName
 
@@ -190,7 +193,7 @@ def mkChildT (view : InductiveView) (r : Replace) (headTName : Name) : CommandEl
       $body:declValEqns
   )
 
-  -- dbg_trace "mkChildT :: elabCommand"
+  -- trace[Qpf.Data] "mkChildT :: elabCommand"
   elabCommand cmd
 
   pure declName
@@ -309,7 +312,7 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT childT 
           <;> rfl
       )
   )
-  -- dbg_trace f!"\nqpf: {cmd}\n"
+  -- trace[Qpf.Data] f!"\nqpf: {cmd}\n"
   elabCommand cmd
 
   pure ()
@@ -358,7 +361,7 @@ def mkShape (view: InductiveView) : CommandElabM MkShapeResult := do
     : InductiveView
   }
 
-  -- dbg_trace "mkShape :: elabInductiveViews"
+  -- trace[Qpf.Data] "mkShape :: elabInductiveViews"
   elabInductiveViews #[view]
 
   let headTName ← mkHeadT view
@@ -415,18 +418,16 @@ open Elab
 -/
 def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
   for ctor in view.ctors do
-    dbg_trace "mkConstructors\n{ctor.declName} : {ctor.type?}"
+    trace[Qpf.Data] "mkConstructors\n{ctor.declName} : {ctor.type?}"
     let n_args := (ctor.type?.map countConstructorArgs).getD 0
 
     let args ← (List.range n_args).mapM fun _ => 
       do pure <| mkIdent <|← Elab.Term.mkFreshBinderName
     let args := args.toArray
 
-    dbg_trace args
-
     let mk := mkIdent ((DataCommand.fixOrCofix view.command) ++ `mk)
     let shapeCtor := mkIdent <| Name.replacePrefix view.declName shape ctor.declName
-    dbg_trace "shapeCtor = {shapeCtor}"
+    trace[Qpf.Data] "shapeCtor = {shapeCtor}"
 
     
 
@@ -452,7 +453,7 @@ def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
         := $body:term
     )
 
-    dbg_trace "cmd = {cmd}"
+    trace[Qpf.Data] "mkConstroctor.cmd = {cmd}"
     elabCommand cmd
   return ()
 
@@ -482,6 +483,7 @@ def elabData : CommandElab := fun stx => do
       $(mkIdent shape):ident $r.expr*
     )
   }
+  trace[Qpf.Data] "base = {base}"
 
 
   let uncurried := mkIdent $ Name.mkStr nonRecView.declName "Uncurried"
@@ -500,7 +502,7 @@ def elabData : CommandElab := fun stx => do
     abbrev $(view.declId)   $deadBindersNoHoles:bracketedBinder*
       := _root_.TypeFun.curried $uncurried_applied
   ) 
-  -- dbg_trace "{cmd}"
+  trace[Qpf.Data] "elabData.cmd = {cmd}"
   elabCommand cmd
 
   /- Finally, auxiliarry constructions-/
@@ -508,3 +510,8 @@ def elabData : CommandElab := fun stx => do
 
 
 end Data.Command
+
+
+/- Fails when β is repeated after a constant -/
+-- data RepAfterConst β
+--   | mk : Nat → β → β → RepAfterConst β

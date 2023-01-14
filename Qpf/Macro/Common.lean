@@ -3,11 +3,12 @@ import Qpf.Qpf
 namespace Macro
   open Lean Meta Elab Term
 
-  #check optParam
+  builtin_initialize
+    registerTraceClass `Qpf.Common
 
   variable [MonadControlT MetaM n] [Monad n] [MonadLiftT MetaM n] 
             [MonadError n] [MonadLog n] [AddMessageContext n]
-            [MonadQuotation n]
+            [MonadQuotation n] [MonadTrace n] [MonadOptions n]
 
 
   #check @TypeFun.curried
@@ -31,13 +32,13 @@ namespace Macro
     -- let us      ← mkFreshLevelMVars 2
     -- let app     := mkApp2 (mkConst ``TypeFun.curried us) n F_inner
     
-    -- dbg_trace "\nChecking defEq of {F} and {app}"
+    -- trace[Qpf.Common] "\nChecking defEq of {F} and {app}"
     -- if (←isDefEq F app) then
     --   if let some F' :=  (← getExprMVarAssignment? F_inner.mvarId!) then
-    --     dbg_trace "yes: {F'}"
+    --     trace[Qpf.Common] "yes: {F'}"
     --     return F'
     
-    -- dbg_trace "no"
+    -- trace[Qpf.Common] "no"
     -- mkAppM ``TypeFun.ofCurried #[F]
 
   
@@ -77,7 +78,7 @@ namespace Macro
           -- binderNames := binderNames.push id
           -- newArgStx := stx[1].setArgs #[id, Syntax.atom SourceInfo.none ":"]
         else    
-          dbg_trace stx[1]
+          trace[Qpf.Common] stx[1]
           let id := stx[1][0]
           binderNames := binderNames.push id
           newArgStx := stx[1]
@@ -85,7 +86,7 @@ namespace Macro
       else
         -- replace each hole with a fresh id
         let ids ← stx[1].getArgs.mapM fun id => do
-          dbg_trace id
+          trace[Qpf.Common] "{id}"
           let kind := id.getKind
           if kind == identKind then
             return id
@@ -127,7 +128,7 @@ namespace Macro
           liveVars := liveVars.push id
 
         if !binder[1].isNone then
-          dbg_trace binder[1]
+          trace[Qpf.Common] binder[1]
           throwErrorAt binder "live variable may not have a type annotation.\nEither add brackets to mark the variable as dead, or remove the type"
 
       else if isLive then
@@ -163,7 +164,7 @@ namespace Macro
           idents := idents.push id
 
       else
-        dbg_trace "{binder}"
+        dbg_trace "Bug: unexpected binder kind {binder}"
 
     pure idents
 
@@ -194,16 +195,16 @@ instance : Quote Modifiers where
     ]
 
   
-  open Lean.Parser.Term in
-  elab "#dbg_syntax " t:term : command => do
-    dbg_trace t
+  -- open Lean.Parser.Term in
+  -- elab "#dbg_syntax " t:term : command => do
+  --   dbg_trace t
 
     
-  open Lean.Parser.Term Elab.Command in
-  elab "#dbg_expr " t:term : command => do
-    let expr ← liftTermElabM none $ elabTerm t none
-    dbg_trace expr
-    dbg_trace expr.isForall
+  -- open Lean.Parser.Term Elab.Command in
+  -- elab "#dbg_expr " t:term : command => do
+  --   let expr ← liftTermElabM none $ elabTerm t none
+  --   dbg_trace expr
+  --   dbg_trace expr.isForall
 
   -- #dbg_expr (Nat → Int)
 

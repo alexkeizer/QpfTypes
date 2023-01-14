@@ -204,8 +204,6 @@ data QpfList₂ α where
 
 #check QpfList₂
 
-#dbg_syntax (a : α) → QpfList₂ α → QpfList₂ α
-
 data QpfList₃ α where
   | My.nil : QpfList₃ α
   | My2.nil : α → QpfList₃ α → QpfList₃ α

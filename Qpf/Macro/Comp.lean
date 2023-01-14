@@ -28,6 +28,9 @@ namespace Macro.Comp
   open Parser.Term (bracketedBinder)
   open Parser.Command (declModifiers «def»)
 
+  builtin_initialize
+    registerTraceClass `Qpf.Comp
+
 
 /--
   Given an expression `e`, tries to find the largest subexpression `F` such that 
@@ -94,7 +97,7 @@ partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Synt
     := fun fvarId => (List.indexOf' fvarId varIds).isSome
 
   if target.isFVar && isLiveVar target.fvarId! then
-    dbg_trace f!"target {target} is a free variable"
+    trace[Qpf.Comp] f!"target {target} is a free variable"
     let ind ← match List.indexOf' target vars' with
     | none      => throwError "Free variable {target} is not one of the qpf arguments"
     | some ind  => pure ind
@@ -103,14 +106,14 @@ partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Synt
     `(@Prj $arity_stx $ind_stx)
 
   else if !target.hasAnyFVar isLiveVar then
-    dbg_trace f!"target {target} is a constant"
+    trace[Qpf.Comp] f!"target {target} is a constant"
     let targetStx ← match targetStx with
       | some stx => pure stx
       | none     => delab target
     `(Const $arity_stx $targetStx)
 
   else if target.isApp then
-    dbg_trace f!"target {target} is an application"
+    trace[Qpf.Comp] f!"target {target} is an application"
     let (F, args) ← (Comp.parseApp isLiveVar target)
     
     let mut G : Array Syntax := #[]
@@ -164,7 +167,7 @@ def elabQpfCompositionBody (view: QpfCompositionBodyView) : CommandElabM Syntax 
     let body_type ← 
       if let some typeStx := view.type? then
         let u ← mkFreshLevelMVar;
-        dbg_trace typeStx
+        trace[Qpf.Comp] typeStx
         let type ← elabTermEnsuringType typeStx (mkSort <| mkLevelSucc u)
         if !(←whnf type).isType then
           throwErrorAt typeStx "invalid qpf, resulting type must be a type (e.g., `Type`, `Type _`, or `Type u`)"
@@ -214,7 +217,7 @@ def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
   let modifiers := quote view.modifiers;
   
   let live_arity := mkNumLit liveBinders.size.repr;
-  -- dbg_trace body
+  -- trace[Qpf.Comp] body
   elabCommand <|← `(
       $modifiers:declModifiers
       def $F_internal:ident $deadBinders:bracketedBinder* : 
@@ -238,7 +241,7 @@ def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
         MvQpf ($F_internal_applied) := 
       by unfold $F_internal; infer_instance
   )  
-  -- dbg_trace cmd
+  -- trace[Qpf.Comp] cmd
   elabCommand cmd
 
   let F_applied := mkApp F deadBinderNamedArgs
@@ -249,7 +252,7 @@ def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
       MvQpf (TypeFun.ofCurried $F_applied) 
     := by unfold $F; infer_instance
   )
-  -- dbg_trace cmd
+  -- trace[Qpf.Comp] cmd
   elabCommand cmd
 
 elab "qpf " F:ident sig:optDeclSig " := " target:term : command => do  
