@@ -4,6 +4,8 @@ import Qpf.MathlibPort.Fin2
 /-!
   `fin_destr i`, where `i` identifies a local hypothesis of type `Fin2 n` will break the current
   goal into `n` separate goals, where in each `i` is replaced by a concrete `Fin2 n` term
+
+  TODO: replace with `fin_cases` after Mathlib is updated to a version that has it available
 -/
 
 open Lean Syntax Elab Elab.Tactic Meta
