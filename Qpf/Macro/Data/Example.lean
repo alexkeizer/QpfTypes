@@ -296,3 +296,11 @@ data QpfTest α β where
 
 data RepAfterConst β
   | mk : Nat →  β → β → RepAfterConst β
+
+codata NatList α where
+  | nil : NatList α
+  | cons : Nat → NatList α → NatList α
+
+data QpfList₅ (A : Type) (dead : Type) β where
+  | nil   : QpfList₅ A dead β
+  | cons  : A → (dead → β) → QpfList₅ A dead β → QpfList₅ A dead β
