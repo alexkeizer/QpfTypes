@@ -106,6 +106,7 @@ namespace Vec
   | 0,    _ => nil
   | n+1,  v => append1 (normalize v.drop) v.last
 
+  @[simp]
   theorem normalize_lawful (v : Vec α n) : 
     v.normalize = v :=
   by
@@ -166,6 +167,7 @@ namespace DVec
     }
       
 
+  @[simp]
   theorem normalize_lawful {αs : Vec _ n} (v : DVec αs) :
     v.normalize = v :=
   by
