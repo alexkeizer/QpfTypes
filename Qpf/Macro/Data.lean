@@ -394,12 +394,48 @@ def mkShape (view: InductiveView) : CommandElabM MkShapeResult := do
 
 
 
+
+
+
+
+
+
 /--
   Return a syntax tree for `MvQpf.Fix` or `MvQpf.Cofix` when self is `Data`, resp. `Codata`.
 -/
 def DataCommand.fixOrCofix : DataCommand → Name
   | .Data   => ``_root_.MvQpf.Fix
   | .Codata => ``_root_.MvQpf.Cofix
+
+/--
+  Take either the fixpoint or cofixpoint of `base` to produce an `Internal` uncurried QPF, 
+  and define the desired type as the curried version of `Internal`
+-/
+def mkType (view : DataView) (base : Syntax) : CommandElabM Unit := do
+  let uncurriedIdent := mkIdent $ Name.mkStr view.declName "Uncurried"
+
+  let deadBinderNamedArgs ← view.deadBinderNames.mapM fun n => `(Parser.Term.namedArgument| ($n:ident := $n:term))
+  let uncurriedApplied := Syntax.mkApp uncurriedIdent deadBinderNamedArgs
+
+  let arity := quote view.liveBinders.size
+  let fix_or_cofix := mkIdent <| DataCommand.fixOrCofix view.command
+  let cmd ← `(
+    abbrev $uncurriedIdent:ident $view.deadBinders:bracketedBinder* : _root_.TypeFun $arity
+      := $fix_or_cofix $base
+
+    abbrev $(view.declId)   $view.deadBinders:bracketedBinder*
+      := _root_.TypeFun.curried $uncurriedApplied
+  ) 
+  trace[Qpf.Data] "elabData.cmd = {cmd}"
+  elabCommand cmd
+
+
+
+
+
+
+
+
 
 
 open Parser in
@@ -474,7 +510,7 @@ def elabData : CommandElab := fun stx => do
 
   let ⟨r, shape, P⟩ ← mkShape nonRecView.asInductive
 
-      
+  /- Composition pipeline -/
   let base ← elabQpfCompositionBody {
     liveBinders := nonRecView.liveBinders, 
     deadBinders := nonRecView.deadBinders,     
@@ -485,30 +521,9 @@ def elabData : CommandElab := fun stx => do
   }
   trace[Qpf.Data] "base = {base}"
 
-
-  let uncurried := mkIdent $ Name.mkStr nonRecView.declName "Uncurried"
-
-  let (deadBindersNoHoles, deadBinderNames) ← mkFreshNamesForBinderHoles nonRecView.deadBinders
-  let deadBinderNamedArgs ← deadBinderNames.mapM fun n => `(Parser.Term.namedArgument| ($n:ident := $n:term))
-  let uncurried_applied := Syntax.mkApp uncurried deadBinderNamedArgs
-
-  /- At this point, go back to considering the original `view` -/
-  let arity := quote view.liveBinders.size
-  let fix_or_cofix := mkIdent <| DataCommand.fixOrCofix view.command
-  let cmd ← `(
-    abbrev $uncurried:ident $deadBindersNoHoles:bracketedBinder* : _root_.TypeFun $arity
-      := $fix_or_cofix $base
-
-    abbrev $(view.declId)   $deadBindersNoHoles:bracketedBinder*
-      := _root_.TypeFun.curried $uncurried_applied
-  ) 
-  trace[Qpf.Data] "elabData.cmd = {cmd}"
-  elabCommand cmd
-
-  /- Finally, auxiliarry constructions-/
+  mkType view base  
   mkConstructors view shape
 
 
 end Data.Command
-
 

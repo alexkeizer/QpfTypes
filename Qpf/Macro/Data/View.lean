@@ -37,6 +37,7 @@ structure DataView where
   command         : DataCommand
   liveBinders     : Array Syntax
   deadBinders     : Array Syntax
+  deadBinderNames : Array Syntax
     deriving Inhabited
 
 
@@ -64,21 +65,7 @@ def DataView.pushLiveBinder (view : DataView) (binderIdent : Syntax) : DataView
       let newBinder := mkNode ``Term.simpleBinder #[mkNullNode #[binderIdent], mkNullNode]
       let binders := view.binders
       let binders := binders.setArgs (binders.getArgs.push newBinder)
-      {
-        liveBinders, binders,
-
-        ref             := view.ref
-        declId          := view.declId
-        modifiers       := view.modifiers      
-        shortDeclName   := view.shortDeclName  
-        declName        := view.declName       
-        levelNames      := view.levelNames     
-        type?           := view.type?          
-        ctors           := view.ctors          
-        derivingClasses := view.derivingClasses
-        command         := view.command
-        deadBinders     := view.deadBinders
-      }
+      { view with liveBinders, binders, }
 
 def DataView.popLiveBinder (view : DataView) : DataView
   :=  if view.liveBinders.size == 0 then
@@ -87,41 +74,19 @@ def DataView.popLiveBinder (view : DataView) : DataView
         let liveBinders := view.liveBinders.pop
         let binders := view.binders
         let binders := binders.setArgs (binders.getArgs.pop)
-        {
-          liveBinders, binders,
-
-          ref             := view.ref
-          declId          := view.declId
-          modifiers       := view.modifiers      
-          shortDeclName   := view.shortDeclName  
-          declName        := view.declName       
-          levelNames      := view.levelNames     
-          type?           := view.type?          
-          ctors           := view.ctors          
-          derivingClasses := view.derivingClasses
-          command         := view.command
-          deadBinders     := view.deadBinders
-        }
+        { view with liveBinders, binders, }
 
 
 def DataView.setCtors (view : DataView) (ctors : Array CtorView) : DataView
-  := {
-        ctors,
+  :=  { view with ctors, }
 
-        ref             := view.ref
-        declId          := view.declId
-        modifiers       := view.modifiers      
-        shortDeclName   := view.shortDeclName  
-        declName        := view.declName       
-        levelNames      := view.levelNames     
-        binders         := view.binders     
-        type?           := view.type?          
-        derivingClasses := view.derivingClasses
-        command         := view.command
-        liveBinders     := view.liveBinders
-        deadBinders     := view.deadBinders
-      }
 
+
+def DataView.addDeclNameSuffix (view : DataView) (suffix : String) : DataView
+  :=  let declName := Name.mkStr view.declName suffix
+      let declId   := mkNode ``Parser.Command.declId #[mkIdent declName, mkNullNode]
+      let shortDeclName := Name.mkSimple suffix
+      { view with declName, declId, shortDeclName }
 
 
 /-- Returns the fully applied form of the type to be defined -/
@@ -203,6 +168,7 @@ def dataSyntaxToView (modifiers : Modifiers) (decl : Syntax) : CommandElabM Data
 
   let command ← DataCommand.fromSyntax decl[0]
   let (liveBinders, deadBinders) ← Macro.splitLiveAndDeadBinders binders.getArgs
+  let (deadBinders, deadBinderNames) ← Macro.mkFreshNamesForBinderHoles deadBinders
 
 
   let view := {
@@ -211,7 +177,7 @@ def dataSyntaxToView (modifiers : Modifiers) (decl : Syntax) : CommandElabM Data
     derivingClasses := classes
     declId, modifiers, declName, levelNames
     binders, type?, ctors,
-    command, liveBinders, deadBinders,
+    command, liveBinders, deadBinders, deadBinderNames
   }
   sanityChecks view
   return view
