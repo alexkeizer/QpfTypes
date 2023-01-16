@@ -464,7 +464,6 @@ partial def countConstructorArgs : Syntax → Nat
   | Syntax.node _ ``Term.arrow #[_, _, tail]  =>  1 + (countConstructorArgs tail)
   | _                                         => 0
 
-#check Modifiers
 
 open Elab
 /--
