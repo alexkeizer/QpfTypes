@@ -4,5 +4,13 @@
 			"path": "."
 		}
 	],
-	"settings": {}
+	"settings": {
+		"cSpell.words": [
+			"codata",
+			"Multiset",
+			"noncomputable",
+			"Quot",
+			"Uncurried"
+		]
+	}
 }

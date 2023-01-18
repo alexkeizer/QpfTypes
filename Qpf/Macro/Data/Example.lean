@@ -87,7 +87,7 @@ codata QpfCoTree α where
 
 
 
-/-- If `a ∈ as`, return `as` with (a single occurence of) `a` removed.
+/-- If `a ∈ as`, return `as` with (a single occurrence of) `a` removed.
     Otherwise, if `a ∉ as`, return `none` -/
 def List.is_rem (a : α) : List α → List α → Prop
   | b::bs, c::cs  =>    (a = c  ∧ bs = c::cs)
