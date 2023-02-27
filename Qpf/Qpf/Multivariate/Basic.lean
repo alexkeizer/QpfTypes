@@ -400,6 +400,24 @@ theorem liftp_preservation_iff_uniform : q.LiftpPreservation ↔ q.IsUniform := 
     abs_repr  := by intros; rfl;
     abs_map   := by intros; rfl;
 
+
+  /-- A class to see if a particular QPF is really just a polynomial functor -/
+  class IsPolynomial (F : TypeFun n) extends MvQpf F where
+    repr_abs : ∀ {α} (x : P.Obj α), repr (abs x) = x
+
+
+  instance (P : MvPFunctor n) : IsPolynomial P.Obj where
+    repr_abs := by intros; rfl
+
+  def IsPolynomial.FequivP (F : TypeFun n) [p : IsPolynomial F] :
+      ∀ α, F α ≃ p.P.Obj α :=
+    fun α => {
+      toFun := p.repr
+      invFun := p.abs
+      left_inv := p.abs_repr
+      right_inv := p.repr_abs
+    }  
+
 end MvQpf
 
 

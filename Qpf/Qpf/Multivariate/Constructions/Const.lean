@@ -76,6 +76,15 @@ instance mvqpf : MvQpf (Const n A) where
   abs_map := by
     intros <;> simp <;> rfl
 
+instance : IsPolynomial (Const n A) where
+  repr_abs := by 
+    intros _ x;
+    rcases x with ⟨a, f⟩;
+    dsimp only [abs, repr, MvPFunctor.Const.get, MvPFunctor.Const.mk]
+    apply congrArg
+    funext _ j
+    contradiction
+
 end Const
 
 end MvQpf

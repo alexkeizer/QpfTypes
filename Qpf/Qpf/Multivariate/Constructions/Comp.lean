@@ -103,6 +103,17 @@ instance instQpf [q : MvQpf F] [q' : ∀ i, (MvQpf <| G i)] :
     rw [← abs_map]
     simp [MvFunctor.id_map, (· ⊚ ·), map_mk, MvPFunctor.Comp.get_map, abs_map, MvFunctor.map_map, abs_repr]
 
+instance instIsPolynomial [p : IsPolynomial F] [p' : ∀ i, (IsPolynomial <| G i)] : 
+    IsPolynomial (Comp F G) where
+  repr_abs := by 
+    intros α x
+    rcases x with ⟨⟨a, a'⟩, f⟩
+    dsimp [abs, repr, MvPFunctor.Comp.mk, MvPFunctor.Comp.get, repr]
+    sorry
+    
+    
+    
+
 
 end Comp
 
