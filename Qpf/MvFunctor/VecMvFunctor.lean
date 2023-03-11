@@ -1,4 +1,5 @@
-import Qpf.MvFunctor
+import Mathlib
+import Qpf.Util
 
 /-!
   The following is mostly a specialization of `VecClass`, since `MvFunctor` does not fit in the

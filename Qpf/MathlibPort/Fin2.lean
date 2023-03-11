@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Mario Carneiro
 -/
 
-import Qpf.Mathlib
+import Mathlib
 
 /-!
 # Inductive type variant of `Fin`
@@ -42,9 +42,6 @@ inductive PFin2 : Nat → Type u
   fs {n} : PFin2 n → PFin2 (succ n)
   deriving DecidableEq
 
-abbrev Fin2 : Nat → Type
-  := PFin2.{0}
-
 namespace PFin2
 
 /-- Define a dependent function on `PFin2 (succ n)` by giving its value at
@@ -77,7 +74,7 @@ def toFin : PFin2 n → Fin n
 
 
 /-- Converts a natural into a `PFin2` if it is in range -/
-def optOfNat : ∀ {n} k : Nat, Option (PFin2 n)
+def optOfNat : ∀ {n} (k : Nat), Option (PFin2 n)
   | 0, _ => none
   | succ n, 0 => some fz
   | succ n, succ k => fs <$> @optOfNat n k
@@ -87,6 +84,12 @@ def ofNatLt : ∀ {n} (k : Nat) (h : k < n), PFin2 n
   | 0, _, h            => by contradiction
   | succ n, 0, h       => fz
   | succ n, succ k, h  => fs $ @ofNatLt n k (lt_of_succ_lt_succ h)
+
+
+/-- Converts a `Fin` into a `PFin2` -/
+def ofFin : Fin n → PFin2 n
+  := fun ⟨i, h⟩ => ofNatLt i h
+
 
 /-- `i + k : PFin2 (n + k)` when `i : PFin2 n` and `k : Nat` -/
 def add {n} (i : PFin2 n) : ∀ k, PFin2 (n + k)
@@ -187,7 +190,7 @@ def last : {n : Nat} → PFin2 (n+1)
 /--
   The inverse of `i` w.r.t. addition modulo `n`, i.e., .last - i
 -/
-def inv : {n : Nat} → PFin2 n → PFin2 n
+def inv : {n : Nat} → PFin2.{u} n → PFin2.{u} n
   | 0,    _     => by contradiction
   | 1,    .fs _ => by contradiction
   | n+1,  .fz   => last
@@ -421,24 +424,54 @@ by
     have : ¬ last < j := by simp[this];
     contradiction
 
+
+
+  def ofFin2 : Fin2 n → PFin2 n
+    | .fz   => .fz
+    | .fs i => .fs <| ofFin2 i
+
+  def toFin2 : PFin2 n → Fin2 n
+    | .fz   => .fz
+    | .fs i => .fs <| toFin2 i
+
+  @[simp]
+  theorem ofFin2_toFin2_iso {i : Fin2 n} :
+    (toFin2 <| ofFin2 i) = i :=
+  by 
+    induction i
+    . rfl
+    . simp [ofFin2, toFin2, *]
+
+  @[simp]
+  theorem toFin2_ofFin2_iso {i : PFin2 n} :
+    (ofFin2 <| toFin2 i) = i :=
+  by 
+    induction i
+    . rfl
+    . simp [ofFin2, toFin2, *]
+
+  instance : Coe (Fin2 n) (PFin2 n) := ⟨ofFin2⟩
+  instance : Coe (PFin2 n) (Fin2 n) := ⟨toFin2⟩
+
+  instance : Coe (PFin2 n) (Fin n) := ⟨toFin⟩
+  instance : Coe (Fin n) (PFin2 n) := ⟨ofFin⟩
+
+  instance : Coe (Fin n) (Fin2 n) := ⟨fun i => toFin2 <| ofFin.{0} i⟩
+  instance : Coe (Fin2 n) (Fin n) := ⟨fun i => toFin <| ofFin2.{0} i⟩
+
 end PFin2
 
+
 namespace Fin2
-  export PFin2 (
-    -- fs
-    -- fz
-    inv_involution
-    elim0
-    eq_fn0
-  )
+  /--
+  Typeclass instances to make it easier to work with `PFin2`'s
+-/
+@[simp]
+instance (n : Nat) : OfNat (Fin2 (n+1)) (nat_lit 0) := ⟨fz⟩
+instance (n : Nat) : OfNat (Fin2 (n+2)) (nat_lit 1) := ⟨fs 0⟩
+instance (n : Nat) : OfNat (Fin2 (n+3)) (nat_lit 2) := ⟨fs 1⟩
 
-  @[matchPattern]
-  abbrev fs {n : Nat} : Fin2 n → Fin2 (.succ n)
-    := PFin2.fs
-
-  @[matchPattern]
-  abbrev fz {n : Nat} : Fin2 (.succ n)
-    := PFin2.fz
-
+  def inv : Fin2 n → Fin2 n
+    := fun i => (PFin2.inv.{0} i : PFin2 n)
 
 end Fin2

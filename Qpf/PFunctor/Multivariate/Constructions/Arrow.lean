@@ -1,4 +1,5 @@
-import Qpf.Qpf.Multivariate.Basic
+import Mathlib
+import Qpf.Util
 import Qpf.Macro.Tactic.FinDestr
 
 namespace MvQpf 
@@ -6,7 +7,7 @@ namespace MvQpf
 namespace Arrow 
 
   def ArrowPFunctor (x : Type u) : MvPFunctor.{u} 1
-    := ⟨PUnit, fun _ => ![x]⟩
+    := ⟨PUnit, fun _ => (![x] : TypeVec 1)⟩
 
   def QpfArrow' (x : Type _) : TypeFun 1
     := (ArrowPFunctor x).Obj
@@ -18,7 +19,7 @@ namespace Arrow
     := fun x => (QpfArrow' x).curried
 
 
-  instance : MvQpf (QpfArrow' x) :=
+  instance : MvQPF (QpfArrow' x) :=
     by unfold QpfArrow'; infer_instance
 
   abbrev Arrow (x : Type u) : CurriedTypeFun 1
@@ -45,7 +46,8 @@ namespace Arrow
   by
     simp[box, unbox]
     apply congrArg;
-    fin_destr;
+    funext i
+    fin_destr i;
     rfl
       
 
@@ -56,13 +58,13 @@ namespace Arrow
 
 
 
-  instance : MvQpf (Arrow' x) where
+  instance : MvQPF (Arrow' x) where
     P           := ArrowPFunctor x
     map f a     := unbox <| (ArrowPFunctor x).map f <| box a
     abs         := @unbox x
     repr        := @box x
     abs_repr    := unbox_box_id
-    abs_map f x := rfl
+    abs_map     := by intros; rfl
 
 end Arrow
 

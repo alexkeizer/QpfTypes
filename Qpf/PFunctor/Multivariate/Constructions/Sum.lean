@@ -1,13 +1,12 @@
 /-
-  Provides an instance of `MvQpf` for (the uncurried version of) the `Sum` built-in type
+  Provides an instance of `MvQPF` for (the uncurried version of) the `Sum` built-in type
 -/
 
-import Qpf.Qpf.Multivariate.Basic
-import Qpf.Qpf.Multivariate.ofPolynomial
-import Qpf.PFunctor.Multivariate.Constructions.Basic
+import Mathlib
 import Qpf.Macro.Tactic.FinDestr
+import Qpf.Util
 
-namespace MvQpf
+namespace MvQPF
 namespace Sum
 
 universe u
@@ -21,7 +20,7 @@ def SumPFunctor : MvPFunctor.{u} 2
 
 
 abbrev QpfSum' := SumPFunctor.Obj
-abbrev QpfSum  := QpfSum'.curried
+abbrev QpfSum  := TypeFun.curried QpfSum'
 
 def inl {Γ : TypeVec 2} (a : Γ 1) : QpfSum' Γ
   := ⟨PFin2.ofNat' 0, 
@@ -48,25 +47,23 @@ def unbox {Γ : TypeVec 2} : QpfSum' Γ → Sum' Γ
     | .fz   => .inl (f 1 .fz)
     | .fs 0 => .inr (f 0 .fz)
 
+def equiv {Γ} : Sum' Γ ≃ QpfSum' Γ :=
+{
+  toFun   := box
+  invFun  := unbox
+  left_inv  := by intro x; cases x <;> rfl
+  right_inv := by 
+    intro x
+    rcases x with ⟨i, f⟩
+    dsimp only [box, unbox, inl, inr];
+    fin_destr i <;> {
+      apply congrArg;
+      fin_destr <;> rfl
+    }
+} 
 
-theorem unbox_box_id : (x : Sum' Γ) →
-  unbox (box x) = x :=
-by
-  intros x;
-  cases x <;> rfl
-
-theorem box_unbox_id (x : QpfSum' Γ) :
-  box (unbox x) = x :=
-by
-  rcases x with ⟨i, f⟩
-  dsimp only [box, unbox, inl, inr];
-  fin_destr i <;> {
-    apply congrArg;
-    fin_destr <;> rfl
-  }
-
-
-instance : MvQpf Sum' := .ofPolynomial SumPFunctor box unbox box_unbox_id unbox_box_id
+instance : MvQPF.IsPolynomial Sum' := 
+  .ofEquiv equiv
 
 
 
@@ -74,4 +71,4 @@ end Sum
 
 export Sum (QpfSum QpfSum')
 
-end MvQpf
+end MvQPF

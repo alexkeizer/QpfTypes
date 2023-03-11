@@ -1,6 +1,6 @@
 
-import Qpf.Util.TypeVec
 import Mathlib
+import Qpf.Util.Vec
 
 universe u v
 
@@ -23,7 +23,7 @@ abbrev TypeFun (n : Nat) : Type ((max u v) + 1) :=
 
 namespace TypeFun
   def reverseArgs : TypeFun n → TypeFun n :=
-    fun v α => v (α.reverse)
+    fun v α => v <| Vec.reverse α 
 
   @[simp]
   theorem reverseArgs_involution (F : TypeFun n) :
@@ -33,7 +33,7 @@ namespace TypeFun
 
 
   def curriedAux : {n : Nat} → TypeFun n → CurriedTypeFun n
-    | 0,    F => fun _ => F ![]
+    | 0,    F => fun _ => F (![] : Fin 0 → Type _)
     | 1,    F => fun a => F ![a] 
     | n+2,  F => fun a => curriedAux fun αs => F (αs ::: a)
 
@@ -83,7 +83,11 @@ namespace TypeFun
   by    
     cases n
     case zero => 
-      funext x; simp [curriedAux, ofCurriedAux]
+      funext x;
+      simp [curriedAux, ofCurriedAux, Matrix.vecEmpty]
+      congr
+      funext i
+      contradiction
     case succ n => {
       induction n;
       case zero => {

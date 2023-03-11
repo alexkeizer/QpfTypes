@@ -22,10 +22,8 @@ import Mathlib
     apply HEq.symm
     apply cast_heq
 
-  theorem cast_cast {α β : Sort _} (a : α) {h₁ : α = β} {h₂ : β = α} :
-    (cast h₂ $ cast h₁ a) = a :=
-  by simp only [cast_trans, cast_eq]
-    
+
+   
   theorem heq_cast_left {α α' β : Sort _} (a : α) (b : β) (h : α = α') :
     HEq (cast h a) b = HEq a b :=
   by
@@ -71,9 +69,7 @@ import Mathlib
     HEq (fun x => (cast h $ a x)) a :=
   by
     cases h;
-    simp
-    funext x;
-    apply cast_eq;
+    simp only [cast_eq, heq_eq_eq]
 
 
   theorem heq_cast_left_fun {α α' β γ : Type _} (a : γ → α) (b : β) (h : α = α') :
@@ -182,35 +178,42 @@ import Mathlib
     rfl
 
 
+  -- theorem cast_fun :
+  --   f (cast h a) 
+  --     = (cast _ f) a
+
+
 
 
   /-
   # Function Extensionality
   -/
 
-  theorem heq_funext {α : Sort u} {β₁ β₂ : α → Sort _}
+  theorem HEq.funext {α : Sort u} {β₁ β₂ : α → Sort _}
                       {f₁ : (x : α) → β₁ x} 
                       {f₂ : (x : α) → β₂ x} 
                       (type_eq : β₁ = β₂ )
                       :
     (∀ (x : α), HEq (f₁ x) (f₂ x)) → HEq f₁ f₂ :=
   by
+    cases type_eq
     intro h;
-    apply HEq.trans (b := cast (β:=(x : α) → β₂ x) ?castproof f₁);
-    case castproof =>
-      cases type_eq; rfl
-    case h₁ => 
-      apply HEq.symm;
-      apply cast_heq
-    case h₂ => 
-      apply heq_of_eq;
-      funext x;
-      apply eq_of_heq;
-      rw[cast_arg]
-      case h₁ => rfl
-      case h₃ => intros y; simp only [type_eq, cast_eq]
-      simp only [heq_cast_left, cast_eq]
-      apply h;
+    apply heq_of_eq
+    funext a
+    apply eq_of_heq <| h a
+
+  theorem HEq.funext' {α₁ α₂ : Sort u} {β₁ : α₁ → Sort _} {β₂ : α₂ → Sort _}
+                      {f₁ : (x : α₁) → β₁ x} 
+                      {f₂ : (x : α₂) → β₂ x} 
+                      (type_eq_α : α₁ = α₂ )
+                      (type_eq_β : ∀ a, (β₁ a) = (β₂ <| cast type_eq_α a) )
+                      :
+    (∀ (x : α₁), HEq (f₁ x) (f₂ <| cast type_eq_α x)) → HEq f₁ f₂ :=
+  by
+    cases type_eq_α 
+    apply HEq.funext
+    funext x
+    apply type_eq_β
 
 
      

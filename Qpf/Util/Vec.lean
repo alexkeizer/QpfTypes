@@ -6,7 +6,7 @@ Authors: Jeremy Avigad, Mario Carneiro, Simon Hudon, Alex Keizer
 
 import Qpf.MathlibPort.Fin2
 import Qpf.Util.HEq
-import Lean.Elab.Tactic.Conv
+-- import Mathlib
 
 universe u v w
 
@@ -18,21 +18,21 @@ abbrev Vec (α : Type _) (n : Nat)
 
 namespace Vec
   def append1 {α : Type u} {n} (tl : Vec α n) (hd : α) : Vec α (.succ n)
-    | (Fin2.fs i) => tl i
-    | Fin2.fz     => hd
+    | .fs i   => tl i
+    | .fz     => hd
 
   -- infixl:67 " ::: " => append1
 
   /-- Drop the last element from a `Vec` -/
   def drop (v : Vec α (n+1)) : Vec α n
-    := fun i => v (Fin2.fs i)
+    := fun i => v <| .fs i
 
   def constVec {α : Type _} (a : α) (n : Nat) : Vec α n
     := fun _ => a
 end Vec
 
-unif_hint (n : Nat) where |- Fin2 n → Type u =?= Vec (Type u) n
-unif_hint {α : Type _} (n : Nat) where |- DVec (Vec.constVec α n) =?= Vec α n
+unif_hint (n : Nat) where |- Fin2 n → Type u =?= Vec.{u+1} (Type u) n
+unif_hint {α : Type _} (n : Nat) where |- DVec.{u+1} (Vec.constVec α n) =?= Vec.{u+1} α n
 
 namespace DVec
   /-- Return the last element from a `DVec` -/
@@ -41,7 +41,7 @@ namespace DVec
 
   /-- Drop the last element from a `DVec` -/
   def drop (v : DVec αs) : DVec (Vec.drop αs)
-    := fun i => v (Fin2.fs i)
+    := fun i => v <| .fs i
 
   @[reducible]
   def nil : @DVec 0 αs
@@ -49,8 +49,8 @@ namespace DVec
 
   @[reducible]
   def append1 {α : Type u} {αs : Vec (Type u) n} (tl : DVec αs) (hd : α) : DVec (Vec.append1 αs α)
-    | (Fin2.fs i) => tl i
-    | Fin2.fz     => hd
+    | .fs i => tl i
+    | .fz   => hd
   
 
   -- infixl:67 " ::: " => append1
@@ -69,16 +69,16 @@ end Vec
   # Notation macros
 -/
 
-syntax "![" term,* "]" : term
-macro_rules
-  | `(![])    => `(Vec.nil)
-  | `(![$x])  => `(Vec.append1 ![] $x)
-  | `(![ $xs,* , $x]) => `(Vec.append1 ![$xs,*] $x)
+-- syntax "![" term,* "]" : term
+-- macro_rules
+--   | `(![])    => `(Vec.nil)
+--   | `(![$x])  => `(Vec.append1 ![] $x)
+--   | `(![ $xs,* , $x]) => `(Vec.append1 ![$xs,*] $x)
 
 
 
 namespace Vec
-  theorem drop_append1 {v : Vec α n} {a : α} {i : Fin2 n} : 
+  theorem drop_append1 {v : Vec α n} {a : α} {i : PFin2 n} : 
       drop (append1 v a) i = v i := 
     rfl
 
@@ -96,33 +96,8 @@ namespace Vec
 
 
 
-  /--
-    Turns `n`-ary vector into their canonical `![α(n-1), α(n-2), ..., α(1), α(0)]` form.
-    `normalize_lawful` shows that this does not change the vector (up to functional extensionality),
-    but it has the nice side effect that vectors whose elements are definitionally equal, will be 
-    definitionally equal after normalization.
-  -/
-  def normalize : {n : Nat} → Vec α n → Vec α n
-  | 0,    _ => nil
-  | n+1,  v => append1 (normalize v.drop) v.last
-
-  @[simp]
-  theorem normalize_lawful (v : Vec α n) : 
-    v.normalize = v :=
-  by
-    induction n
-    <;> simp[normalize]
-    case zero =>
-      funext i; cases i;
-
-    case succ _ ih =>
-      rw[ih]
-      apply append1_drop_last
-
-
-  
   def reverse (v : Vec α n) : Vec α n :=
-    normalize (fun i => v i.inv)
+    fun i => v i.inv
 
 
   @[simp]
@@ -130,62 +105,10 @@ namespace Vec
     v.reverse.reverse = v :=
   by
     funext i;
-    simp[reverse, normalize_lawful]
+    dsimp only [reverse]
     apply congrArg;
-    exact Fin2.inv_involution
+    simp only [Fin2.inv, PFin2.toFin2_ofFin2_iso, PFin2.inv_involution, PFin2.ofFin2_toFin2_iso]
 end Vec
-
-
-namespace DVec 
-  /--
-    Turns `n`-ary vector into a canonical form in terms of `append1`
-    `normalize_lawful` shows that this does not change the vector (up to functional extensionality),
-    but it has the nice side effect that vectors whose elements are definitionally equal, will be 
-    definitionally equal after normalization.
-  -/
-  def normalize : {n : Nat} → {αs : Vec (Type _) n} → DVec αs → DVec αs
-  | 0,   _,  _ => nil
-  | n+1, _,  v => append1 (normalize v.drop) v.last
-                  |> cast (congrArg _ (Vec.append1_drop_last _))
-
-
-  theorem append1_drop_last {αs : Vec _ (n+1)} (v : DVec αs) : 
-    append1 (drop v) (last v) |> HEq v :=
-  by
-    have type_eq : DVec αs = DVec (Vec.append1 (Vec.drop αs) (αs.last))
-      := congrArg _ (Vec.append1_drop_last _).symm;
-    have : HEq v (cast type_eq v)
-      := by simp_heq
-    apply HEq.trans this
-    apply heq_of_eq
-    funext i;
-    cases i <;> {    
-      rw [cast_arg _]
-      case h₁ => rfl
-      case h₃ => simp[cast_eq]
-      rfl
-    }
-      
-
-  @[simp]
-  theorem normalize_lawful {αs : Vec _ n} (v : DVec αs) :
-    v.normalize = v :=
-  by
-    induction n
-    <;> simp[normalize]
-    case zero =>
-      funext i; cases i;
-
-    case succ _ ih =>
-      rw[ih]
-      apply eq_of_heq
-      simp_heq
-      apply HEq.symm
-      apply append1_drop_last
-
-
-end DVec
-
 
 
 namespace Vec
@@ -202,7 +125,7 @@ namespace Vec
    -/
   def toList : {n : Nat} → Vec α n → List α
     | 0,    _  => List.nil
-    | n+1,  v  => List.cons v.last (toList v.drop)
+    | _+1,  v  => List.cons v.last (toList v.drop)
 
 
   @[simp]
@@ -245,13 +168,13 @@ namespace Vec
       case succ.fs n ih i => {
         dsimp[ofList, toList, append1, drop]
         
-        apply HEq.trans (@ih (fun i => v (Fin2.fs i)) i);
+        apply HEq.trans (@ih (fun i => v (.fs i)) i);
         apply hcongr <;> (try solve | intros; rfl)
         simp_heq
         apply hcongr;
         case H₂ => apply cast_heq
         case H₃ => apply congrArg; simp
-        case H₄ => intro j; apply congrArg; simp
+        case H₄ => intro _; apply congrArg; simp
         
         apply hcongr <;> (try solve | intros; rfl);
         simp
@@ -265,4 +188,15 @@ namespace Vec
     case nil          => rfl
     case cons a as ih => simp only [toList, ofList, append1, last, DVec.last, drop, ih]
 
+  instance : Coe (Vec (Type u) n) (TypeVec.{u} n) where
+    coe v i := v i
+
+  instance : Coe (TypeVec.{u} n) (Vec (Type u) n) where
+    coe v i := v i
+
+  instance : Coe (Fin n → α) (Vec α n) where
+    coe f i := f (Fin2.inv i)
+
 end Vec
+
+

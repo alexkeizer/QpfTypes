@@ -10,16 +10,26 @@ import Qpf.MathlibPort.Fin2
 
 open Lean Syntax Elab Elab.Tactic Meta
 
-def elabFinDestrAux (i_stx : Syntax) : TacticM Unit := do
-  let u ← mkFreshLevelMVar;
+#check mkConst
+
+def elabFinDestrAux (i_stx : TSyntax `ident) : TacticM Unit := do
   let n ← mkFreshExprMVar (mkConst ``Nat) (kind:=MetavarKind.synthetic);
-  let finTyp := mkApp (mkConst ``PFin2 [u]) n
+  
+  try {
+    let u ← mkFreshLevelMVar;
+    let us := [u]
+    let finTyp := mkApp (mkConst ``PFin2 us) n
 
-  let i ← elabTermEnsuringType i_stx finTyp false;
-  Term.synthesizeSyntheticMVarsNoPostponing
+    -- Ensure the `i_stx` term has type `finType`, causing the `n` metavar to unify
+    let _ ← elabTermEnsuringType i_stx finTyp false;
+    Term.synthesizeSyntheticMVarsNoPostponing
+  } catch _ => {
+    let finTyp := mkApp (mkConst ``Fin2) n
 
-  -- dbg_trace n
-  -- dbg_trace finTyp
+    -- Ensure the `i_stx` term has type `finType`, causing the `n` metavar to unify
+    let _ ← elabTermEnsuringType i_stx finTyp false;
+    Term.synthesizeSyntheticMVarsNoPostponing
+  }
 
   let n ← match (← getExprMVarAssignment? n.mvarId!) with
   | none    => throwErrorAt i_stx "{i_stx} must be of type `Fin2 0` or `Fin2 (Nat.succ n)`"
@@ -28,24 +38,24 @@ def elabFinDestrAux (i_stx : Syntax) : TacticM Unit := do
   -- dbg_trace n
 
   if let some n := n.natLit? then
-    let rec genTactic : Nat → TacticM Syntax
+    let rec genTactic : Nat → TacticM (TSyntax `tactic)
     | 0   =>  `(tactic| cases $i_stx:ident)
     | n+1 => do 
               let tct ← genTactic n
-              `(tactic| cases $i_stx:ident; swap; rename_i $i_stx:ident; $tct:tactic)
+              `(tactic| (cases $i_stx:ident; swap; rename_i $i_stx:ident; $tct:tactic))
 
     -- dbg_trace (←genTactic n)
     evalTactic <|← genTactic n
 
   else
-    let rec genTacticExpr : Expr → TacticM (Option Syntax)
+    let rec genTacticExpr : Expr → TacticM (Option <| TSyntax `tactic)
       | Expr.const ``Nat.zero .. => 
-        `(tactic| cases $i_stx)
+        `(tactic| cases $i_stx:ident)
 
       | Expr.app (Expr.const ``Nat.succ ..) n .. => do
           match ←genTacticExpr n with
           | none      => `(tactic| cases $i_stx:ident)
-          | some tct  => `(tactic| cases $i_stx:ident; swap; rename_i $i_stx:ident; $tct:tactic)
+          | some tct  => `(tactic| (cases $i_stx:ident; swap; rename_i $i_stx:ident; $tct:tactic))
       | _ => pure none
 
     match ←genTacticExpr n with

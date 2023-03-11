@@ -1,0 +1,27 @@
+{"version": 4,
+ "packagesDir": "lake-packages",
+ "packages":
+ [{"git":
+   {"url": "https://github.com/alexkeizer/mathlib4.git",
+    "subDir?": null,
+    "rev": "dd1db42f8add71aa191067a4ac566a24abde638f",
+    "name": "mathlib",
+    "inputRev?": "alexkeizer/isPolynomial"}},
+  {"git":
+   {"url": "https://github.com/gebner/quote4",
+    "subDir?": null,
+    "rev": "7ac99aa3fac487bec1d5860e751b99c7418298cf",
+    "name": "Qq",
+    "inputRev?": "master"}},
+  {"git":
+   {"url": "https://github.com/JLimperg/aesop",
+    "subDir?": null,
+    "rev": "ba61f7fec6174d8c7d2796457da5a8d0b0da44c6",
+    "name": "aesop",
+    "inputRev?": "master"}},
+  {"git":
+   {"url": "https://github.com/leanprover/std4",
+    "subDir?": null,
+    "rev": "24897887905b3a1254b244369f5dd2cf6174b0ee",
+    "name": "std",
+    "inputRev?": "main"}}]}

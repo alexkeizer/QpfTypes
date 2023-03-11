@@ -1,121 +1,141 @@
 /-
-Copyright (c) 2018 Jeremy Avigad. All rights reserved.
+Copyright (c) 2023 Alex Keizer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Jeremy Avigad, Simon Hudon
+Authors: Alex Keizer
 -/
-import Qpf.PFunctor.Multivariate.Basic
-import Qpf.Qpf.Multivariate.Basic
+import Mathlib
+import Qpf.Util
 
 /-!
-# The composition of QPFs is itself a QPF
-
-We define composition between one `n`-ary functor and `n` `m`-ary functors
-and show that it preserves the QPF structure
+  Show that the composition of polynomial QPFs is itself a polynomial QPF
 -/
-
 
 universe u
 
-namespace MvQpf
+-- section
+--   open Lean Meta Elab Tactic
 
--- open_locale MvFunctor
+--   #check TacticM
+
+-- elab "heq_of_eq" : tactic => do
+--   let goal ← getMainGoal
+
+--   goal.withContext do
+--     let goalType ← goal.getType
+
+--     let x₁ ← mkFreshMVarId
+--     let x₂ ← mkFreshMVarId
+--     let heq ← mkAppM ``HEq #[Expr.mvar x₁, Expr.mvar x₂]
+
+--     if !(←isDefEq goalType heq) then
+--       return
+
+--     Term.synthesizeSyntheticMVarsNoPostponing
+
+--     let type_eq ← mkFreshMVarId
+--     let type₁ ← x₁.getType
+--     let type₂ ← x₂.getType
+--     type_eq.setType <|← mkAppM ``Eq #[type₁, type₂]
+
+
+--     replaceMainGoal [type_eq, goal]
+
+  
+
+-- end
+
+namespace MvQPF.Comp
+  open MvPFunctor MvFunctor
 
 variable {n m : ℕ} 
          (F : TypeFun n) 
          (G : Vec (TypeFun m) n)
-        --  
-        --  [q : MvQpf F] 
-        --  [q' : ∀ i, MvQpf <| G i]
-
-/-- Composition of an `n`-ary functor `F` with `n` `m`-ary
-functors `G₁, ..., Gₙ` gives us one `m`-ary functor `F.Comp G` such that 
-
-`F.Comp G (a₁, ..., aₘ) = F ( G₁(a₁, ..., aₘ), ..., Gₙ(a₁, ..., aₘ))`
-
-That is, each argument is broadcasted to each functor
--/
-def Comp (v : TypeVec.{u} m) : Type _ :=
-  F (fun i => G i v)
-
-namespace Comp
-
-open MvFunctor MvPFunctor
-
-variable {F} {G} {α β : TypeVec.{u} m} (f : α ⟹ β)
-
-instance [I : Inhabited (F fun i : Fin2 n => G i α)] : Inhabited (Comp F G α) :=
-  I
-
-/-- Constructor for functor composition -/
-protected def mk (x : F fun i => G i α) : (Comp F G) α :=
-  x
-
-/-- Destructor for functor composition -/
-protected def get (x : (Comp F G) α) : F fun i => G i α :=
-  x
-
-@[simp]
-protected theorem mk_get (x : (Comp F G) α) : Comp.mk (Comp.get x) = x :=
-  rfl
-
-@[simp]
-protected theorem get_mk (x : F fun i => G i α) : Comp.get (Comp.mk x) = x :=
-  rfl
-
-section
-variable [fF : MvFunctor F] 
-         [fG : ∀ i, (MvFunctor <| G i)] 
-
-/-- map operation defined on a vector of functors -/
-protected def map' : (fun i : Fin2 n => G i α) ⟹ fun i : Fin2 n => G i β := fun i => map f
-
-include fF
-
-/-- The composition of functors is itself functorial -/
-protected def map : (Comp F G) α → (Comp F G) β :=
-  (map fun i => map f : (F fun i => G i α) → F fun i => G i β)
+         [p : IsPolynomial F]
+         [p' : ∀ i, IsPolynomial <| G i]
 
 
-instance instMvFunctor : MvFunctor (Comp F G) where
-  map := @fun α β => Comp.map (fF:=fF)
+  instance : IsPolynomial (Comp F G) where
+    repr_abs := by
+      intros α x;
+      rcases x with ⟨⟨a', f'⟩, f⟩
+      simp only [Comp.get, Comp.mk, Function.comp_apply, repr, abs, ← p.abs_map, p.repr_abs]
+      simp [(· <$$> ·), MvPFunctor.map, comp.mk, comp.get, TypeVec.comp]
+      congr 2
+      {
+        funext i b
+        rw[(p' i).repr_abs]
+      }
+      {
+        have eq₁ : 
+          B (comp (P F) fun i => P (G i)) ⟨a', fun x a =>
+                (repr (abs { fst := f' x a, snd := fun j b => f j { fst := x, snd := { fst := a, snd := b } } })).fst 
+                ⟩
+          =
+          B (P (Comp F G)) ⟨a', f'⟩
+         := by simp only [IsPolynomial.repr_abs]; rfl
+        
+        have eq₂ : 
+            ((B (comp (P F) fun i => P (G i)) ⟨a', fun x a =>
+                  (repr (abs { fst := f' x a, snd := fun j b => f j { fst := x, snd := { fst := a, snd := b } } })).fst 
+                  ⟩
+            ) ⟹ α) 
+            =
+            (B (P (Comp F G)) ⟨a', f'⟩ ⟹ α)
+          := by rw[eq₁]
+        
+        apply HEq.funext
+        . rw [eq₁]
+        intro i
 
-theorem map_mk (x : F fun i => G i α) : 
-  f <$$> Comp.mk x = Comp.mk ((fun i (x : G i α) => f <$$> x) <$$> x) := rfl
+        have : ∀ (a : B (comp (P F) fun i => P (G i)) 
+                ⟨a',  fun x a =>
+                        (repr (abs { fst := f' x a, snd := fun j b => f j { fst := x, snd := { fst := a, snd := b } } })).fst ⟩ i), 
+          HEq (Sigma.snd <| repr <| abs ⟨
+              f' a.fst a.snd.fst, 
+              fun j b => f j { fst := a.fst, snd := { fst := a.snd.fst, snd := b } } 
+            ⟩)
+            (fun j b => f j { fst := a.fst, snd := { fst := a.snd.fst, snd := b } })
+          := by 
+              intro a
+              rw[IsPolynomial.repr_abs]
+        
+        
+        -- apply HEq.symm
+        apply HEq.funext' (type_eq_α := by rw[eq₁]) (type_eq_β := by intros; rfl)
+        . intro x
+          rcases x with ⟨j, ⟨x, g⟩⟩;
+          simp
+          have :  repr (abs ⟨f' j x, fun j_1 b => f j_1 ⟨j, ⟨x, b⟩⟩⟩)
+                  =
+                  ⟨f' j x, fun j_1 b => f j_1 ⟨j, ⟨x, b⟩⟩⟩
+            := by rw[IsPolynomial.repr_abs]
+          have : HEq (Sigma.snd (repr (abs ⟨f' j x, fun j_1 b => f j_1 ⟨j, ⟨x, b⟩⟩⟩)))
+                     (fun j_1 b => f j_1 ⟨j, ⟨x, b⟩⟩)
+            := by 
+                conv => {
+                  arg 1
+                  
+                }
+                
+          
+          
 
-theorem get_map (x : Comp F G α) : 
-  Comp.get (f <$$> x) = (fun i (x : G i α) => f <$$> x) <$$> Comp.get x := rfl
+          apply hcongr;
+          . sorry
+          . apply heq_of_eq
+            rw [cast_arg']
+            rw [heq_cast_right]
+            sorry
+          . intros; rfl
+          sorry
 
-end
 
+      }
 
-instance instQpf [q : MvQpf F] [q' : ∀ i, (MvQpf <| G i)] : 
-    MvQpf (Comp F G) where
-  P := MvPFunctor.Comp (P F) fun i => P <| G i
-  abs := @fun α => Comp.mk ∘ (map fun i => abs) ∘ abs ∘ MvPFunctor.Comp.get
-  repr := @fun α =>
-    MvPFunctor.Comp.mk ∘ repr ∘ (map fun i => (repr : G i α → (fun i : Fin2 n => Obj (P (G i)) α) i)) ∘ Comp.get
-  abs_repr := by
-    intros
-    simp [(· ∘ ·), MvFunctor.map_map, (· ⊚ ·), abs_repr]
-  abs_map := by
-    intros
-    simp [(· ∘ ·)]
-    rw [← abs_map]
-    simp [MvFunctor.id_map, (· ⊚ ·), map_mk, MvPFunctor.Comp.get_map, abs_map, MvFunctor.map_map, abs_repr]
-
-instance instIsPolynomial [p : IsPolynomial F] [p' : ∀ i, (IsPolynomial <| G i)] : 
-    IsPolynomial (Comp F G) where
-  repr_abs := by 
-    intros α x
-    rcases x with ⟨⟨a, a'⟩, f⟩
-    dsimp [abs, repr, MvPFunctor.Comp.mk, MvPFunctor.Comp.get, repr]
-    sorry
     
     
     
 
 
-end Comp
-
-end MvQpf
+end MvQPF.Comp
 
