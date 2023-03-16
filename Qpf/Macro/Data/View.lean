@@ -14,10 +14,21 @@ inductive DataCommand where
   | Codata
   deriving BEq, Inhabited
 
-def DataCommand.fromSyntax : Syntax → CommandElabM DataCommand
+namespace DataCommand 
+
+def fromSyntax : Syntax → CommandElabM DataCommand
   | Syntax.atom _ "data"   => pure .Data
   | Syntax.atom _ "codata" => pure .Codata
   | stx => throwErrorAt stx "Expected either `data` or `codata`"
+
+instance : ToString DataCommand where
+  toString := fun
+    | .Data => "data"
+    | .Codata => "codata"
+
+end DataCommand
+
+
 
 
 
@@ -109,6 +120,36 @@ def DataView.getExplicitExpectedType (view : DataView) : CommandElabM Term
 
 
 
+def CtorView.debug (ctor: CtorView) : String :=
+  s!"\{
+  modifiers := {ctor.modifiers},
+  declName  := {ctor.declName},
+  binders   := {ctor.binders},
+  type?     := {ctor.type?},
+}"
+
+
+def DataView.debug (view : DataView) : String :=
+  let ctors := view.ctors.map CtorView.debug
+s!"\{
+  declId          := {view.declId},
+  modifiers       := {view.modifiers},
+  ref             := {view.ref             },
+  declId          := {view.declId          },
+  modifiers       := {view.modifiers       },
+  shortDeclName   := {view.shortDeclName   },
+  declName        := {view.declName        },
+  levelNames      := {view.levelNames      },
+  binders         := {view.binders         },
+  type?           := {view.type?},
+  ctors           := {ctors},
+  derivingClasses := TODO,
+  command         := {view.command         },
+  liveBinders     := {view.liveBinders     },
+  deadBinders     := {view.deadBinders     },
+  deadBinderNames := {view.deadBinderNames },
+}"
+
 
 /-
   # Parsing syntax into a view
@@ -119,7 +160,8 @@ def DataView.getExplicitExpectedType (view : DataView) : CommandElabM Term
   Raises (hopefully) more informative errors when `data` or `codata` are used with unsupported
   specifications
 -/
-def sanityChecks (view : DataView) : CommandElabM Unit := do  
+def DataView.doSanityChecks (view : DataView) : CommandElabM Unit := do  
+  dbg_trace "liveBinders: {view.liveBinders}\ndeadBinders: {view.deadBinders}"
   if view.liveBinders.isEmpty then    
     if view.deadBinders.isEmpty then
       if view.command == .Codata then
@@ -141,6 +183,7 @@ def sanityChecks (view : DataView) : CommandElabM Unit := do
   | none => pure ()
 
 
+#check Lean.Parser.Command.ctor
 
 /-
   Heavily based on `inductiveSyntaxToView` from Lean.Elab.Declaration
@@ -150,23 +193,28 @@ def dataSyntaxToView (modifiers : Modifiers) (decl : Syntax) : CommandElabM Data
   -- checkValidInductiveModifier modifiers
 
   let (binders, type?) := expandOptDeclSig decl[2]
+
   let declId  : TSyntax ``declId := ⟨decl[1]⟩ 
   let ⟨name, declName, levelNames⟩ ← expandDeclId declId modifiers
   addDeclarationRanges declName decl
   let ctors      ← decl[4].getArgs.mapM fun ctor => withRef ctor do
-    -- def ctor := leading_parser " | " >> declModifiers >> ident >> optDeclSig
-    let ctorModifiers ← elabModifiers ctor[1]
+    -- def ctor := leading_parser optional docComment >> "\n| " >> declModifiers >> rawIdent >> optDeclSig
+    let mut ctorModifiers ← elabModifiers ctor[2]
+    if let some leadingDocComment := ctor[0].getOptional? then
+      if ctorModifiers.docString?.isSome then
+        logErrorAt leadingDocComment "duplicate doc string"
+      ctorModifiers := { ctorModifiers with docString? := TSyntax.getDocString ⟨leadingDocComment⟩ }
     if ctorModifiers.isPrivate && modifiers.isPrivate then
       throwError "invalid 'private' constructor in a 'private' inductive datatype"
     if ctorModifiers.isProtected && modifiers.isPrivate then
       throwError "invalid 'protected' constructor in a 'private' inductive datatype"
     checkValidCtorModifier ctorModifiers
-    let ctorName := ctor.getIdAt 2
+    let ctorName := ctor.getIdAt 3
     let ctorName := declName ++ ctorName
-    let ctorName ← withRef ctor[2] $ applyVisibility ctorModifiers.visibility ctorName
-    let (binders, type?) := expandOptDeclSig ctor[3]
+    let ctorName ← withRef ctor[3] $ applyVisibility ctorModifiers.visibility ctorName
+    let (binders, type?) := expandOptDeclSig ctor[4]
     addDocString' ctorName ctorModifiers.docString?
-    addAuxDeclarationRanges ctorName ctor ctor[2]
+    addAuxDeclarationRanges ctorName ctor ctor[3]
     return { ref := ctor, modifiers := ctorModifiers, declName := ctorName, binders := binders, type? := type? : CtorView }
   let classes ← getOptDerivingClasses decl[5]
 
@@ -184,5 +232,7 @@ def dataSyntaxToView (modifiers : Modifiers) (decl : Syntax) : CommandElabM Data
     binders, type?, ctors,
     command, liveBinders, deadBinders, deadBinderNames
   }
-  sanityChecks view
+  dbg_trace "{view.debug}"
+
+  view.doSanityChecks
   return view

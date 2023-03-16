@@ -121,8 +121,9 @@ namespace Macro
     let mut isLive := false
     for binder in binders do
       let kind := binder.getKind
+      dbg_trace "{binder}.getKind = {kind}"
 
-      if kind == `Lean.binderIdent then
+      if kind == ``Lean.binderIdent || kind == ``Lean.Parser.Term.binderIdent || kind == `ident then
         isLive := true
         liveVars := liveVars.push binder
 
@@ -163,7 +164,7 @@ namespace Macro
       if kind == ``implicitBinder && !includeImplicits then
         continue
 
-      else if kind == ``Lean.binderIdent || kind == ``Lean.Parser.Term.binderIdent then
+      else if kind == ``Lean.binderIdent || kind == ``Lean.Parser.Term.binderIdent || kind == ``ident then
         idents := idents.push ⟨binder⟩ 
 
       else if kind == ``explicitBinder || kind == ``Lean.Parser.Term.implicitBinder then
@@ -171,7 +172,7 @@ namespace Macro
           idents := idents.push ⟨id⟩ 
 
       else
-        dbg_trace "Bug: unexpected binder kind {binder}"
+        panic "Bug: unexpected binder kind {binder} has kind {kind}"
 
     pure idents
 

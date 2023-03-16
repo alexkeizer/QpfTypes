@@ -533,6 +533,8 @@ def elabData : CommandElab := fun stx => do
 end Data.Command
 
 
-data QpfList α where
-  | nil : QpfList α
-  | cons : α → QpfList α → QpfList α
+namespace Test
+  data QpfList α where
+    | nil : QpfList α
+    | cons : α → QpfList α → QpfList α
+end Test
