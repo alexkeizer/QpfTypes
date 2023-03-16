@@ -1,6 +1,4 @@
-
 import Lean
-import Lean.Parser.Term
 
 import Qpf.Macro.Data.Replace
 
@@ -9,14 +7,14 @@ open Lean Meta
 
 open Parser
 private partial def countVarOccurencesAux (r : Replace) (acc : Array Nat) : Syntax → Array Nat
-  | Syntax.node _ ``Term.arrow #[arg, arrow, tail] =>     
+  | Syntax.node _ ``Term.arrow #[arg, _arrow, tail] =>     
       -- NOTE: `indexOf` return an index one-past-the-end of `r.vars` if it cant find the index
       let i := (r.vars.indexOf? arg.getId).map fun ⟨n, _⟩ => n
       let i := i.getD acc.size
 
       -- dbg_trace "{r.expr}.indexOf {arg} == {i}"
       -- dbg_trace "pre:  {acc}"
-      let acc := acc.set! i (acc[i] + 1)
+      let acc := acc.set! i (acc[i]! + 1)
       -- dbg_trace "post: {acc}"
       countVarOccurencesAux r acc tail
   | _ => acc

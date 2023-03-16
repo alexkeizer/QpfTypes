@@ -4,6 +4,9 @@ import Qpf.Macro.Common
 open Lean
 open Meta Elab Elab.Command 
 
+open Parser.Term (bracketedBinder)
+open Parser.Command (declId)
+
 
 
 inductive DataCommand where
@@ -24,7 +27,7 @@ def DataCommand.fromSyntax : Syntax → CommandElabM DataCommand
 -/
 structure DataView where
   ref             : Syntax
-  declId          : Syntax
+  declId          : TSyntax ``declId
   modifiers       : Modifiers
   shortDeclName   : Name
   declName        : Name
@@ -36,8 +39,8 @@ structure DataView where
   -- further elements are changed from inductiveView
   command         : DataCommand
   liveBinders     : Array Syntax
-  deadBinders     : Array Syntax
-  deadBinderNames : Array Syntax
+  deadBinders     : TSyntaxArray ``bracketedBinder
+  deadBinderNames : Array Ident
     deriving Inhabited
 
 
@@ -56,13 +59,15 @@ def DataView.asInductive (view : DataView) : InductiveView
     type?           := view.type?          
     ctors           := view.ctors          
     derivingClasses := view.derivingClasses
+    -- TODO: find out what these computed fields are, add support for them in `data`/`codata`
+    computedFields  := #[]
   }
 
 
 open Lean.Parser in
 def DataView.pushLiveBinder (view : DataView) (binderIdent : Syntax) : DataView
   :=  let liveBinders := view.liveBinders.push binderIdent
-      let newBinder := mkNode ``Term.simpleBinder #[mkNullNode #[binderIdent], mkNullNode]
+      let newBinder := mkNode ``Term.explicitBinder #[mkNullNode #[binderIdent], mkNullNode]
       let binders := view.binders
       let binders := binders.setArgs (binders.getArgs.push newBinder)
       { view with liveBinders, binders, }
@@ -90,16 +95,16 @@ def DataView.addDeclNameSuffix (view : DataView) (suffix : String) : DataView
 
 
 /-- Returns the fully applied form of the type to be defined -/
-def DataView.getExpectedType (view : DataView) : Syntax
+def DataView.getExpectedType (view : DataView) : Term
   := Syntax.mkApp (mkIdent view.shortDeclName) (
     (Macro.getBinderIdents view.binders.getArgs false)
   )  
 
 /-- Returns the fully applied, explicit (`@`) form of the type to be defined -/
-def DataView.getExplicitExpectedType (view : DataView) : CommandElabM Syntax
+def DataView.getExplicitExpectedType (view : DataView) : CommandElabM Term
   :=  let args := Macro.getBinderIdents view.binders.getArgs true
       `(
-        @$(mkIdent view.shortDeclName):ident $args*
+        @$(mkIdent view.shortDeclName):ident $args:term*
       )
 
 
@@ -120,7 +125,7 @@ def sanityChecks (view : DataView) : CommandElabM Unit := do
       if view.command == .Codata then
         throwError "Due to a bug, codatatype without any parameters don't quite work yet. Please try adding parameters to your type"
       else 
-        throwError "Trying to define a data without variables, you probably want an `inductive` type instead"
+        throwError "Trying to define a datatype without variables, you probably want an `inductive` type instead"
     else
       throwErrorAt view.binders "You should mark some variables as live by removing the type ascription (they will be automatically inferred as `Type _`), or if you don't have variables of type `Type _`, you probably want an `inductive` type"
 
@@ -145,7 +150,7 @@ def dataSyntaxToView (modifiers : Modifiers) (decl : Syntax) : CommandElabM Data
   -- checkValidInductiveModifier modifiers
 
   let (binders, type?) := expandOptDeclSig decl[2]
-  let declId           := decl[1]
+  let declId  : TSyntax ``declId := ⟨decl[1]⟩ 
   let ⟨name, declName, levelNames⟩ ← expandDeclId declId modifiers
   addDeclarationRanges declName decl
   let ctors      ← decl[4].getArgs.mapM fun ctor => withRef ctor do

@@ -114,7 +114,8 @@ variable {n m : ℕ}
             := by 
                 conv => {
                   arg 1
-                  
+                  tactic => 
+                    cases [this]
                 }
                 
           

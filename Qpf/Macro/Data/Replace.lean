@@ -1,6 +1,4 @@
-import Lean.Meta
-import Lean.Parser.Term
-import Lean.Elab.Command
+import Lean
 
 import Qpf.Macro.Common
 import Qpf.Macro.Data.View
@@ -20,7 +18,7 @@ structure CtorArgs where
   (per_type : Array (Array Name))
 
 structure Replace where
-  (expr: Array Syntax)
+  (expr: Array Term)
   (vars: Array Name)
   (ctor: CtorArgs)
 
@@ -42,13 +40,13 @@ private def CtorArgs.get : ReplaceM CtorArgs := do
 def Replace.arity (r : Replace) : Nat :=
   r.vars.size
 
-def Replace.getBinderIdents (r : Replace) : Array Syntax :=
+def Replace.getBinderIdents (r : Replace) : Array Ident :=
   r.vars.map mkIdent
 
-open Parser.Term
+open Parser.Term in
 def Replace.getBinders (r : Replace) : CommandElabM Syntax := do
   let names := r.getBinderIdents
-  `(bracketedBinder| ($names* : Type _ ))
+  `(bracketedBinderF | ($names* : Type _ ))
 
 
 
@@ -57,7 +55,7 @@ def Replace.getBinders (r : Replace) : CommandElabM Syntax := do
 
 
 
-private def ReplaceM.identFor (stx : Syntax) : ReplaceM Syntax := do
+private def ReplaceM.identFor (stx : Term) : ReplaceM Ident := do
   let r ← StateT.get
   let ctor := r.ctor
   let argName ← mkFreshBinderName
@@ -76,7 +74,7 @@ private def ReplaceM.identFor (stx : Syntax) : ReplaceM Syntax := do
       StateT.set ⟨r.expr.push stx, r.vars.push name, ⟨ctor_args, ctor_per_type⟩⟩
       pure name
 
-  pure $ mkIdent name
+  return mkIdent name
   
 
 
@@ -89,7 +87,7 @@ open Lean.Parser in
 -/
 private partial def shapeOf' : Syntax → ReplaceM Syntax
   | Syntax.node _ ``Term.arrow #[arg, arrow, tail] => do
-    let ctor_arg ← ReplaceM.identFor arg
+    let ctor_arg ← ReplaceM.identFor ⟨arg⟩ 
     let ctor_tail ← shapeOf' tail
 
     -- dbg_trace ">> {arg} ==> {ctor_arg}"    
@@ -108,7 +106,7 @@ private partial def setResultingType (res_type : Syntax) : Syntax → ReplaceM S
   | Syntax.node _ ``Term.arrow #[arg, arrow, tail] => do
     let tail ← setResultingType res_type tail
     pure $ mkNode ``Term.arrow #[arg, arrow, tail]
-  | ctor_type => 
+  | _ => 
       pure res_type
 
 
@@ -172,7 +170,7 @@ def Replace.shapeOfCtors (view : InductiveView)
   -- Now that we know how many free variables were introduced, we can fix up the resulting type
   -- of each constructor to be `Shape α_0 α_1 ... α_n`
   let r ← StateT.get
-  let res := Syntax.mkApp shapeIdent r.getBinderIdents
+  let res := Syntax.mkApp (TSyntax.mk shapeIdent) r.getBinderIdents
 
   let ctors ← ctors.mapM fun ctor => do
     let type? ← ctor.type?.mapM (setResultingType res) 
@@ -190,11 +188,12 @@ def Replace.run : ReplaceM α → CommandElabM (α × Replace) :=
 
 
 /-- Replace syntax in *all* subexpressions -/
-partial def Replace.replaceAllStx (find replace : Syntax) : Syntax → Syntax := fun stx =>
-  if stx == find then
-    replace
-  else
-    stx.setArgs (stx.getArgs.map (replaceAllStx find replace))
+partial def Replace.replaceAllStx (find replace : Syntax) : Syntax → Syntax := 
+  fun stx =>
+    if stx == find then
+      replace
+    else
+      stx.setArgs (stx.getArgs.map (replaceAllStx find replace))
 
 
 
@@ -204,25 +203,26 @@ open Parser in
   *other* occurences (i.e., in e₁ ... eₖ₋₁) of `recType` with `newParam`.
 
 -/
-partial def Replace.replaceStx (recType newParam : Syntax) : Syntax → CommandElabM Syntax
-  | stx@(Syntax.node _ ``Term.arrow #[arg, arrow, tail]) => do
-      pure <| stx.setArgs #[
-        replaceAllStx recType newParam arg,
-        arrow,
-        ←replaceStx recType newParam tail
-      ]
+partial def Replace.replaceStx (recType newParam : Term) : Term → CommandElabM Term
+  | ⟨stx⟩ => match stx with
+    | stx@(Syntax.node _ ``Term.arrow #[arg, arrow, tail]) => do
+        pure <| TSyntax.mk <| stx.setArgs #[
+          replaceAllStx recType newParam arg,
+          arrow,
+          ←replaceStx recType newParam ⟨tail⟩ 
+        ]
 
-  | stx@(Syntax.node _ ``Term.arrow _) =>
-      throwErrorAt stx "Internal bug: encountered an unexpected form of arrow syntax"
+    | stx@(Syntax.node _ ``Term.arrow _) =>
+        throwErrorAt stx "Internal bug: encountered an unexpected form of arrow syntax"
 
-  | stx@(Syntax.node _ ``Term.depArrow _) =>
-      throwErrorAt stx "Dependent arrows are not supported, please only use plain arrow types"
+    | stx@(Syntax.node _ ``Term.depArrow _) =>
+        throwErrorAt stx "Dependent arrows are not supported, please only use plain arrow types"
 
-  | ctor_type => 
-      if ctor_type != recType then
-        throwErrorAt ctor_type m!"Unexpected constructor resulting type; expected {recType}, found {ctor_type}"
-      else
-        pure ctor_type
+    | ctor_type => 
+        if ctor_type != recType then
+          throwErrorAt ctor_type m!"Unexpected constructor resulting type; expected {recType}, found {ctor_type}"
+        else
+          pure ⟨ctor_type⟩ 
 
 
 
@@ -241,7 +241,7 @@ def makeNonRecursive (view : DataView) : CommandElabM (DataView × Name) := do
   let view := view.pushLiveBinder recId
 
   let ctors ← view.ctors.mapM fun ctor => do
-    let type? ← ctor.type?.mapM (Replace.replaceStx expected recId ·)
+    let type? ← ctor.type?.mapM (Replace.replaceStx expected recId <| TSyntax.mk ·)
     return CtorView.withType? ctor type?
 
   let view := view.setCtors ctors

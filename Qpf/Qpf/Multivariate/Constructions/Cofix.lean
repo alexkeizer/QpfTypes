@@ -411,6 +411,8 @@ theorem liftR_map_last [lawful: @LawfulMvFunctor _ F q.toMvFunctor]
     {α : TypeVec n} {ι ι'} (R : ι' → ι' → Prop)
     (x : F (α ::: ι)) (f g : ι → ι') (hh : ∀ x : ι, R (f x) (g x)) :
     LiftR' (RelLast' _ R) ((id ::: f) <$$> x) ((id ::: g) <$$> x) :=
+by 
+  stop
   let h : ι → { x : ι' × ι' // uncurry R x } := fun x => ⟨(f x, g x), hh x⟩
   have h' : h = fun x => ⟨(f x, g x), hh x⟩ := rfl
   let b : (α ::: ι) ⟹ _ := @diagSub n α ::: h
@@ -441,7 +443,7 @@ theorem liftR_map_last [lawful: @LawfulMvFunctor _ F q.toMvFunctor]
     dsimp
     ext1
     rfl
-  liftR_map _ _ _ _ (toSubtype _ ⊚ fromAppend1DropLast ⊚ c ⊚ b) hh
+  -- liftR_map _ _ _ _ (toSubtype _ ⊚ fromAppend1DropLast ⊚ c ⊚ b) hh
 #align mvqpf.liftr_map_last MvQPF.liftR_map_last
 
 theorem liftR_map_last' [LawfulMvFunctor F] {α : TypeVec n} {ι} (R : ι → ι → Prop) (x : F (α ::: ι))
@@ -452,9 +454,9 @@ theorem liftR_map_last' [LawfulMvFunctor F] {α : TypeVec n} {ι} (R : ι → ι
 
 end LiftRMap
 
-variable {F: TypeVec (n + 1) → Type u} [MvFunctor F] [q : MvQPF F]
+-- variable {F: TypeVec (n + 1) → Type u} [q : MvQPF F]
 
-theorem Cofix.abs_repr {α} (x : Cofix F α) : Quot.mk _ (Cofix.repr x) = x := by
+theorem Cofix.abs_repr {α} (x : Cofix F α) : Quot.mk Mcongr (Cofix.repr x) = x := by
   let R := fun x y : Cofix F α => abs (repr y) = x
   refine' Cofix.bisim₂ R _ _ _ rfl
   clear x;
@@ -477,82 +479,7 @@ theorem Cofix.abs_repr {α} (x : Cofix F α) : Quot.mk _ (Cofix.repr x) = x := b
   rfl
 #align mvqpf.cofix.abs_repr MvQPF.Cofix.abs_repr
 
-section Tactic
 
-/- ./././Mathport/Syntax/Translate/Tactic/Mathlib/Core.lean:38:34: unsupported: setup_tactic_parser -/
-open Tactic
-
-/-- tactic for proof by bisimulation -/
-unsafe def mv_bisim (e : parse texpr) (ids : parse with_ident_list) : tactic Unit := do
-  let e ← to_expr e
-  let expr.pi n bi d b ←
-    retrieve do
-        generalize e
-        target
-  let q(@Eq $(t) $(l) $(r)) ← pure b
-  let x ← mk_local_def `n d
-  let v₀ ← mk_local_def `a t
-  let v₁ ← mk_local_def `b t
-  let x₀ ← mk_app `` Eq [v₀, l.instantiate_var x]
-  let x₁ ← mk_app `` Eq [v₁, r.instantiate_var x]
-  let xx ← mk_app `` And [x₀, x₁]
-  let ex ← lambdas [x] xx
-  let ex ← mk_app `` Exists [ex] >>= lambdas [v₀, v₁]
-  let R ← pose `R none ex
-  refine ``(Cofix.bisim₂ $(R) _ _ _ ⟨_, rfl, rfl⟩)
-  let f (a b : Name) : Name := if a = `_ then b else a
-  let ids := (ids ++ List.replicate 5 `_).zipWith f [`a, `b, `x, `Ha, `Hb]
-  let (ids₀, w :: ids₁) ← pure <| List.splitAt 2 ids
-  intro_lst ids₀
-  let h ← intro1
-  let [(_, [w, h], _)] ← cases_core h [w]
-  cases h ids₁
-  pure ()
-#align mvqpf.mv_bisim mvqpf.mv_bisim
-
-run_cmd
-  add_interactive [`` mv_bisim]
-
-end Tactic
-
-/- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
-/- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
-theorem corec_roll {α : TypeVec n} {X Y} {x₀ : X} (f : X → Y) (g : Y → F (α ::: X)) :
-    Cofix.corec (g ∘ f) x₀ = Cofix.corec (MvFunctor.map (id ::: f) ∘ g) (f x₀) := by
-  mv_bisim x₀
-  rw [Ha, Hb, cofix.dest_corec, cofix.dest_corec]
-  rw [MvFunctor.map_map, ← appendFun_comp_id]
-  refine' liftR_map_last _ _ _ _ _
-  intro a; refine' ⟨a, rfl, rfl⟩
-#align mvqpf.corec_roll MvQPF.corec_roll
-
-theorem Cofix.dest_corec' {α : TypeVec n} {β : Type u} (g : β → F (α.append1 (Sum (Cofix F α) β)))
-    (x : β) :
-    Cofix.dest (Cofix.corec' g x) = appendFun id (Sum.elim id (Cofix.corec' g)) <$$> g x := by
-  rw [cofix.corec', cofix.dest_corec]; dsimp
-  congr with (i | i) <;> rw [corec_roll] <;> dsimp [cofix.corec']
-  · mv_bisim i
-    rw [Ha, Hb, cofix.dest_corec]
-    dsimp [(· ∘ ·)]
-    repeat' rw [MvFunctor.map_map, ← appendFun_comp_id]
-    apply liftR_map_last'
-    dsimp [(· ∘ ·), R]
-    intros
-    exact ⟨_, rfl, rfl⟩
-  · congr with y
-    erw [appendFun_id_id]
-    simp [MvFunctor.id_map]
-#align mvqpf.cofix.dest_corec' MvQPF.Cofix.dest_corec'
-
-/- ./././Mathport/Syntax/Translate/Expr.lean:177:8: unsupported: ambiguous notation -/
-theorem Cofix.dest_corec₁ {α : TypeVec n} {β : Type u}
-    (g : ∀ {X}, (Cofix F α → X) → (β → X) → β → F (α.append1 X)) (x : β)
-    (h :
-      ∀ (X Y) (f : Cofix F α → X) (f' : β → X) (k : X → Y),
-        g (k ∘ f) (k ∘ f') x = (id ::: k) <$$> g f f' x) :
-    Cofix.dest (Cofix.corec₁ (@g) x) = g id (Cofix.corec₁ @g) x := by
-  rw [Cofix.corec₁, Cofix.dest_corec', ← h] <;> rfl
-#align mvqpf.cofix.dest_corec₁ MvQPF.Cofix.dest_corec₁
 
 instance mvqpfCofix : MvQPF (Cofix F) where
   P         := q.P.mp
@@ -565,3 +492,15 @@ instance mvqpfCofix : MvQPF (Cofix F) where
 
 
 end MvQPF
+
+-- namespace MvQPF
+--   variable (F: TypeFun <| n + 1) [p: IsPolynomial F]
+
+--   instance isPolynomialCofix : IsPolynomial (Cofix F) where
+--     repr_abs := 
+--     by
+--       intro α x
+--       simp
+
+
+-- end MvQPF

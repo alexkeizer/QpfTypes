@@ -10,8 +10,6 @@ import Qpf.MathlibPort.Fin2
 
 open Lean Syntax Elab Elab.Tactic Meta
 
-#check mkConst
-
 def elabFinDestrAux (i_stx : TSyntax `ident) : TacticM Unit := do
   let n ← mkFreshExprMVar (mkConst ``Nat) (kind:=MetavarKind.synthetic);
   

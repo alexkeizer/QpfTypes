@@ -21,15 +21,18 @@ import Qpf.Qpf
 import Qpf.Macro.Common
 
 namespace Macro.Comp
-  open MvQpf
+  open MvQPF
   open Lean Elab Term Command Meta
   open Syntax
-  open Parser (ident)
+  -- open Parser (ident)
   open Parser.Term (bracketedBinder)
   open Parser.Command (declModifiers «def»)
 
   initialize
     registerTraceClass `Qpf.Comp
+
+  -- TODO: make everything work without this compatibility coercion
+  open TSyntax.Compat
 
 
 /--
@@ -44,23 +47,24 @@ protected def parseApp (isLiveVar : FVarId → Bool) (e : Expr) : TermElabM (Exp
     if !e.isApp then
       throwError "application expected:\n {e}"
     else
-      parseAppAux 1 e []
+      parseAppAux 1 e List.nil
 where
   parseAppAux : Nat → Expr → List Expr → _
-  | depth, Expr.app F a _, args => do
+  | depth, Expr.app F a, args => do
     let args := a :: args
     
     (do
       -- Only try to infer QPF if `F` contains no live variables
       if !F.hasAnyFVar isLiveVar then
         let F ← uncurry F (mkNatLit depth)
-        let inst_type ← mkAppM ``MvQpf #[F];
-        -- We don't need the instance, we just need to know it exists
-        let _ ← synthesizeInst inst_type      
+        let inst_type ← mkAppM ``MvQPF #[F];
         
-        return (F, args)
-      else
-        throwError "" -- No error message needed, since we disregard it below
+
+        let inst ← mkFreshMVarId
+        inst.setType inst_type
+        if ←synthesizeInstMVarCore inst then
+          return (F, args)
+      throwError "" -- No error message needed, since we disregard it below
     ) <|> (
       parseAppAux (depth+1) F args
     )
@@ -74,7 +78,7 @@ where
 
 
 
-def List.indexOf' {α : Type} [inst : BEq α] :  α → (as : List α) → Option (Fin2 (as.length))
+def List.indexOf' {α : Type} [BEq α] :  α → (as : List α) → Option (Fin2 (as.length))
   | _, []       =>  none
   | a, b :: bs  =>  if a == b then
                       some .fz
@@ -84,7 +88,7 @@ def List.indexOf' {α : Type} [inst : BEq α] :  α → (as : List α) → Optio
                       | some i => some <| .fs i
 
 
-def Fin2.quote {n : Nat} : Fin2 n → Syntax 
+def Fin2.quote {n : Nat} : Fin2 n → Term
   | .fz   => mkCIdent ``Fin2.fz
   | .fs i => mkApp (mkCIdent ``Fin2.fs) #[quote i]
 
@@ -96,7 +100,7 @@ open PrettyPrinter in
 /--
   Elaborate the body of a qpf
 -/
-partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Syntax := none) (normalized := false) : TermElabM Syntax := do
+partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Term := none) (normalized := false) : TermElabM Term := do
   let vars' := vars.toList;
   let arity := vars'.length;
   let arity_stx := quote arity;
@@ -125,7 +129,7 @@ partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Synt
     trace[Qpf.Comp] f!"target {target} is an application"
     let (F, args) ← (Comp.parseApp isLiveVar target)
     
-    let mut G : Array Syntax := #[]
+    let mut G : Array Term := #[]
     for a in args do
       let Ga ← elabQpf vars a none false
       G := G.push Ga
@@ -159,7 +163,7 @@ partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Synt
 
 structure QpfCompositionBodyView where
   (type?  : Option Syntax := none)
-  (target : Syntax)
+  (target : Term)
   (liveBinders deadBinders : Array Syntax)
 
 
@@ -171,8 +175,8 @@ structure QpfCompositionBinders where
   Given the description of a QPF composition (`QpfCompositionView`), generate the syntax for a term
   that represents the desired functor (in uncurried form)
 -/
-def elabQpfCompositionBody (view: QpfCompositionBodyView) : CommandElabM Syntax := do  
-  liftTermElabM none $ do
+def elabQpfCompositionBody (view: QpfCompositionBodyView) : CommandElabM Term := do  
+  liftTermElabM do
     let body_type ← 
       if let some typeStx := view.type? then
         let u ← mkFreshLevelMVar;
@@ -186,7 +190,7 @@ def elabQpfCompositionBody (view: QpfCompositionBodyView) : CommandElabM Syntax 
         pure <| mkSort <| mkLevelSucc u
   
     withAutoBoundImplicit <|
-      elabBinders view.deadBinders fun deadVars => 
+      elabBinders view.deadBinders fun _deadVars => 
         withLiveBinders view.liveBinders fun vars =>
           withoutAutoBoundImplicit <| do
             let target_expr ← elabTermEnsuringType view.target body_type;
@@ -197,8 +201,9 @@ structure QpfCompositionView where
   (modifiers  : Modifiers := {})
   (F          : Name)                        -- Name of the functor to be defined
   (binders    : Syntax)
-  (type?      : Option Syntax := none)
-  (target     : Syntax)
+  (type?      : Option Term := none)
+  (target     : Term)
+
 
 /--
   Given the description of a QPF composition (`QpfCompositionView`), add a declaration for the 
@@ -207,6 +212,7 @@ structure QpfCompositionView where
 def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
   let (liveBinders, deadBinders) ← splitLiveAndDeadBinders view.binders.getArgs
   let (deadBindersNoHoles, deadBinderNames) ← mkFreshNamesForBinderHoles deadBinders
+  
 
   /-
     Elaborate body
@@ -223,8 +229,8 @@ def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
   -/  
   let F_internal := mkIdent $ Name.mkStr view.F "Uncurried";
   let F := mkIdent view.F;
-  let modifiers := quote view.modifiers;
-  
+  let modifiers := quote (k := ``declModifiers) view.modifiers;
+
   let live_arity := mkNumLit liveBinders.size.repr;
   -- trace[Qpf.Comp] body
   elabCommand <|← `(
@@ -235,8 +241,7 @@ def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
   )
 
   let deadBinderNamedArgs ← deadBinderNames.mapM fun n => `(Parser.Term.namedArgument| ($n:ident := $n:term))
-  let F_internal_applied := mkApp F_internal deadBinderNamedArgs
-  
+  let F_internal_applied ← `($F_internal $deadBinderNamedArgs:namedArgument*)
   
 
   let cmd ← `(
@@ -253,7 +258,8 @@ def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
   -- trace[Qpf.Comp] cmd
   elabCommand cmd
 
-  let F_applied := mkApp F deadBinderNamedArgs
+
+  let F_applied ← `($F $deadBinderNamedArgs:namedArgument*)
 
   let cmd ← `(command|
     $modifiers:declModifiers
@@ -264,9 +270,14 @@ def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
   -- trace[Qpf.Comp] cmd
   elabCommand cmd
 
+
+
 elab "qpf " F:ident sig:optDeclSig " := " target:term : command => do  
-  let type? := sig[1].getOptional?.map fun sigInner => sigInner[1]
-  elabQpfComposition ⟨{}, F.getId, sig[0], type?, target⟩
+  let type? := sig.raw[1]!
+                  |>.getOptional?
+                  |>.map fun sigInner => 
+                            TSyntax.mk sigInner[1]!
+  elabQpfComposition ⟨{}, F.getId, sig.raw[0]!, type?, target⟩
 
   
 
