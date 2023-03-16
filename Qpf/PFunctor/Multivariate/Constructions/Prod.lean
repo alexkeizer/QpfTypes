@@ -1,12 +1,12 @@
 /-
-  Provides an instance of `MvQpf` for (the uncurried version of) the `Prod` built-in type
+  Provides an instance of `MvQPF` for (the uncurried version of) the `Prod` built-in type
 -/
 
 import Mathlib
 import Qpf.Util
 import Qpf.Macro.Tactic.FinDestr
 
-namespace MvQpf
+namespace MvQPF
 namespace Prod
 
 open PFin2 (fz fs)
@@ -57,4 +57,4 @@ end Prod
 
 export Prod (QpfProd QpfProd')
 
-end MvQpf
+end MvQPF

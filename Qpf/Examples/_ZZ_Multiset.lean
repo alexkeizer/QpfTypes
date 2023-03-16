@@ -3,7 +3,7 @@ import Qpf
 set_option pp.analyze true
 
 #check List
-#check (inferInstance : MvQpf (@TypeFun.ofCurried 1 List))
+#check (inferInstance : MvQPF (@TypeFun.ofCurried 1 List))
 
 abbrev List' : TypeFun 1
   := TypeFun.ofCurried List
@@ -38,9 +38,9 @@ def List.perm : List α → List α → Prop
 abbrev List'.perm ⦃Γ⦄ : (@TypeFun.ofCurried 1 List) Γ → (TypeFun.ofCurried List) Γ → Prop
   := List.perm
 
-def MultiSet := MvQpf.Quot1 List'.perm
+def MultiSet := MvQPF.Quot1 List'.perm
 
-noncomputable instance : MvQpf MultiSet := MvQpf.relQuot List'.perm (
+noncomputable instance : MvQPF MultiSet := MvQPF.relQuot List'.perm (
   by 
     intros Γ₁ Γ₂ a b f h₁;
     dsimp[TypeFun.ofCurried, TypeFun.reverseArgs, TypeFun.ofCurriedAux] at a b;
@@ -61,7 +61,7 @@ noncomputable instance : MvQpf MultiSet := MvQpf.relQuot List'.perm (
 
       constructor
       {
-        simp[List.is_rem, TypeVec.last, DVec.last, Sigma.snd, MvQpf.List.box]
+        simp[List.is_rem, TypeVec.last, DVec.last, Sigma.snd, MvQPF.List.box]
         
       } {
         sorry

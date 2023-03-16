@@ -2,7 +2,7 @@ import Qpf
 import Qpf.Examples._01_List
 import Qpf.Macro.Tactic.FinDestr
 
-open MvQpf
+open MvQPF
 
 /-
   # Rose trees
@@ -106,7 +106,7 @@ namespace QpfTree
     Type class inference works as expected, it can reason about the vectors of functors involved
     in compositions
   -/
-  example : MvQpf F := by infer_instance
+  example : MvQPF F := by infer_instance
 
   abbrev QpfTree' := Fix F
   abbrev QpfTree  := QpfTree'.curried

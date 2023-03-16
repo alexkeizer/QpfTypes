@@ -1,6 +1,6 @@
 -- import Qpf.Qpf.Multivariate.Basic
 
-import Qpf.Qpf.Multivariate.VecMvQpf
+import Qpf.Qpf.Multivariate.VecMvQPF
 import Qpf.MvFunctor.VecMvFunctor
 
 import Qpf.PFunctor.Multivariate.Constructions.Arrow

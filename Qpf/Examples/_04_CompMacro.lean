@@ -48,8 +48,8 @@ qpf F_list α β := QpfList Nat
 /-
 ## Composition
 -/ 
-example : MvQpf F₁.typefun := inferInstance
-example : MvQpf (TypeFun.ofCurried F₁) := inferInstance 
+example : MvQPF F₁.typefun := inferInstance
+example : MvQPF (TypeFun.ofCurried F₁) := inferInstance 
 
 qpf F₃ α β := F₁ α β α
 
@@ -81,13 +81,13 @@ qpf F_dead' (α m : Nat) {a : Type} β γ := β
 -/
 
 
-example : MvQpf (TypeFun.ofCurried $ F_dead a) := inferInstance
+example : MvQPF (TypeFun.ofCurried $ F_dead a) := inferInstance
 
 /-
   The following does not even typecheck. Since `α` may live in a different universe than the live
   arguments, we cannot uncurry `F_dead`
 ```lean4
-example : MvQpf (TypeFun.ofCurried F_dead) 
+example : MvQPF (TypeFun.ofCurried F_dead) 
   := by sorry
 ```
 -/
@@ -102,15 +102,15 @@ example : MvQpf (TypeFun.ofCurried F_dead)
 -- #check (Nat → Int)
 -- #reduce arrow Nat Int
 
-example (F : TypeFun 2) [q : MvQpf F] : true := by constructor
+example (F : TypeFun 2) [q : MvQPF F] : true := by constructor
 
 /-
   We can define functor combinators with the macro. For example, the following will flip the arguments
   to any binary qpf.
-  `ToMvQpf F` is just a shorthand to say that the uncurried version of `F` implements `MvQpf`
+  `ToMvQPF F` is just a shorthand to say that the uncurried version of `F` implements `MvQPF`
 
 -/
-qpf flipF (F : CurriedTypeFun 2) [q : ToMvQpf F] α β := F β α
+qpf flipF (F : CurriedTypeFun 2) [q : ToMvQPF F] α β := F β α
 
 
 
@@ -121,7 +121,7 @@ qpf Id' α := α
 
 /-
   The following fails, as it should, because `Arrow` is *not* functorial in the first argument.
-  The macro will try to synthesize an instance of `MvQpf (TypeFun.ofCurried Arrow)` and fail
+  The macro will try to synthesize an instance of `MvQPF (TypeFun.ofCurried Arrow)` and fail
 
   ```
   qpf withArrow α β := Id' (α → β)
@@ -132,7 +132,7 @@ qpf Id' α := α
 qpf withArrow (α : Type _) β := Id' (α → β)
 
 /-
-  Note that (non-dependent) arrow `α → β` are automatically translated to `MvQpf.Arrow`.
+  Note that (non-dependent) arrow `α → β` are automatically translated to `MvQPF.Arrow`.
   This is fine; the translation preserves definitional equality
 -/
 example : withArrow α β = (α → β) := rfl

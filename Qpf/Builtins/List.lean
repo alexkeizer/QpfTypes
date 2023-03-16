@@ -1,11 +1,11 @@
 /-
-  Provides an instance of `MvQpf` for (the uncurried version of) the `List` built-in type
+  Provides an instance of `MvQPF` for (the uncurried version of) the `List` built-in type
 -/
 
 import Qpf.Macro.Data
 import Qpf.Qpf.Multivariate.ofPolynomial
 
-namespace MvQpf 
+namespace MvQPF 
 namespace List
 
   def ListPFunctor : MvPFunctor.{u} 1
@@ -30,7 +30,7 @@ namespace List
     cases f_eq_g; rfl
 
 
-  instance : MvQpf List' := 
+  instance : MvQPF List' := 
     .ofIsomorphism _ box unbox (
       by
         intros Γ x;
@@ -72,6 +72,6 @@ namespace List
     )
 
 end List
-end MvQpf
+end MvQPF
 
-#check (inferInstance : MvQpf (@TypeFun.ofCurried 1 List))
+#check (inferInstance : MvQPF (@TypeFun.ofCurried 1 List))

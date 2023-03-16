@@ -24,7 +24,7 @@ data QpfList α where
 
 #check QpfList
 
-#check @MvQpf.Fix.drec _ QpfList.Uncurried _
+#check @MvQPF.Fix.drec _ QpfList.Uncurried _
 
 namespace QpfList
   #print QpfList.nil
@@ -37,7 +37,7 @@ namespace QpfList
     → (t : QpfList α) 
     → motive t
   :=
-    fun nil cons => MvQpf.Fix.drec (fun x => 
+    fun nil cons => MvQPF.Fix.drec (fun x => 
       match x with
       | .nil            => nil
       | .cons head tail => cons head tail.fst tail.snd
@@ -61,8 +61,8 @@ namespace QpfList
   theorem nil_neq_cons (a : α) (as : QpfList α) : @QpfList.nil α ≠ QpfList.cons a as := 
     by
       intro neq; 
-      simp[MvQpf.Fix.mk, nil, cons] at neq
-      simp[MvPFunctor.W_mk', MvFunctor.map, MvQpf.repr] at neq
+      simp[MvQPF.Fix.mk, nil, cons] at neq
+      simp[MvPFunctor.W_mk', MvFunctor.map, MvQPF.repr] at neq
 
       skip
       sorry
@@ -103,12 +103,12 @@ def List.perm ⦃α⦄ : QpfList.Uncurried α → QpfList.Uncurried α → Prop
   -- | _, _       =>  false
                       
 
-abbrev MultiSet.Uncurried := MvQpf.Quot1 List.perm
+abbrev MultiSet.Uncurried := MvQPF.Quot1 List.perm
 abbrev MultiSet := TypeFun.curried MultiSet.Uncurried
 
-noncomputable instance : MvQpf MultiSet.Uncurried := MvQpf.relQuot List.perm (by sorry)
+noncomputable instance : MvQPF MultiSet.Uncurried := MvQPF.relQuot List.perm (by sorry)
 
-#check (inferInstance : MvQpf MultiSet.Uncurried)
+#check (inferInstance : MvQPF MultiSet.Uncurried)
 
 -- data UnorderedTree α where
 --   | node : α → MultiSet (UnorderedTree α) → UnorderedTree α
@@ -118,7 +118,7 @@ noncomputable instance : MvQpf MultiSet.Uncurried := MvQpf.relQuot List.perm (by
 
 
 def QpfList.isNil : QpfList α → Bool := 
-  MvQpf.Fix.rec fun as => match as with
+  MvQPF.Fix.rec fun as => match as with
     | .nil => true
     | _    => false
 
@@ -128,7 +128,7 @@ def QpfList.isCons : QpfList α → Bool :=
     | _        => false
 
 def QpfList.length : QpfList α → Nat :=
-  MvQpf.Fix.rec fun as => match as with
+  MvQPF.Fix.rec fun as => match as with
     | .nil                => 0
     | .cons a (as : Nat)  => as + 1 
 
@@ -152,22 +152,22 @@ codata QpfStream α where
 
 /-- The stream `0,0,0,...` -/
 def QpfStream.zeroes : QpfStream Nat :=
-  MvQpf.Cofix.corec (fun _ => 
+  MvQPF.Cofix.corec (fun _ => 
     Shape.mk (0 : Nat) ()
   ) ()
 
 /-- The stream `0,1,2,3,4,...` -/
 def QpfStream.naturals : QpfStream Nat :=
-  MvQpf.Cofix.corec (fun (i : Nat) => 
+  MvQPF.Cofix.corec (fun (i : Nat) => 
     Shape.mk (i : Nat) (i + 1 : Nat)
   ) 0
 
 
 /-- Add two streams together -/
 def QpfStream.add (as bs : QpfStream Nat) : QpfStream Nat :=
-    MvQpf.Cofix.corec (fun ⟨as, bs⟩ => 
-      let ⟨(a : Nat), as⟩ := MvQpf.Cofix.dest as;
-      let ⟨(b : Nat), bs⟩ := MvQpf.Cofix.dest bs;
+    MvQPF.Cofix.corec (fun ⟨as, bs⟩ => 
+      let ⟨(a : Nat), as⟩ := MvQPF.Cofix.dest as;
+      let ⟨(b : Nat), bs⟩ := MvQPF.Cofix.dest bs;
       Shape.mk (a + b : Nat) (as, bs)
     ) (as, bs)
 
@@ -223,11 +223,11 @@ namespace Quotient
   def List'.perm ⦃α⦄: Quotient.List'.Uncurried α → Quotient.List'.Uncurried α → Prop
     := by sorry
 
-  abbrev Multiset' : TypeFun 1 := MvQpf.Quot1 List'.perm
+  abbrev Multiset' : TypeFun 1 := MvQPF.Quot1 List'.perm
   abbrev Multiset  := Multiset'.curried
 
-  noncomputable instance : MvQpf Multiset' := 
-    MvQpf.relQuot _ (
+  noncomputable instance : MvQPF Multiset' := 
+    MvQPF.relQuot _ (
       by
         intros
         sorry

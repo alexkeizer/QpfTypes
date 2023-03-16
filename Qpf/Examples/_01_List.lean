@@ -1,5 +1,5 @@
 import Qpf
-open MvQpf
+open MvQPF
 
 /-!
   Let us start with a simple example of an inductive type: lists
@@ -56,7 +56,7 @@ namespace QpfList
     Of course, each polynomial functor is a (multivariate) quotient of a polynomial functor, and
     this is automatically inferred
   -/
-  example : MvQpf F := 
+  example : MvQPF F := 
     by infer_instance
 
 
@@ -73,7 +73,7 @@ namespace QpfList
     := QpfList'.curried
 
   
-  example : MvQpf QpfList' := 
+  example : MvQPF QpfList' := 
     by infer_instance
 
 

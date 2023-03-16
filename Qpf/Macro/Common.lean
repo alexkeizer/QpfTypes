@@ -154,17 +154,18 @@ namespace Macro
     for use in applications
   -/
   def getBinderIdents (binders : Array Syntax) (includeImplicits := true) 
-    : TSyntaxArray `term := 
+    : Array Term := 
   Id.run do
-    let mut idents : TSyntaxArray `term := #[]
+    let mut idents : Array Term := #[]
 
     for binder in binders do
       let kind := binder.getKind
+      dbg_trace "({binder}).getKind := {kind}"
 
       if kind == ``implicitBinder && !includeImplicits then
         continue
 
-      else if kind == ``Lean.binderIdent || kind == ``Lean.Parser.Term.binderIdent || kind == ``ident then
+      else if kind == ``Lean.binderIdent || kind == ``Lean.Parser.Term.binderIdent || kind == `ident then
         idents := idents.push ⟨binder⟩ 
 
       else if kind == ``explicitBinder || kind == ``Lean.Parser.Term.implicitBinder then
@@ -174,6 +175,7 @@ namespace Macro
       else
         panic "Bug: unexpected binder kind {binder} has kind {kind}"
 
+    dbg_trace "idents = {idents}"
     pure idents
 
 

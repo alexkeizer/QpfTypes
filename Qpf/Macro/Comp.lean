@@ -40,7 +40,7 @@ namespace Macro.Comp
     * `e = F α₀ ... αₙ`, for some list of arguments `α_i`, and
     * `F` contains no live variables, and
     * `F` is a QPF
-  Then, tries to infer an instance of `MvQpf (TypeFun.curried F)`
+  Then, tries to infer an instance of `MvQPF (TypeFun.curried F)`
 -/
 protected def parseApp (isLiveVar : FVarId → Bool) (e : Expr) : TermElabM (Expr × (List Expr))
   := 
@@ -73,7 +73,7 @@ where
     if ex.hasAnyFVar isLiveVar then
       throwError "Smallest function subexpression still contains live variables:\n  {ex}\ntry marking more variables as dead "
     else
-      throwError "Failed to infer an instance of `MvQpf ({ex})`, even though it is the smallest possible prefix expression"
+      throwError "Failed to infer an instance of `MvQPF ({ex})`, even though it is the smallest possible prefix expression"
 
 
 
@@ -140,7 +140,7 @@ partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Term
   else if target.isArrow then
     match target with
     | Expr.forallE _ e₁ e₂ .. => 
-      let newTarget ← mkAppM ``MvQpf.Arrow.Arrow #[e₁, e₂]
+      let newTarget ← mkAppM ``MvQPF.Arrow.Arrow #[e₁, e₂]
       elabQpf vars newTarget targetStx normalized
     | _ => unreachable!
 
@@ -252,7 +252,7 @@ def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
 
       $modifiers:declModifiers
       instance $deadBinders:bracketedBinder* : 
-        MvQpf ($F_internal_applied) := 
+        MvQPF ($F_internal_applied) := 
       by unfold $F_internal; infer_instance
   )  
   -- trace[Qpf.Comp] cmd
@@ -264,7 +264,7 @@ def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
   let cmd ← `(command|
     $modifiers:declModifiers
     instance $deadBindersNoHoles:bracketedBinder* : 
-      MvQpf (TypeFun.ofCurried $F_applied) 
+      MvQPF (TypeFun.ofCurried $F_applied) 
     := by unfold $F; infer_instance
   )
   -- trace[Qpf.Comp] cmd

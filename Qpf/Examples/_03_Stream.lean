@@ -1,6 +1,6 @@
 import Qpf.Examples._01_List
 
-open MvQpf
+open MvQPF
 
 /-
   ```lean4
@@ -116,7 +116,7 @@ namespace QpfStream
 
     So, we cannot use `QpfStream` to define another (co)datatype yet
   -/
-  def q : MvQpf QpfStream' 
+  def q : MvQPF QpfStream' 
     := inferInstance
 
   #print axioms q

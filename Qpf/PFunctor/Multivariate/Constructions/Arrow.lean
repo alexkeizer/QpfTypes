@@ -2,7 +2,7 @@ import Mathlib
 import Qpf.Util
 import Qpf.Macro.Tactic.FinDestr
 
-namespace MvQpf 
+namespace MvQPF 
 
 namespace Arrow 
 
@@ -70,4 +70,4 @@ end Arrow
 
 export Arrow (QpfArrow QpfArrow' Arrow Arrow')
 
-end MvQpf
+end MvQPF

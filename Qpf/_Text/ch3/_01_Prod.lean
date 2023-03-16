@@ -3,7 +3,7 @@ import Qpf.Qpf.Multivariate.ofPolynomial
 import Qpf.PFunctor.Multivariate.Constructions.Basic
 import Qpf.Macro.Tactic.FinDestr
 
-namespace MvQpf
+namespace MvQPF
 namespace Prod
 
 open PFin2 (fz fs)
@@ -98,7 +98,7 @@ by
 
 
 
-instance : MvQpf Prod' := .ofPolynomial P box unbox box_unbox_id
+instance : MvQPF Prod' := .ofPolynomial P box unbox box_unbox_id
 
   
 
@@ -106,4 +106,4 @@ end Prod
 
 export Prod (QpfProd QpfProd')
 
-end MvQpf
+end MvQPF

@@ -294,8 +294,8 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT P : Ide
   )
 
   let cmd ← `(
-    instance $q:ident : MvQpf (@TypeFun.ofCurried $(quote arity) $shape) :=
-      MvQpf.ofPolynomial $P $box $unbox (
+    instance $q:ident : MvQPF (@TypeFun.ofCurried $(quote arity) $shape) :=
+      MvQPF.ofPolynomial $P $box $unbox (
         by 
           intro _ x;
           rcases x with ⟨head, child⟩;
@@ -401,7 +401,7 @@ def mkShape (view: InductiveView) : CommandElabM MkShapeResult := do
 
 
 /--
-  Return a syntax tree for `MvQpf.Fix` or `MvQpf.Cofix` when self is `Data`, resp. `Codata`.
+  Return a syntax tree for `MvQPF.Fix` or `MvQPF.Cofix` when self is `Data`, resp. `Codata`.
 -/
 def DataCommand.fixOrCofix : DataCommand → Name
   | .Data   => ``MvQPF.Fix
