@@ -2,6 +2,7 @@ import Qpf
 
 -- set_option trace.Meta.debug true
 -- set_option trace.Elab.inductive true
+sudo set_option trace.QPF true
 set_option pp.rawOnError true
 
 #print List.noConfusionType

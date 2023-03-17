@@ -161,7 +161,6 @@ s!"\{
   specifications
 -/
 def DataView.doSanityChecks (view : DataView) : CommandElabM Unit := do  
-  dbg_trace "liveBinders: {view.liveBinders}\ndeadBinders: {view.deadBinders}"
   if view.liveBinders.isEmpty then    
     if view.deadBinders.isEmpty then
       if view.command == .Codata then
@@ -182,8 +181,6 @@ def DataView.doSanityChecks (view : DataView) : CommandElabM Unit := do
   | some t => throwErrorAt t "Unexpected type; type will be automatically inferred. Note that inductive families are not supported due to inherent limitations of QPFs"
   | none => pure ()
 
-
-#check Lean.Parser.Command.ctor
 
 /-
   Heavily based on `inductiveSyntaxToView` from Lean.Elab.Declaration
@@ -232,7 +229,7 @@ def dataSyntaxToView (modifiers : Modifiers) (decl : Syntax) : CommandElabM Data
     binders, type?, ctors,
     command, liveBinders, deadBinders, deadBinderNames
   }
-  dbg_trace "{view.debug}"
+  trace[Qpf.Data] "{view.debug}"
 
   view.doSanityChecks
   return view

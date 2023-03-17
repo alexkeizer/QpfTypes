@@ -69,11 +69,11 @@ end Vec
   # Notation macros
 -/
 
--- syntax "![" term,* "]" : term
--- macro_rules
---   | `(![])    => `(Vec.nil)
---   | `(![$x])  => `(Vec.append1 ![] $x)
---   | `(![ $xs,* , $x]) => `(Vec.append1 ![$xs,*] $x)
+syntax "!![" term,* "]" : term
+macro_rules
+  | `(!![])    => `(Vec.nil)
+  | `(!![$x])  => `(Vec.append1 !![] $x)
+  | `(!![ $xs,* , $x]) => `(Vec.append1 !![$xs,*] $x)
 
 
 

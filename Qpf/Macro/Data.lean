@@ -13,7 +13,7 @@ open Elab (Modifiers elabModifiers)
 open Parser.Term (namedArgument)
 
 initialize
-  registerTraceClass `Qpf.Data
+  registerTraceClass `QPF
 
 private def Array.enum (as : Array α) : Array (Nat × α) :=
   (Array.range as.size).zip as
@@ -127,7 +127,7 @@ def mkHeadT (view : InductiveView) : CommandElabM Name := do
     : InductiveView
   }
 
-  trace[Qpf.Data] "mkHeadT :: elabInductiveViews"
+  trace[QPF] "mkHeadT :: elabInductiveViews"
   elabInductiveViews #[view]
   pure declName
 
@@ -171,7 +171,7 @@ def mkChildT (view : InductiveView) (r : Replace) (headTName : Name) : CommandEl
     let counts := counts.map fun n => 
                     Syntax.mkApp (mkIdent ``PFin2) #[quote n]
 
-    `(matchAltExpr| | $head => (![ $counts,* ]))
+    `(matchAltExpr| | $head => (!![ $counts,* ]))
 
   let body := declValEqnsOfMatchAltArray matchAlts
   let headT := mkIdent headTName
@@ -183,7 +183,7 @@ def mkChildT (view : InductiveView) (r : Replace) (headTName : Name) : CommandEl
       $body:declValEqns
   )
 
-  -- trace[Qpf.Data] "mkChildT :: elabCommand"
+  -- trace[QPF] "mkChildT :: elabCommand"
   elabCommand cmd
 
   pure declName
@@ -194,8 +194,7 @@ def mkChildT (view : InductiveView) (r : Replace) (headTName : Name) : CommandEl
 
 
 
-
-
+#check MvQPF.ofPolynomial
 
 
 open Parser.Term in
@@ -311,8 +310,9 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT P : Ide
           <;> rfl
       )
   )
-  -- trace[Qpf.Data] f!"\nqpf: {cmd}\n"
-  elabCommand cmd
+  trace[QPF] s!"\nqpf: {cmd}\n"
+  trace[QPF] m!"\nqpf: {cmd}\n"
+  -- elabCommand cmd
 
   pure ()
 
@@ -361,7 +361,7 @@ def mkShape (view: InductiveView) : CommandElabM MkShapeResult := do
     : InductiveView
   }
 
-  -- trace[Qpf.Data] "mkShape :: elabInductiveViews"
+  -- trace[QPF] "mkShape :: elabInductiveViews"
   elabInductiveViews #[view]
 
   let headTName ← mkHeadT view
@@ -404,8 +404,8 @@ def mkShape (view: InductiveView) : CommandElabM MkShapeResult := do
   Return a syntax tree for `MvQPF.Fix` or `MvQPF.Cofix` when self is `Data`, resp. `Codata`.
 -/
 def DataCommand.fixOrCofix : DataCommand → Name
-  | .Data   => ``MvQPF.Fix
-  | .Codata => ``MvQPF.Cofix
+  | .Data   => ``_root_.MvQPF.Fix
+  | .Codata => ``_root_.MvQPF.Cofix
 
 /--
   Take either the fixpoint or cofixpoint of `base` to produce an `Internal` uncurried QPF, 
@@ -431,7 +431,7 @@ def mkType (view : DataView) (base : Term) : CommandElabM Unit := do
     abbrev $(view.declId)   $view.deadBinders:bracketedBinder*
       := _root_.TypeFun.curried $uncurriedApplied
   ) 
-  trace[Qpf.Data] "elabData.cmd = {cmd}"
+  trace[QPF] "elabData.cmd = {cmd}"
   elabCommand cmd
 
 
@@ -458,7 +458,7 @@ open Elab
 -/
 def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
   for ctor in view.ctors do
-    trace[Qpf.Data] "mkConstructors\n{ctor.declName} : {ctor.type?}"
+    trace[QPF] "mkConstructors\n{ctor.declName} : {ctor.type?}"
     let n_args := (ctor.type?.map countConstructorArgs).getD 0
 
     let args ← (List.range n_args).mapM fun _ => 
@@ -467,7 +467,7 @@ def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
 
     let mk := mkIdent ((DataCommand.fixOrCofix view.command) ++ `mk)
     let shapeCtor := mkIdent <| Name.replacePrefix view.declName shape ctor.declName
-    trace[Qpf.Data] "shapeCtor = {shapeCtor}"
+    trace[QPF] "shapeCtor = {shapeCtor}"
 
     
 
@@ -494,7 +494,7 @@ def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
         := $body:term
     )
 
-    trace[Qpf.Data] "mkConstroctor.cmd = {cmd}"
+    trace[QPF] "mkConstroctor.cmd = {cmd}"
     elabCommand cmd
   return ()
 
@@ -516,25 +516,24 @@ def elabData : CommandElab := fun stx => do
   let ⟨r, shape, _P⟩ ← mkShape nonRecView.asInductive
 
   /- Composition pipeline -/
-  let base ← elabQpfCompositionBody {
-    liveBinders := nonRecView.liveBinders, 
-    deadBinders := nonRecView.deadBinders,     
-    type?   := none,
-    target  := ←`(
-      $(mkIdent shape):ident $r.expr*
-    )
-  }
-  trace[Qpf.Data] "base = {base}"
+  -- let base ← elabQpfCompositionBody {
+  --   liveBinders := nonRecView.liveBinders, 
+  --   deadBinders := nonRecView.deadBinders,     
+  --   type?   := none,
+  --   target  := ←`(
+  --     $(mkIdent shape):ident $r.expr*
+  --   )
+  -- }
+  -- trace[QPF] "base = {base}"
 
-  mkType view base  
-  mkConstructors view shape
+  -- mkType view base  
+  -- mkConstructors view shape
 
 
 end Data.Command
 
+sudo set_option trace.QPF true
 
-namespace Test
-  data QpfList α where
-    | nil : QpfList α
-    | cons : α → QpfList α → QpfList α
-end Test
+data QpfList α where
+  | nil : QpfList α
+  | cons : α → QpfList α → QpfList α

@@ -33,9 +33,9 @@ namespace TypeFun
 
 
   def curriedAux : {n : Nat} → TypeFun n → CurriedTypeFun n
-    | 0,    F => fun _ => F (![] : Fin 0 → Type _)
-    | 1,    F => fun a => F ![a] 
-    | n+2,  F => fun a => curriedAux fun αs => F (αs ::: a)
+    | 0,    F => fun _ => F !![]
+    | 1,    F => fun a => F !![a] 
+    | _+2,  F => fun a => curriedAux fun αs => F (αs ::: a)
 
   def curried (F : TypeFun n) : CurriedTypeFun n
     := curriedAux (F.reverseArgs)

@@ -135,7 +135,7 @@ partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Term
       G := G.push Ga
 
     let F_stx ← delab F;
-    `(Comp (n:=$(quote args.length)) $F_stx ![$G,*])
+    `(Comp (n:=$(quote args.length)) $F_stx !![$G,*])
 
   else if target.isArrow then
     match target with

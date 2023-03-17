@@ -160,7 +160,7 @@ namespace Macro
 
     for binder in binders do
       let kind := binder.getKind
-      dbg_trace "({binder}).getKind := {kind}"
+      -- dbg_trace "({binder}).getKind := {kind}"
 
       if kind == ``implicitBinder && !includeImplicits then
         continue
@@ -175,7 +175,7 @@ namespace Macro
       else
         panic "Bug: unexpected binder kind {binder} has kind {kind}"
 
-    dbg_trace "idents = {idents}"
+    -- dbg_trace "idents = {idents}"
     pure idents
 
 
