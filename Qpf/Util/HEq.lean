@@ -178,9 +178,12 @@ import Mathlib
     rfl
 
 
-  -- theorem cast_fun :
-  --   f (cast h a) 
-  --     = (cast _ f) a
+  theorem cast_fun_arg {h : α = β} {f : β → γ} :
+    HEq (fun (a : α) => f <| cast h a ) f :=
+  by
+    cases h
+    simp only [cast_eq, heq_eq_eq]
+
 
 
 

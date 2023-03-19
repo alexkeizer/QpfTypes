@@ -60,9 +60,9 @@ where
         let inst_type ← mkAppM ``MvQPF #[F];
         
 
-        let inst ← mkFreshMVarId
-        inst.setType inst_type
-        if ←synthesizeInstMVarCore inst then
+        let inst_id ← mkFreshMVarId
+        let _ ← mkFreshExprMVarWithId inst_id inst_type
+        if ←synthesizeInstMVarCore inst_id then
           return (F, args)
       throwError "" -- No error message needed, since we disregard it below
     ) <|> (

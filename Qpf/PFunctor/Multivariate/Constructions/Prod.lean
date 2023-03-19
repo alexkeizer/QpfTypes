@@ -36,7 +36,7 @@ def mk (a : Γ 1) (b : Γ 0) : QpfProd' Γ
       | 0, _ => b
   ⟩
 
-instance : MvQPF.IsPolynomial Prod' := .ofEquiv 
+instance : MvQPF.IsPolynomial Prod' := .ofEquiv _
 {
   toFun     := fun ⟨a, b⟩ => mk a b,
   invFun    := fun ⟨_, f⟩ => (f 1 fz, f 0 fz),

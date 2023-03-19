@@ -63,7 +63,7 @@ def equiv {Γ} : Sum' Γ ≃ QpfSum' Γ :=
 } 
 
 instance : MvQPF.IsPolynomial Sum' := 
-  .ofEquiv equiv
+  .ofEquiv _ equiv
 
 
 

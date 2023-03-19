@@ -4,6 +4,7 @@
 
 import Qpf.Macro.Data
 import Qpf.Qpf.Multivariate.ofPolynomial
+import Qpf.Util
 
 namespace MvQPF 
 namespace List
@@ -18,11 +19,11 @@ namespace List
   abbrev box {Γ} (x : List' Γ) : QpfList' Γ 
     := ⟨
         ULift.up x.length, 
-        fun i => cast (by fin_destr i; rfl) $ Vec.ofList x
+        fun .fz j => Vec.ofList x (PFin2.toFin2 j)
       ⟩
 
   abbrev unbox {Γ} (x : QpfList' Γ) : List' Γ 
-    := Vec.toList (x.snd 0)
+    := Vec.toList fun i => x.snd 0 (PFin2.ofFin2 i)
     
   private theorem typeext {α} {f g : α → Sort _} (f_eq_g: f = g) :
     ((a : α) → f a) = ((a : α) → g a) :=
@@ -48,11 +49,11 @@ namespace List
           . trivial
 
         case H₂ =>
-          apply heq_funext <;> fin_destr
+          apply HEq.funext <;> fin_destr
           . simp[ListPFunctor]
-          skip
-          simp_heq
-          apply HEq.trans (Vec.ofList_toList_iso)
+          apply HEq.trans Vec.ofList_toList_iso'
+          simp only [Eq.ndrec, id_eq, eq_mpr_eq_cast, PFin2.toFin2_ofFin2_iso]
+          apply HEq.trans cast_fun_arg
           rfl
 
         case H₃ => 
@@ -68,7 +69,13 @@ namespace List
         case H₄ => intros; rfl
     ) (
       by 
-        intros; apply Vec.toList_ofList_iso;
+        intros _ x;
+        induction x
+        . rfl
+        . {
+          simp only [Vec.ofList, Vec.toList]
+          congr
+        }
     )
 
 end List

@@ -61,11 +61,6 @@ namespace QpfList
 
   theorem nil_neq_cons (a : α) (as : QpfList α) : @QpfList.nil α ≠ QpfList.cons a as := 
     by
-      intro neq; 
-      simp[MvQPF.Fix.mk, nil, cons] at neq
-      simp[MvPFunctor.W_mk', MvFunctor.map, MvQPF.repr] at neq
-
-      skip
       sorry
 
   #print nil_neq_cons

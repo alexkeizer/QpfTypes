@@ -28,6 +28,10 @@ private def PFin2.quoteOfNat : Nat → Term
   | 0   => mkIdent ``PFin2.fz
   | n+1 => Syntax.mkApp (mkIdent ``PFin2.fs) #[(quoteOfNat n)]
 
+private def Fin2.quoteOfNat : Nat → Term
+  | 0   => mkIdent ``Fin2.fz
+  | n+1 => Syntax.mkApp (mkIdent ``Fin2.fs) #[(quoteOfNat n)]
+
 
 namespace Data.Command
 
@@ -193,8 +197,10 @@ def mkChildT (view : InductiveView) (r : Replace) (headTName : Name) : CommandEl
 
 
 
-
-#check MvQPF.ofPolynomial
+-- #check MvQPF.IsPolynomial.ofEquiv {
+--   toFun := _,
+-- }
+-- #check MvQPF.ofPolynomial
 
 
 open Parser.Term in
@@ -251,7 +257,7 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT P : Ide
                             fun j => match j with
                               $alts:matchAlt*
                           )
-            `(matchAltExpr| | $(PFin2.quoteOfNat i) => $body)
+            `(matchAltExpr| | $(Fin2.quoteOfNat i) => $body)
         ):matchAlt*
     ⟩)
   let box ← `(
@@ -281,7 +287,7 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT P : Ide
         ((t.indexOf? arg).map fun ⟨j, _⟩ => (i, j)).toList
       ).toList.join.get! 0
 
-      `($unbox_child $(PFin2.quoteOfNat i) $(PFin2.quoteOfNat j))
+      `($unbox_child $(Fin2.quoteOfNat i) $(PFin2.quoteOfNat j))
 
     let body := Syntax.mkApp alt args
 
@@ -292,27 +298,47 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT P : Ide
         $unboxBody:matchAlt*
   )
 
+  -- let cmd ← `(
+  --   instance $q:ident : MvQPF (@TypeFun.ofCurried $(quote arity) $shape) :=
+  --     MvQPF.ofPolynomial $P $box $unbox (
+  --       by 
+  --         intro _ x;
+  --         rcases x with ⟨head, child⟩;
+  --         cases head
+  --         <;> simp
+  --         <;> apply congrArg
+  --         <;> fin_destr
+  --         <;> rfl          
+  --     ) (
+  --       by 
+  --         intro _ x;
+  --         cases x
+  --         <;> rfl
+  --     )
+  -- )
   let cmd ← `(
-    instance $q:ident : MvQPF (@TypeFun.ofCurried $(quote arity) $shape) :=
-      MvQPF.ofPolynomial $P $box $unbox (
-        by 
-          intro _ x;
+    instance $q:ident : MvQPF.IsPolynomial (@TypeFun.ofCurried $(quote arity) $shape) :=
+      .ofEquiv $P {
+        toFun     := $box,
+        invFun    := $unbox,
+        left_inv  := by 
+          simp only [Function.LeftInverse]
+          intro x
+          cases x
+          <;> rfl
+        right_inv := by
+          simp only [Function.RightInverse, Function.LeftInverse]
+          intro x
           rcases x with ⟨head, child⟩;
           cases head
           <;> simp
           <;> apply congrArg
           <;> fin_destr
-          <;> rfl          
-      ) (
-        by 
-          intro _ x;
-          cases x
           <;> rfl
-      )
+      }
   )
-  trace[QPF] s!"\nqpf: {cmd}\n"
-  trace[QPF] m!"\nqpf: {cmd}\n"
-  -- elabCommand cmd
+  trace[QPF] "qpf: {cmd}\n"
+  elabCommand cmd
 
   pure ()
 
@@ -516,24 +542,18 @@ def elabData : CommandElab := fun stx => do
   let ⟨r, shape, _P⟩ ← mkShape nonRecView.asInductive
 
   /- Composition pipeline -/
-  -- let base ← elabQpfCompositionBody {
-  --   liveBinders := nonRecView.liveBinders, 
-  --   deadBinders := nonRecView.deadBinders,     
-  --   type?   := none,
-  --   target  := ←`(
-  --     $(mkIdent shape):ident $r.expr*
-  --   )
-  -- }
-  -- trace[QPF] "base = {base}"
+  let base ← elabQpfCompositionBody {
+    liveBinders := nonRecView.liveBinders, 
+    deadBinders := nonRecView.deadBinders,     
+    type?   := none,
+    target  := ←`(
+      $(mkIdent shape):ident $r.expr*
+    )
+  }
+  trace[QPF] "base = {base}"
 
-  -- mkType view base  
-  -- mkConstructors view shape
+  mkType view base  
+  mkConstructors view shape
 
 
 end Data.Command
-
-sudo set_option trace.QPF true
-
-data QpfList α where
-  | nil : QpfList α
-  | cons : α → QpfList α → QpfList α

@@ -180,6 +180,22 @@ namespace Vec
         simp
       }
 
+  theorem ofList_toList_iso' {v : Vec α n} :
+    HEq (fun (j : PFin2.{u} (toList v).length) => ofList (toList v) j.toFin2) 
+        (fun (j : PFin2.{u} (toList v).length) => v <| PFin2.toFin2 <| cast (by rw[toList_length_eq_n]) j) :=
+  by
+    apply HEq.funext
+    . rfl
+    intro j
+    have n_eq : (toList v).length = n := toList_length_eq_n;
+    apply hcongr
+    . apply ofList_toList_iso
+    . intros
+      apply hcongr <;> intros <;> (try rw[n_eq])
+      . simp_heq
+    . intros; simp
+    . rw[n_eq]
+
   @[simp]
   theorem toList_ofList_iso {as : List α} :
     toList (ofList as) = as :=
