@@ -47,31 +47,30 @@ protected def parseApp (isLiveVar : FVarId → Bool) (e : Expr) : TermElabM (Exp
     if !e.isApp then
       throwError "application expected:\n {e}"
     else
-      parseAppAux 1 e List.nil
+      parseAppAux 1 e List.nil none
 where
-  parseAppAux : Nat → Expr → List Expr → _
-  | depth, Expr.app F a, args => do
+  parseAppAux : Nat → Expr → List Expr → Option Exception → _
+  | depth, Expr.app F a, args, _ => do
     let args := a :: args
     
-    (do
+    try
       -- Only try to infer QPF if `F` contains no live variables
       if !F.hasAnyFVar isLiveVar then
         let F ← uncurry F (mkNatLit depth)
         let inst_type ← mkAppM ``MvQPF #[F];
         
+        -- asserts that the instance exists, or throws an error
+        let _inst ← synthInstance inst_type
+        return (F, args)
+      throwError "Smallest function subexpression still contains live variables:\n  {F}\ntry marking more variables as dead"
+    catch e =>
+      parseAppAux (depth+1) F args (some e)
+    
 
-        let inst_id ← mkFreshMVarId
-        let _ ← mkFreshExprMVarWithId inst_id inst_type
-        if ←synthesizeInstMVarCore inst_id then
-          return (F, args)
-      throwError "" -- No error message needed, since we disregard it below
-    ) <|> (
-      parseAppAux (depth+1) F args
-    )
-
-  | _, ex, _ => 
+  | _, _, _, some e => throw e
+  | _, ex, _, none  => 
     if ex.hasAnyFVar isLiveVar then
-      throwError "Smallest function subexpression still contains live variables:\n  {ex}\ntry marking more variables as dead "
+      throwError "Smallest function subexpression still contains live variables:\n  {ex}\ntry marking more variables as dead"
     else
       throwError "Failed to infer an instance of `MvQPF ({ex})`, even though it is the smallest possible prefix expression"
 
