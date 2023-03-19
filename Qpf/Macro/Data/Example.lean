@@ -230,11 +230,11 @@ namespace Quotient
     )
 
 
-  noncomputable data Foo α where
-    | node : α → Multiset (Foo α) → Foo α
+  -- noncomputable data Foo α where
+  --   | node : α → Multiset (Foo α) → Foo α
 
-  #print Foo
-  #print Quotient.Foo.node
+  -- #print Foo
+  -- #print Quotient.Foo.node
 
 
 
@@ -256,7 +256,6 @@ qpf C₁ α β := Nat
 qpf C₂ (n : Nat) α β := PFin2 n
 
 qpf G₄ α β ρ := QpfList ρ
-
 
 
 /-

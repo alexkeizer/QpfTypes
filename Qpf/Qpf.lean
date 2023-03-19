@@ -1,4 +1,5 @@
--- import Qpf.Qpf.Multivariate.Basic
+
+import Qpf.Qpf.Multivariate.Basic
 
 import Qpf.Qpf.Multivariate.VecMvQPF
 import Qpf.MvFunctor.VecMvFunctor

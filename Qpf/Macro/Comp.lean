@@ -265,7 +265,7 @@ def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
     $modifiers:declModifiers
     instance $deadBindersNoHoles:bracketedBinder* : 
       MvQPF (TypeFun.ofCurried $F_applied) 
-    := by unfold $F; infer_instance
+    := MvQPF.instQPF_ofCurried_curried
   )
   -- trace[Qpf.Comp] cmd
   elabCommand cmd

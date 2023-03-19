@@ -107,6 +107,28 @@ namespace Macro
     return (bindersNoHoles, binderNames)
 
 
+  inductive BinderKind
+    | explicit
+    | implicit
+    | ident
+    deriving DecidableEq, BEq, Inhabited
+
+
+  open Lean.Parser.Term (explicitBinder implicitBinder) in
+  /-- Parse a `BinderKind` from a `SyntaxNodeKind` -/
+  def BinderKind.ofSyntaxKind (kind : SyntaxNodeKind) : BinderKind :=
+    if kind == ``implicitBinder then
+          .implicit
+        else if kind == ``Lean.binderIdent 
+                || kind == ``Lean.Parser.Term.binderIdent 
+                || kind == `ident then
+          .ident
+        else if kind == ``explicitBinder then
+          .explicit
+        else
+          panic "Bug: unexpected binder kind {binder} has kind {kind}"
+
+
   open Lean.Parser.Term in
   /--
     Takes a list of binders, and split it into live and dead binders, respectively.
@@ -120,35 +142,34 @@ namespace Macro
 
     let mut isLive := false
     for binder in binders do
-      let kind := binder.getKind
-      dbg_trace "{binder}.getKind = {kind}"
+      let kind := BinderKind.ofSyntaxKind binder.getKind
 
-      if kind == ``Lean.binderIdent || kind == ``Lean.Parser.Term.binderIdent || kind == `ident then
+      if kind == .ident then
         isLive := true
         liveVars := liveVars.push binder
 
-      else if kind == `Lean.Parser.Term.simpleBinder then
-        isLive := true
-        for id in binder[0].getArgs do
-          liveVars := liveVars.push id
+      -- else if kind == .explicit then
+      --   isLive := true
+      --   for id in binder[0].getArgs do
+      --     liveVars := liveVars.push id
 
-        if !binder[1].isNone then
-          trace[Qpf.Common] binder[1]
-          throwErrorAt binder "live variable may not have a type annotation.\nEither add brackets to mark the variable as dead, or remove the type"
+      --   if !binder[1].isNone then
+      --     trace[Qpf.Common] binder[1]
+      --     throwErrorAt binder "live variable may not have a type annotation.\nEither add brackets to mark the variable as dead, or remove the type"
 
       else if isLive then
         throwErrorAt binder f!"Unexpected bracketed binder, dead arguments must precede all live arguments.\nPlease reorder your arguments or mark this binder as live by removing brackets and/or type ascriptions"
 
-      else if kind == ``bracketedBinder then
+      else 
         deadBinders := deadBinders.push ⟨binder⟩
 
-      else
-        panic s!"splitLiveAndDeadBinders got invalid node kind {kind}"
     return (liveVars, deadBinders)
 
 
 
-  open Lean.Parser.Term in
+  
+
+  
   /--
     Takes a list of binders, and returns an array of just the bound identifiers, 
     for use in applications
@@ -159,21 +180,18 @@ namespace Macro
     let mut idents : Array Term := #[]
 
     for binder in binders do
-      let kind := binder.getKind
-      -- dbg_trace "({binder}).getKind := {kind}"
-
-      if kind == ``implicitBinder && !includeImplicits then
+      let kind := BinderKind.ofSyntaxKind binder.getKind
+        
+      if kind == .implicit && !includeImplicits then
         continue
 
-      else if kind == ``Lean.binderIdent || kind == ``Lean.Parser.Term.binderIdent || kind == `ident then
+      else if kind == .ident then
         idents := idents.push ⟨binder⟩ 
 
-      else if kind == ``explicitBinder || kind == ``Lean.Parser.Term.implicitBinder then
+      else 
         for id in binder[1].getArgs do
           idents := idents.push ⟨id⟩ 
-
-      else
-        panic "Bug: unexpected binder kind {binder} has kind {kind}"
+        
 
     -- dbg_trace "idents = {idents}"
     pure idents
