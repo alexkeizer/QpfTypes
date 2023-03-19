@@ -7,4 +7,4 @@ package qpf {
 @[default_target]
 lean_lib Qpf
 
-require mathlib from git "https://github.com/alexkeizer/mathlib4.git" @ "alexkeizer/isPolynomial"
+require mathlib from git "https://github.com/alexkeizer/mathlib4.git" @ "master"

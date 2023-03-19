@@ -4,9 +4,9 @@
  [{"git":
    {"url": "https://github.com/alexkeizer/mathlib4.git",
     "subDir?": null,
-    "rev": "dd1db42f8add71aa191067a4ac566a24abde638f",
+    "rev": "20392867e06183fe2954bc49d187e85ad3050f6b",
     "name": "mathlib",
-    "inputRev?": "alexkeizer/isPolynomial"}},
+    "inputRev?": "master"}},
   {"git":
    {"url": "https://github.com/gebner/quote4",
     "subDir?": null,
