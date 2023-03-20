@@ -1,3 +1,4 @@
+import Lean
 import Qpf.Util.Vec
 
 /-
@@ -50,63 +51,70 @@ import Qpf.Util.Vec
     -- users to instantiate it with non-typeclass functions
     variable {α : Type _} {n : Nat}
 
-/-- A custom type class to express that all elements of `v` implement some typeclass `Class` -/
-  class VecClass (Class : α → Type _) (v : Vec α n) where
-    prop : ∀ i, Class (v i)
+namespace Vec
 
-namespace VecClass
-  variable {α : Type _} {Class : α → Type} {n : Nat}
+open Lean Meta in
+/-- Derive a quantified version of the provided typeclass, so that statements of the form 
+    `∀i, Class (v i)` can be synthesized
+ -/
+macro "derive_vec_class" Class:ident type:term : command => 
+  let VecClass := mkIdent <| Class.getId ++ "VecClass"
+  `(
+    class $VecClass {n : Nat} (v : Vec $type n) where
+      prop : ∀ i, $Class (v i)
 
-
-  /-- In case of an empty `Vec`, the statement is vacuous -/
-  instance instNil (v : Vec α 0) : VecClass Class v
-    := ⟨by intro i; cases i⟩
-
-  -- Since `Class` might not be a typeclass, Lean will complain we're putting
-  -- it in the `[...]` inference binder, the following option turns this warning off.
-  -- If a user tries to instantiate this definition in the case that `Class` is *not*
-  -- a typeclass, Lean will throw an `type class instance expected` error
-  set_option checkBinderAnnotations false in
-  /-- 
-    The recursive step, if the head and all elements in the tail of a vector implement `Class`,
-    then all elements implement `Class`. 
-    Requires that `v` is reducible by type class inference.
-
-    It is important that the vector used in the recursive step (`succ`) remains reducible, or the
-    inference system will not find the appropriate instance. That is why we spell out the composition,
-    rather than use the more concise `v ∘ .fs`
-  -/
-  instance instSucc  (v : Vec α (.succ n)) 
-                              [zero : Class (v .fz)]
-                              [succ : VecClass Class (fun i => v i.fs)] : 
-                          VecClass Class v := 
-  ⟨by intro i; 
-      cases i; 
-      exact zero;
-      apply succ.prop
-    ⟩
+    namespace $VecClass
+      /-- In case of an empty `Vec`, the statement is vacuous -/
+      instance instNil (G : Vec $type 0) : $VecClass G
+        := ⟨by intro i; cases i⟩
 
 
-  set_option checkBinderAnnotations false in
-  /-- 
-    Alternative recursive step. Since `Vec.append1` is not reducible, we explicitly provide an
-    instance
-  -/
-  instance instAppend1 (tl : Vec α n) (hd : α)
-                              [zero : Class hd]
-                              [succ : VecClass Class tl] : 
-                          VecClass Class (tl.append1 hd) := 
-  ⟨by intro i; 
-      cases i; 
-      exact zero;
-      apply succ.prop
-    ⟩
+      /-- 
+        The recursive step, if the head and all elements in the tail of a vector implement `Class`,
+        then all elements implement `Class`. 
+        Requires that `v` is reducible by type class inference.    
+      -/
+      instance instSucc {n : Nat} (G : Vec $type (.succ n)) 
+                                  [zero : $Class (G .fz)]
+                                  /-  It is important that the vector used in the recursive step remains 
+                                      reducible, or the inference system will not find the appropriate 
+                                      instance. That is why we spell out the composition, rather than 
+                                      use the more concise `v ∘ .fs`                              
+                                  -/
+                                  [succ : $VecClass (fun i => G i.fs)] : 
+                              $VecClass G := 
+      ⟨by intro i; 
+          cases i; 
+          exact zero;
+          apply succ.prop
+        ⟩
 
 
-  /-- Users need not be aware of `VecClass`, they can simply write universally quantified type class 
-      constraints  -/
-  instance instUnbox [inst : VecClass Class v] : 
-    ∀i, Class (v i) :=
-  inst.prop
+      /-- 
+        Alternative recursive step. Since `Vec.append1` is not reducible, we explicitly provide an
+        instance
+      -/
+      instance instAppend1 {n : Nat} (tl : Vec $type n) (hd : $type)
+                                  [zero : $Class hd]
+                                  [succ : $VecClass tl] : 
+                              $VecClass (tl.append1 hd) := 
+      ⟨by intro i; 
+          cases i; 
+          exact zero;
+          apply succ.prop
+        ⟩
 
-end VecClass
+
+      /-- Users need not be aware of `VecClass`, they can simply write universally quantified type class 
+          constraints  -/
+      instance instUnbox {n : Nat} {G : Vec $type n} [inst : $VecClass G] : 
+        ∀i, $Class (G i) :=
+      inst.prop
+
+      instance instBox {n : Nat} {G : Vec $type n} [inst : ∀i, $Class (G i)] : 
+        $VecClass G :=
+      ⟨inst⟩
+    end $VecClass
+  )
+end Vec
+
