@@ -139,13 +139,21 @@ partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Term
     trace[QPF.Comp] "target {target} is an application"
     let (F, args) ← (Comp.parseApp isLiveVar target)
 
-    let mut G : Array Term := #[]
-    for a in args do
-      let Ga ← elabQpf vars a none false
-      G := G.push Ga
-
     let F_stx ← delab F;
-    `(Comp (n:=$(quote args.length)) $F_stx !![$G,*])
+    /-
+      Optimization: check if the application is of the form `F α β γ .. = F α β γ ..`.
+      In such cases, we can directly return `F`, rather than generate a composition of projections
+    -/
+    let is_trivial := args.enum.all fun ⟨i, arg⟩ => arg.isFVar && vars'.indexOf arg == i
+    if is_trivial then
+      return F_stx
+    else
+      let mut G : Array Term := #[]
+      for a in args do
+        let Ga ← elabQpf vars a none false
+        G := G.push Ga
+    
+      `(Comp (n:=$(quote args.length)) $F_stx !![$G,*])
 
   else if target.isArrow then
     match target with
