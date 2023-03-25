@@ -23,13 +23,14 @@ import Qpf.Macro.Common
 namespace Macro.Comp
   open MvQPF
   open Lean Elab Term Command Meta
+  open PrettyPrinter (delab)
   open Syntax
   -- open Parser (ident)
   open Parser.Term (bracketedBinder)
   open Parser.Command (declModifiers «def»)
 
   initialize
-    registerTraceClass `Qpf.Comp
+    registerTraceClass `QPF.Comp
 
   -- TODO: make everything work without this compatibility coercion
   open TSyntax.Compat
@@ -56,8 +57,18 @@ where
     try
       -- Only try to infer QPF if `F` contains no live variables
       if !F.hasAnyFVar isLiveVar then
-        let F ← uncurry F (mkNatLit depth)
-        let inst_type ← mkAppM ``MvQPF #[F];
+        /-
+          HACK: For some reason building the following application directly with `Expr`s leads to
+          weird universe issues. So, instead we build it with syntax.
+
+          The original, `Expr` version was as follows:
+            let F ← uncurry F (mkNatLit depth)
+            let inst_type ← mkAppM ``MvQPF #[F];
+        -/
+        let F_stx ← delab F
+        let F ← `(@TypeFun.ofCurried $(quote depth) $F_stx)
+        let inst_type ← elabTerm (← `(MvQPF $F)) none
+        let F ← elabTerm F none
         
         -- asserts that the instance exists, or throws an error
         let _inst ← synthInstance inst_type
@@ -109,7 +120,7 @@ partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Term
     := fun fvarId => (List.indexOf' fvarId varIds).isSome
 
   if target.isFVar && isLiveVar target.fvarId! then
-    trace[Qpf.Comp] f!"target {target} is a free variable"
+    trace[QPF.Comp] f!"target {target} is a free variable"
     let ind ← match List.indexOf' target vars' with
     | none      => throwError "Free variable {target} is not one of the qpf arguments"
     | some ind  => pure ind
@@ -118,16 +129,16 @@ partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Term
     `(@Prj $arity_stx $ind_stx)
 
   else if !target.hasAnyFVar isLiveVar then
-    trace[Qpf.Comp] f!"target {target} is a constant"
+    trace[QPF.Comp] f!"target {target} is a constant"
     let targetStx ← match targetStx with
       | some stx => pure stx
       | none     => delab target
     `(Const $arity_stx $targetStx)
 
   else if target.isApp then
-    trace[Qpf.Comp] f!"target {target} is an application"
+    trace[QPF.Comp] "target {target} is an application"
     let (F, args) ← (Comp.parseApp isLiveVar target)
-    
+
     let mut G : Array Term := #[]
     for a in args do
       let Ga ← elabQpf vars a none false
@@ -179,7 +190,7 @@ def elabQpfCompositionBody (view: QpfCompositionBodyView) : CommandElabM Term :=
     let body_type ← 
       if let some typeStx := view.type? then
         let u ← mkFreshLevelMVar;
-        trace[Qpf.Comp] typeStx
+        trace[QPF.Comp] typeStx
         let type ← elabTermEnsuringType typeStx (mkSort <| mkLevelSucc u)
         if !(←whnf type).isType then
           throwErrorAt typeStx "invalid qpf, resulting type must be a type (e.g., `Type`, `Type _`, or `Type u`)"
@@ -231,7 +242,7 @@ def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
   let modifiers := quote (k := ``declModifiers) view.modifiers;
 
   let live_arity := mkNumLit liveBinders.size.repr;
-  -- trace[Qpf.Comp] body
+  trace[QPF.Comp] "body: {body}"
   elabCommand <|← `(
       $modifiers:declModifiers
       def $F_internal:ident $deadBinders:bracketedBinder* : 
@@ -254,7 +265,7 @@ def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
         MvQPF ($F_internal_applied) := 
       by unfold $F_internal; infer_instance
   )  
-  -- trace[Qpf.Comp] cmd
+  trace[QPF.Comp] "cmd: {cmd}"
   elabCommand cmd
 
 
@@ -266,7 +277,7 @@ def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
       MvQPF (TypeFun.ofCurried $F_applied) 
     := MvQPF.instQPF_ofCurried_curried
   )
-  -- trace[Qpf.Comp] cmd
+  trace[QPF.Comp] "cmd₂: {cmd}"
   elabCommand cmd
 
 

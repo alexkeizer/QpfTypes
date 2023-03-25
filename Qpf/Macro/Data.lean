@@ -520,7 +520,7 @@ def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
         := $body:term
     )
 
-    trace[QPF] "mkConstroctor.cmd = {cmd}"
+    trace[QPF] "mkConstructor.cmd = {cmd}"
     elabCommand cmd
   return ()
 
