@@ -49,7 +49,7 @@ structure DataView where
   derivingClasses : Array DerivingClassView
   -- further elements are changed from inductiveView
   command         : DataCommand
-  liveBinders     : Array Syntax
+  liveBinders     : TSyntaxArray ``Parser.Term.binderIdent
   deadBinders     : TSyntaxArray ``bracketedBinder
   deadBinderNames : Array Ident
     deriving Inhabited
@@ -76,11 +76,10 @@ def DataView.asInductive (view : DataView) : InductiveView
 
 
 open Lean.Parser in
-def DataView.pushLiveBinder (view : DataView) (binderIdent : Syntax) : DataView
+def DataView.pushLiveBinder (view : DataView) (binderIdent : TSyntax ``Parser.Term.binderIdent) : DataView
   :=  let liveBinders := view.liveBinders.push binderIdent
-      let newBinder := mkNode ``Term.explicitBinder #[mkNullNode #[binderIdent], mkNullNode]
       let binders := view.binders
-      let binders := binders.setArgs (binders.getArgs.push newBinder)
+      let binders := binders.setArgs (binders.getArgs.push binderIdent)
       { view with liveBinders, binders, }
 
 def DataView.popLiveBinder (view : DataView) : DataView
@@ -128,7 +127,6 @@ def CtorView.debug (ctor: CtorView) : String :=
   type?     := {ctor.type?},
 }"
 
-
 def DataView.debug (view : DataView) : String :=
   let ctors := view.ctors.map CtorView.debug
 s!"\{
@@ -149,6 +147,10 @@ s!"\{
   deadBinders     := {view.deadBinders     },
   deadBinderNames := {view.deadBinderNames },
 }"
+
+instance : ToString (DataView) := ⟨
+  fun view => view.debug
+⟩
 
 
 /-

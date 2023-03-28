@@ -37,14 +37,17 @@ private def CtorArgs.reset : ReplaceM Unit := do
 private def CtorArgs.get : ReplaceM CtorArgs := do
   pure (←StateT.get).ctor
 
+/--
+  The arity of the shape type created *after* replacing, i.e., the size of `r.expr`
+-/
 def Replace.arity (r : Replace) : Nat :=
-  r.vars.size
+  r.expr.size
 
 def Replace.getBinderIdents (r : Replace) : Array Ident :=
   r.vars.map mkIdent
 
 open Parser.Term in
-def Replace.getBinders (r : Replace) : CommandElabM Syntax := do
+def Replace.getBinders (r : Replace) : CommandElabM <| TSyntax ``bracketedBinder := do
   let names := r.getBinderIdents
   `(bracketedBinderF | ($names* : Type _ ))
 
@@ -130,7 +133,14 @@ def CtorView.withType? (ctor : CtorView) (type? : Option Syntax) : CtorView := {
   fresh variables.
 -/
 
-#eval toString ((Array.range 0).map (fun _ => (#[] : Array Nat)))
+
+
+
+/-- Runs the given action with a fresh instance of `Replace` -/
+def Replace.run : ReplaceM α → CommandElabM (α × Replace) := 
+  fun x => do 
+    let r ← Replace.new
+    StateT.run x r
 
 /--
   Extract the constructors for a "shape" functor from the original constructors.
@@ -138,9 +148,13 @@ def CtorView.withType? (ctor : CtorView) (type? : Option Syntax) : CtorView := {
   of the same type map to a single variable, where "same" refers to a very simple notion of
   syntactic equality. E.g., it does not realize `Nat` and `ℕ` are the same.
 -/
-def Replace.shapeOfCtors (view : InductiveView) 
+def Replace.shapeOfCtors (view : DataView) 
                           (shapeIdent : Syntax) 
-                          : ReplaceM (Array CtorView × Array CtorArgs) := do  
+    : CommandElabM ((Array CtorView × Array CtorArgs) × Replace) := 
+Replace.run <| do
+  -- for var in view.liveBinders do
+  --   _
+
   let ctors := view.ctors
 
   let pairs ← ctors.mapM fun ctor => do
@@ -179,12 +193,6 @@ def Replace.shapeOfCtors (view : InductiveView)
   pure (ctors, ctorArgs)
 
 
-
-/-- Runs the given action with a fresh instance of `Replace` -/
-def Replace.run : ReplaceM α → CommandElabM (α × Replace) := 
-  fun x => do 
-    let r ← Replace.new
-    StateT.run x r
 
 
 /-- Replace syntax in *all* subexpressions -/
@@ -225,6 +233,10 @@ partial def Replace.replaceStx (recType newParam : Term) : Term → CommandElabM
           pure ⟨ctor_type⟩ 
 
 
+
+instance : Coe Ident (TSyntax ``Parser.Term.binderIdent) := ⟨
+  fun id => mkNode _ #[id]
+⟩
 
 open Parser
 /--

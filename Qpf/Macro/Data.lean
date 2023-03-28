@@ -1,7 +1,6 @@
 import Lean
 import Mathlib
 
--- import Qpf.Macro.Data.Internals
 import Qpf.Macro.Data.Replace
 import Qpf.Macro.Data.Count
 import Qpf.Macro.Data.View
@@ -11,9 +10,8 @@ import Qpf.Macro.Comp
 open Lean Meta Elab.Command
 open Elab (Modifiers elabModifiers)
 open Parser.Term (namedArgument)
-
-initialize
-  registerTraceClass `QPF
+open PrettyPrinter (delab)
+open Macro (elabCommand')
 
 private def Array.enum (as : Array α) : Array (Nat × α) :=
   (Array.range as.size).zip as
@@ -187,20 +185,11 @@ def mkChildT (view : InductiveView) (r : Replace) (headTName : Name) : CommandEl
       $body:declValEqns
   )
 
-  -- trace[QPF] "mkChildT :: elabCommand"
-  elabCommand cmd
+  -- trace[QPF] "mkChildT :: elabCommand'"
+  elabCommand' cmd
 
   pure declName
 
-
-
-
-
-
--- #check MvQPF.IsPolynomial.ofEquiv {
---   toFun := _,
--- }
--- #check MvQPF.ofPolynomial
 
 
 open Parser.Term in
@@ -298,24 +287,6 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT P : Ide
         $unboxBody:matchAlt*
   )
 
-  -- let cmd ← `(
-  --   instance $q:ident : MvQPF (@TypeFun.ofCurried $(quote arity) $shape) :=
-  --     MvQPF.ofPolynomial $P $box $unbox (
-  --       by 
-  --         intro _ x;
-  --         rcases x with ⟨head, child⟩;
-  --         cases head
-  --         <;> simp
-  --         <;> apply congrArg
-  --         <;> fin_destr
-  --         <;> rfl          
-  --     ) (
-  --       by 
-  --         intro _ x;
-  --         cases x
-  --         <;> rfl
-  --     )
-  -- )
   let cmd ← `(
     instance $q:ident : MvQPF.IsPolynomial (@TypeFun.ofCurried $(quote arity) $shape) :=
       .ofEquiv $P {
@@ -338,7 +309,7 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT P : Ide
       }
   )
   trace[QPF] "qpf: {cmd}\n"
-  elabCommand cmd
+  elabCommand' cmd
 
   pure ()
 
@@ -356,7 +327,7 @@ structure MkShapeResult where
   (P : Name)
 
 open Parser in
-def mkShape (view: InductiveView) : CommandElabM MkShapeResult := do
+def mkShape (view: DataView) : CommandElabM MkShapeResult := do
   -- If the original declId was `MyType`, we want to register the shape type under `MyType.Shape`
   let suffix := "Shape"
   let declName := Name.mkStr view.declName suffix
@@ -366,8 +337,11 @@ def mkShape (view: InductiveView) : CommandElabM MkShapeResult := do
 
   -- Extract the "shape" functors constructors
   let shapeIdent  := mkIdent shortDeclName
-  let ((ctors, ctorArgs), r) ← Replace.run (Replace.shapeOfCtors view shapeIdent)
+  let ((ctors, ctorArgs), r) ← Replace.shapeOfCtors view shapeIdent
   let ctors := ctors.map (CtorView.declReplacePrefix view.declName declName)
+
+  trace[QPF] "mkShape :: r.getBinders = {←r.getBinders}"
+  trace[QPF] "mkShape :: r.expr = {r.expr}"
 
   -- Assemble it back together, into the shape inductive type
   let binders ← r.getBinders  
@@ -387,7 +361,7 @@ def mkShape (view: InductiveView) : CommandElabM MkShapeResult := do
     : InductiveView
   }
 
-  -- trace[QPF] "mkShape :: elabInductiveViews"
+  trace[QPF] "mkShape :: elabInductiveViews :: binders = {view.binders}"
   elabInductiveViews #[view]
 
   let headTName ← mkHeadT view
@@ -407,31 +381,50 @@ def mkShape (view: InductiveView) : CommandElabM MkShapeResult := do
   let headTId := mkIdent headTName
   let childTId := mkIdent childTName
 
-  elabCommand <|<- `(
+  elabCommand' <|<- `(
     def $PDeclId := 
       MvPFunctor.mk $headTId $childTId
   )
 
  
-  mkQpf view ctorArgs headTId PId r.arity
+  mkQpf view ctorArgs headTId PId r.expr.size
   
 
   pure ⟨r, declName, PName⟩  
 
 
 
-
-
-
+open Elab.Term in
+/--
+  Checks whether the given term is a polynomial functor, i.e., whether there is an instance of 
+  `IsPolynomial F`, and return that instance (if it exists).
+-/
+def isPolynomial (F: Term) : CommandElabM (Option Term) := do
+  liftTermElabM do
+    trace[QPF] "isPolynomial::F = {F}"
+    let inst_type ← elabTerm (← `(MvQPF.IsPolynomial $F:term)) none
+    try
+      let inst ← synthInstance inst_type
+      return some <|<- delab inst
+    catch e =>
+      trace[QPF] "{e.toMessageData}"
+      return none
 
 
 
 /--
   Return a syntax tree for `MvQPF.Fix` or `MvQPF.Cofix` when self is `Data`, resp. `Codata`.
 -/
-def DataCommand.fixOrCofix : DataCommand → Name
-  | .Data   => ``_root_.MvQPF.Fix
-  | .Codata => ``_root_.MvQPF.Cofix
+def DataCommand.fixOrCofix : DataCommand → Ident
+  | .Data   => mkIdent ``_root_.MvQPF.Fix
+  | .Codata => mkIdent ``_root_.MvQPF.Cofix
+
+/--
+  Return a syntax tree for `MvPFunctor.W` or `MvPFunctor.M` when self is `Data`, resp. `Codata`.
+-/
+def DataCommand.fixOrCofixPolynomial : DataCommand → Ident
+  | .Data   => mkIdent ``_root_.MvPFunctor.W
+  | .Codata => mkIdent ``_root_.MvPFunctor.M
 
 /--
   Take either the fixpoint or cofixpoint of `base` to produce an `Internal` uncurried QPF, 
@@ -446,19 +439,37 @@ def mkType (view : DataView) (base : Term) : CommandElabM Unit := do
   let uncurriedApplied ← `($uncurriedIdent $deadBinderNamedArgs:namedArgument*)
 
   let arity := view.liveBinders.size
-  let fix_or_cofix := mkIdent <| DataCommand.fixOrCofix view.command
-  let cmd ← `(
-    abbrev $baseIdent:ident $view.deadBinders:bracketedBinder* : _root_.TypeFun $(quote <| arity + 1)
-      := $base
 
-    abbrev $uncurriedIdent:ident $view.deadBinders:bracketedBinder* : _root_.TypeFun $(quote arity)
-      := $fix_or_cofix $base
+  let poly ← isPolynomial base
+  trace[QPF] "poly: {poly}"
 
+  let cmd ← match poly with
+    | some poly => 
+        let fix_or_cofix := DataCommand.fixOrCofixPolynomial view.command
+        `(
+          abbrev $baseIdent:ident $view.deadBinders:bracketedBinder* : _root_.TypeFun $(quote <| arity + 1)
+            := (@MvQPF.P _ _ $poly).Obj
+
+          abbrev $uncurriedIdent:ident $view.deadBinders:bracketedBinder* : _root_.TypeFun $(quote arity)
+            := ($fix_or_cofix $base).Obj
+        ) 
+    | none =>
+        let fix_or_cofix := DataCommand.fixOrCofix view.command
+        `(
+          abbrev $baseIdent:ident $view.deadBinders:bracketedBinder* : _root_.TypeFun $(quote <| arity + 1)
+            := $base
+
+          abbrev $uncurriedIdent:ident $view.deadBinders:bracketedBinder* : _root_.TypeFun $(quote arity)
+            := $fix_or_cofix $base
+        ) 
+
+  trace[QPF] "elabData.cmd = {cmd}"
+  elabCommand' cmd
+
+  elabCommand' <|<- `(
     abbrev $(view.declId)   $view.deadBinders:bracketedBinder*
       := _root_.TypeFun.curried $uncurriedApplied
-  ) 
-  trace[QPF] "elabData.cmd = {cmd}"
-  elabCommand cmd
+  )
 
 
 
@@ -491,7 +502,7 @@ def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
       do pure <| mkIdent <|← Elab.Term.mkFreshBinderName
     let args := args.toArray
 
-    let mk := mkIdent ((DataCommand.fixOrCofix view.command) ++ `mk)
+    let mk := mkIdent ((DataCommand.fixOrCofix view.command).getId ++ `mk)
     let shapeCtor := mkIdent <| Name.replacePrefix view.declName shape ctor.declName
     trace[QPF] "shapeCtor = {shapeCtor}"
 
@@ -521,7 +532,7 @@ def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
     )
 
     trace[QPF] "mkConstructor.cmd = {cmd}"
-    elabCommand cmd
+    elabCommand' cmd
   return ()
 
 
@@ -538,8 +549,9 @@ def elabData : CommandElab := fun stx => do
   let view ← dataSyntaxToView modifiers decl
 
   let (nonRecView, _rho) ← makeNonRecursive view;
+  trace[QPF] "nonRecView: {nonRecView}"
 
-  let ⟨r, shape, _P⟩ ← mkShape nonRecView.asInductive
+  let ⟨r, shape, _P⟩ ← mkShape nonRecView
 
   /- Composition pipeline -/
   let base ← elabQpfCompositionBody {
@@ -550,10 +562,29 @@ def elabData : CommandElab := fun stx => do
       $(mkIdent shape):ident $r.expr*
     )
   }
-  trace[QPF] "base = {base}"
+  trace[QPF] m!"base = {base}"
 
   mkType view base  
-  mkConstructors view shape
+  -- mkConstructors view shape
 
 
 end Data.Command
+
+namespace Test
+  set_option trace.Meta true
+  set_option trace.Meta.debug true
+  sudo set_option trace.QPF true
+  sudo set_option trace.QPF.Comp true
+  set_option pp.raw true
+
+  data Wrap α 
+    | mk : α → Wrap α
+
+  #print Wrap.Shape
+  #check (Wrap.Shape : CurriedTypeFun 1)
+
+  #print Test.Wrap.Uncurried
+  #print Test.Wrap.Base
+
+
+end Test

@@ -2,9 +2,21 @@ import Qpf.Qpf
 
 namespace Macro
   open Lean Meta Elab Term
+  open Elab.Command (CommandElabM)
+
+  open Lean.Parser.Term (binderIdent bracketedBinder)
 
   initialize
-    registerTraceClass `Qpf.Common
+    registerTraceClass `QPF
+
+
+  def elabCommand' (stx : TSyntax `command) : CommandElabM Unit := do
+    trace[QPF] "CUSTOM ELABCOMMAND"
+    try
+      Elab.Command.elabCommand stx
+    catch e =>
+      throwError "{e.toMessageData}\n\n Error thrown while elaborating:\n\n {stx}"
+
 
   variable [MonadControlT MetaM n] [Monad n] [MonadLiftT MetaM n] 
             [MonadError n] [MonadLog n] [AddMessageContext n]
@@ -12,8 +24,6 @@ namespace Macro
             [MonadLiftT IO n]
 
 
-  #check @TypeFun.curried
-  #check Exception
 
   /--
     Takes an expression `e` of type `CurriedTypeFun n` and returns an expression of type `TypeFun n`
@@ -33,13 +43,13 @@ namespace Macro
     -- let us      ← mkFreshLevelMVars 2
     -- let app     := mkApp2 (mkConst ``TypeFun.curried us) n F_inner
     
-    -- trace[Qpf.Common] "\nChecking defEq of {F} and {app}"
+    -- trace[QPF] "\nChecking defEq of {F} and {app}"
     -- if (←isDefEq F app) then
     --   if let some F' :=  (← getExprMVarAssignment? F_inner.mvarId!) then
-    --     trace[Qpf.Common] "yes: {F'}"
+    --     trace[QPF] "yes: {F'}"
     --     return F'
     
-    -- trace[Qpf.Common] "no"
+    -- trace[QPF] "no"
     -- mkAppM ``TypeFun.ofCurried #[F]
 
   
@@ -57,7 +67,7 @@ namespace Macro
     withLocalDeclsD decls f
 
 
-  open Lean.Parser.Term (bracketedBinder) in
+  
   /--
     Takes an array of bracketed binders, and allocate a fresh identifier for each hole in the binders.
     Returns a pair of the binder syntax with all holes replaced, and an array of all bound identifiers,
@@ -73,14 +83,14 @@ namespace Macro
       let mut newArgStx := Syntax.missing
       let kind := stx.getKind
 
-      if kind == `Lean.Parser.Term.instBinder then
+      if kind == ``Lean.Parser.Term.instBinder then
         if stx[1].isNone then
           throwErrorAt stx "Instances without names are not supported yet"
           -- let id := mkIdentFrom stx (← mkFreshBinderName)
           -- binderNames := binderNames.push id
           -- newArgStx := stx[1].setArgs #[id, Syntax.atom SourceInfo.none ":"]
         else    
-          trace[Qpf.Common] stx[1]
+          trace[QPF] stx[1]
           let id := stx[1][0]
           binderNames := binderNames.push ⟨id⟩
           newArgStx := stx[1]
@@ -88,11 +98,11 @@ namespace Macro
       else
         -- replace each hole with a fresh id
         let ids ← stx[1].getArgs.mapM fun (id : Syntax) => do
-          trace[Qpf.Common] "{id}"
+          trace[QPF] "{id}"
           let kind := id.getKind
           if kind == identKind then
             return id
-          else if kind == `Lean.Parser.Term.hole then
+          else if kind == ``Lean.Parser.Term.hole then
             return mkIdentFrom id (← mkFreshBinderName)
           else 
             throwErrorAt id "identifier or `_` expected, found {kind}"
@@ -121,12 +131,16 @@ namespace Macro
           .implicit
         else if kind == ``Lean.binderIdent 
                 || kind == ``Lean.Parser.Term.binderIdent 
-                || kind == `ident then
+                || kind == ``Lean.Parser.Term.ident
+                || kind == ``Lean.Parser.ident
+                -- HACK: this one should be just a single backquote  
+                || kind == `ident 
+                then
           .ident
         else if kind == ``explicitBinder then
           .explicit
         else
-          panic "Bug: unexpected binder kind {binder} has kind {kind}"
+          panic s!"Bug: unexpected binder kind `{kind}"
 
 
   open Lean.Parser.Term in
@@ -136,7 +150,7 @@ namespace Macro
     `simpleBinder` nodes if needed (while asserting that there were no type annotations)
   -/
   def splitLiveAndDeadBinders (binders : Array Syntax) 
-      : n (Array Syntax × TSyntaxArray ``bracketedBinder) := do
+      : n (TSyntaxArray ``Lean.Parser.Term.binderIdent × TSyntaxArray ``bracketedBinder) := do
     let mut liveVars := #[]
     let mut deadBinders := #[]
 
@@ -146,7 +160,7 @@ namespace Macro
 
       if kind == .ident then
         isLive := true
-        liveVars := liveVars.push binder
+        liveVars := liveVars.push ⟨binder⟩ 
 
       -- else if kind == .explicit then
       --   isLive := true
@@ -154,7 +168,7 @@ namespace Macro
       --     liveVars := liveVars.push id
 
       --   if !binder[1].isNone then
-      --     trace[Qpf.Common] binder[1]
+      --     trace[QPF] binder[1]
       --     throwErrorAt binder "live variable may not have a type annotation.\nEither add brackets to mark the variable as dead, or remove the type"
 
       else if isLive then
@@ -237,3 +251,20 @@ instance : Quote Modifiers (k := ``declModifiers) where
   -- #dbg_expr (Nat → Int)
 
 end Macro
+
+
+-- set_option pp.raw true
+
+-- open Lean in 
+-- elab "#dbg_ident" id:binderIdent : command => do
+--   dbg_trace "{id}"
+--   let id := id.raw
+--   dbg_trace "kind: {id.getKind}"
+--   dbg_trace "args: {id.getArgs}"
+--   dbg_trace "args[0].getKind: {id.getArgs[0]!.getKind}"
+
+-- #dbg_ident x 
+-- #dbg_ident _ 
+
+-- example : ``Lean.binderIdent = ``Lean.Parser.Term.binderIdent := 
+--   by rfl
