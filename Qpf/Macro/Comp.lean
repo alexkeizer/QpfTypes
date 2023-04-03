@@ -63,9 +63,15 @@ where
             let inst_type ← mkAppM ``MvQPF #[F];
         -/
         let F_stx ← delab F
-        let F ← `(@TypeFun.ofCurried $(quote depth) $F_stx)
+        let depth := quote (k:=numLitKind) depth
+        let F ← `(@TypeFun.ofCurried $depth $F_stx)
         let inst_type ← elabTerm (← `(MvQPF $F)) none
-        let F ← elabTerm F none
+        let Nat := Expr.const ``Nat .nil
+        let u ← mkFreshLevelMVar
+        let v ← mkFreshLevelMVar
+        let F_type := Expr.app (.const ``TypeFun (.cons u <| .cons v .nil)) 
+                                (←elabTerm depth Nat)
+        let F ← elabTerm F <| some F_type
         
         -- asserts that the instance exists, or throws an error
         let _inst ← synthInstance inst_type
@@ -108,6 +114,7 @@ open PrettyPrinter in
   Elaborate the body of a qpf
 -/
 partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Term := none) (normalized := false) : TermElabM Term := do
+  trace[QPF] "elabQPF :: {vars} -> {target}"
   let vars' := vars.toList;
   let arity := vars'.length;
   let arity_stx := quote arity;
@@ -133,10 +140,11 @@ partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Term
     `(Const $arity_stx $targetStx)
 
   else if target.isApp then
-    trace[QPF] "target {target} is an application"
     let (F, args) ← (Comp.parseApp isLiveVar target)
+    trace[QPF] "target {target} is an application of {F} to {args}"
 
     let F_stx ← delab F;
+    trace[QPF] "F_stx := {F_stx}"
     /-
       Optimization: check if the application is of the form `F α β γ .. = F α β γ ..`.
       In such cases, we can directly return `F`, rather than generate a composition of projections
@@ -191,12 +199,19 @@ structure QpfCompositionBinders where
   that represents the desired functor (in uncurried form)
 -/
 def elabQpfCompositionBody (view: QpfCompositionBodyView) : CommandElabM Term := do  
+  trace[QPF] "elabQpfCompositionBody ::
+    type?       := {view.type?}
+    target      := {view.target}
+    liveBinders := {view.liveBinders}
+    deadBinders := {view.deadBinders}
+  "
   liftTermElabM do
     let body_type ← 
       if let some typeStx := view.type? then
         let u ← mkFreshLevelMVar;
-        trace[QPF] typeStx
+        trace[QPF] "Expected (Syntax): {typeStx}"
         let type ← elabTermEnsuringType typeStx (mkSort <| mkLevelSucc u)
+        trace[QPF] "Expected (Expr): {type}"
         if !(←whnf type).isType then
           throwErrorAt typeStx "invalid qpf, resulting type must be a type (e.g., `Type`, `Type _`, or `Type u`)"
         pure type
@@ -248,7 +263,7 @@ def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
 
   let live_arity := mkNumLit liveBinders.size.repr;
   trace[QPF] "body: {body}"
-  elabCommand' <|← `(
+  elabCommand <|← `(
       $modifiers:declModifiers
       def $F_internal:ident $deadBinders:bracketedBinder* : 
         TypeFun $live_arity := 
@@ -271,7 +286,7 @@ def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
       by unfold $F_internal; infer_instance
   )  
   trace[QPF] "cmd: {cmd}"
-  elabCommand' cmd
+  elabCommand cmd
 
 
   let F_applied ← `($F $deadBinderNamedArgs:namedArgument*)
@@ -283,7 +298,7 @@ def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
     := MvQPF.instQPF_ofCurried_curried
   )
   trace[QPF] "cmd₂: {cmd}"
-  elabCommand' cmd
+  elabCommand cmd
 
 
 

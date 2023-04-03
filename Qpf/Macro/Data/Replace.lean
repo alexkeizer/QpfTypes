@@ -152,8 +152,14 @@ def Replace.shapeOfCtors (view : DataView)
                           (shapeIdent : Syntax) 
     : CommandElabM ((Array CtorView × Array CtorArgs) × Replace) := 
 Replace.run <| do
-  -- for var in view.liveBinders do
-  --   _
+  for var in view.liveBinders do
+    let varIdent : Ident := ⟨if var.raw.getKind == ``Parser.Term.binderIdent then
+      var.raw[0]
+    else
+      var.raw
+    ⟩
+    let varTerm ← `($varIdent:ident)
+    let _ ← ReplaceM.identFor varTerm
 
   let ctors := view.ctors
 

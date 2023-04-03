@@ -11,7 +11,7 @@ open Lean Meta Elab.Command
 open Elab (Modifiers elabModifiers)
 open Parser.Term (namedArgument)
 open PrettyPrinter (delab)
-open Macro (elabCommand')
+open Macro (elabCommand)
 
 private def Array.enum (as : Array α) : Array (Nat × α) :=
   (Array.range as.size).zip as
@@ -185,8 +185,8 @@ def mkChildT (view : InductiveView) (r : Replace) (headTName : Name) : CommandEl
       $body:declValEqns
   )
 
-  -- trace[QPF] "mkChildT :: elabCommand'"
-  elabCommand' cmd
+  -- trace[QPF] "mkChildT :: elabCommand"
+  elabCommand cmd
 
   pure declName
 
@@ -309,7 +309,7 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT P : Ide
       }
   )
   trace[QPF] "qpf: {cmd}\n"
-  elabCommand' cmd
+  elabCommand cmd
 
   pure ()
 
@@ -381,7 +381,7 @@ def mkShape (view: DataView) : CommandElabM MkShapeResult := do
   let headTId := mkIdent headTName
   let childTId := mkIdent childTName
 
-  elabCommand' <|<- `(
+  elabCommand <|<- `(
     def $PDeclId := 
       MvPFunctor.mk $headTId $childTId
   )
@@ -443,30 +443,30 @@ def mkType (view : DataView) (base : Term) : CommandElabM Unit := do
   let poly ← isPolynomial base
   trace[QPF] "poly: {poly}"
 
-  let cmd ← match poly with
-    | some poly => 
-        let fix_or_cofix := DataCommand.fixOrCofixPolynomial view.command
-        `(
-          abbrev $baseIdent:ident $view.deadBinders:bracketedBinder* : _root_.TypeFun $(quote <| arity + 1)
-            := (@MvQPF.P _ _ $poly).Obj
+  -- let cmd ← match poly with
+  --   | some poly => 
+  --       let fix_or_cofix := DataCommand.fixOrCofixPolynomial view.command
+  --       `(
+  --         abbrev $baseIdent:ident $view.deadBinders:bracketedBinder* : _root_.TypeFun $(quote <| arity + 1)
+  --           := (@MvQPF.P _ _ $poly).Obj
 
-          abbrev $uncurriedIdent:ident $view.deadBinders:bracketedBinder* : _root_.TypeFun $(quote arity)
-            := ($fix_or_cofix $base).Obj
-        ) 
-    | none =>
-        let fix_or_cofix := DataCommand.fixOrCofix view.command
-        `(
+  --         abbrev $uncurriedIdent:ident $view.deadBinders:bracketedBinder* : _root_.TypeFun $(quote arity)
+  --           := ($fix_or_cofix $base).Obj
+  --       ) 
+  --   | none =>
+  let fix_or_cofix := DataCommand.fixOrCofix view.command
+  let cmd ← `(
           abbrev $baseIdent:ident $view.deadBinders:bracketedBinder* : _root_.TypeFun $(quote <| arity + 1)
             := $base
 
           abbrev $uncurriedIdent:ident $view.deadBinders:bracketedBinder* : _root_.TypeFun $(quote arity)
             := $fix_or_cofix $base
-        ) 
+  ) 
 
   trace[QPF] "elabData.cmd = {cmd}"
-  elabCommand' cmd
+  elabCommand cmd
 
-  elabCommand' <|<- `(
+  elabCommand <|<- `(
     abbrev $(view.declId)   $view.deadBinders:bracketedBinder*
       := _root_.TypeFun.curried $uncurriedApplied
   )
@@ -532,7 +532,7 @@ def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
     )
 
     trace[QPF] "mkConstructor.cmd = {cmd}"
-    elabCommand' cmd
+    elabCommand cmd
   return ()
 
 
@@ -559,13 +559,13 @@ def elabData : CommandElab := fun stx => do
     deadBinders := nonRecView.deadBinders,     
     type?   := none,
     target  := ←`(
-      $(mkIdent shape):ident $r.expr*
+      $(mkIdent shape):ident $r.expr:term*
     )
   }
   trace[QPF] m!"base = {base}"
 
   mkType view base  
-  -- mkConstructors view shape
+  mkConstructors view shape
 
 
 end Data.Command
@@ -580,8 +580,17 @@ namespace Test
   data Wrap α 
     | mk : α → Wrap α
 
-  #print Wrap.Shape
-  #check (Wrap.Shape : CurriedTypeFun 1)
+  #print axioms Wrap.Shape
+  #print axioms Test.Wrap.Shape.qpf
+
+
+  #print axioms Test.Test.Wrap.Base
+
+  #print Test.Wrap.Base
+  #print axioms Test.Wrap.Uncurried
+
+  #reduce Wrap
+  #check (Wrap.Shape : CurriedTypeFun 2)
 
   #print Test.Wrap.Uncurried
   #print Test.Wrap.Base

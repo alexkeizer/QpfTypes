@@ -10,14 +10,6 @@ namespace Macro
     registerTraceClass `QPF
 
 
-  def elabCommand' (stx : TSyntax `command) : CommandElabM Unit := do
-    trace[QPF] "CUSTOM ELABCOMMAND"
-    try
-      Elab.Command.elabCommand stx
-    catch e =>
-      throwError "{e.toMessageData}\n\n Error thrown while elaborating:\n\n {stx}"
-
-
   variable [MonadControlT MetaM n] [Monad n] [MonadLiftT MetaM n] 
             [MonadError n] [MonadLog n] [AddMessageContext n]
             [MonadQuotation n] [MonadTrace n] [MonadOptions n]
@@ -60,6 +52,10 @@ namespace Macro
   := do
     let u := mkLevelSucc <|← mkFreshLevelMVar;
     let decls := binders.map fun α => (
+      let α := if α.getKind == ``Parser.Term.binderIdent then
+        α[0]
+      else
+        α
       α.getId, 
       fun _ => pure (mkSort u)
     )
