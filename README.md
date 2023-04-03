@@ -75,6 +75,11 @@ Fundamentally, (co)recursive families of types or even mutually (co)inductive ty
 Beyond this, the implementation is far from perfect and might throw errors for specifications that should be supported. Feel free to open issues for any such specifications.
 
 
+# Try it Out
+
+You can clone https://github.com/alexkeizer/qpf4-example for an example project that imports this package. There is also https://gitpod.io/#https://github.com/alexkeizer/qpf4-example, allowing you to play with codatatypes directly in your browser, no setup needed.
+
+
 
 # Organization
 
