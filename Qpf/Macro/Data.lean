@@ -11,7 +11,6 @@ open Lean Meta Elab.Command
 open Elab (Modifiers elabModifiers)
 open Parser.Term (namedArgument)
 open PrettyPrinter (delab)
-open Macro (elabCommand)
 
 private def Array.enum (as : Array α) : Array (Nat × α) :=
   (Array.range as.size).zip as
@@ -569,31 +568,3 @@ def elabData : CommandElab := fun stx => do
 
 
 end Data.Command
-
-namespace Test
-  set_option trace.Meta true
-  set_option trace.Meta.debug true
-  sudo set_option trace.QPF true
-  sudo set_option trace.QPF.Comp true
-  set_option pp.raw true
-
-  data Wrap α 
-    | mk : α → Wrap α
-
-  #print axioms Wrap.Shape
-  #print axioms Test.Wrap.Shape.qpf
-
-
-  #print axioms Test.Test.Wrap.Base
-
-  #print Test.Wrap.Base
-  #print axioms Test.Wrap.Uncurried
-
-  #reduce Wrap
-  #check (Wrap.Shape : CurriedTypeFun 2)
-
-  #print Test.Wrap.Uncurried
-  #print Test.Wrap.Base
-
-
-end Test
