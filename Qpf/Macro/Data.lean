@@ -68,7 +68,8 @@ def Name.replacePrefix (old_pref new_pref : Name) : Name → Name
                       Name.mkNum p' v
 
 
-
+def Name.stripPrefix (old_pref : Name) : Name → Name
+  := Name.replacePrefix old_pref .anonymous
 
 
 
@@ -83,6 +84,20 @@ def CtorView.declReplacePrefix (pref new_pref : Name) (ctor: CtorView) : CtorVie
   }
 
 
+open Parser.Command (declId)
+/-- Return a tuple of `declName, declId, shortDeclName` -/
+private def addSuffixToDeclId (declId : Syntax) (suffix : String) : 
+    CommandElabM (Name × (TSyntax ``declId) × Name) := do
+  let (id, _) := Elab.expandDeclIdCore declId
+  let declName := Name.mkStr id suffix
+  let declId := mkNode ``declId #[mkIdent declName, mkNullNode]
+
+  let curNamespace ← getCurrNamespace
+  let declName := curNamespace ++ declName
+
+  let shortDeclName := Name.mkSimple suffix
+  return (declName, declId, shortDeclName)
+
 
 open Parser in
 /--
@@ -93,10 +108,8 @@ open Parser in
 -/
 def mkHeadT (view : InductiveView) : CommandElabM Name := do
   -- If the original declId was `MyType`, we want to register the head type under `MyType.HeadT`
-  let suffix := "HeadT"
-  let declName := Name.mkStr view.declName suffix
-  let declId := mkNode ``Command.declId #[mkIdent declName, mkNullNode]
-  let shortDeclName := Name.mkSimple suffix
+  let (declName, declId, shortDeclName) ← addSuffixToDeclId view.declId "HeadT"
+  
 
   let modifiers : Modifiers := {
     isUnsafe := view.modifiers.isUnsafe
@@ -159,9 +172,7 @@ open Parser Parser.Term Parser.Command in
 -/
 def mkChildT (view : InductiveView) (r : Replace) (headTName : Name) : CommandElabM Name := do  
   -- If the original declId was `MyType`, we want to register the child type under `MyType.ChildT`
-  let suffix := "ChildT"
-  let declName := Name.mkStr view.declName suffix
-  let declId := mkNode ``Command.declId #[mkIdent declName, mkNullNode]
+  let (declName, declId, _shortDeclName) ← addSuffixToDeclId view.declId "ChildT"
 
   let target_type := Syntax.mkApp (mkIdent ``TypeVec) #[quote r.arity]
 
@@ -196,7 +207,7 @@ open Parser.Term in
   Show that the `Shape` type is a qpf, through an isomorphism with the `Shape.P` pfunctor
 -/
 def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT P : Ident) (arity : Nat) : CommandElabM Unit := do
-  let shapeN := shapeView.declName
+  let (shapeN, _) := Elab.expandDeclIdCore shapeView.declId
   let q := mkIdent $ Name.mkStr shapeN "qpf"
   let shape := mkIdent shapeN
 
@@ -328,10 +339,7 @@ structure MkShapeResult where
 open Parser in
 def mkShape (view: DataView) : CommandElabM MkShapeResult := do
   -- If the original declId was `MyType`, we want to register the shape type under `MyType.Shape`
-  let suffix := "Shape"
-  let declName := Name.mkStr view.declName suffix
-  let declId := mkNode ``Command.declId #[mkIdent declName, mkNullNode]
-  let shortDeclName := Name.mkSimple suffix
+  let (declName, declId, shortDeclName) ← addSuffixToDeclId view.declId "Shape"
 
 
   -- Extract the "shape" functors constructors
@@ -430,12 +438,15 @@ def DataCommand.fixOrCofixPolynomial : DataCommand → Ident
   and define the desired type as the curried version of `Internal`
 -/
 def mkType (view : DataView) (base : Term) : CommandElabM Unit := do
-  let uncurriedIdent := mkIdent $ Name.mkStr view.declName "Uncurried"
-  let baseIdent := mkIdent $ Name.mkStr view.declName "Base"
+  let (_, uncurriedDeclId, _) ← addSuffixToDeclId view.declId "Uncurried"
+  let uncurriedIdent : Ident := ⟨uncurriedDeclId.raw[0]⟩
+
+  let (_, baseDeclId, _) ← addSuffixToDeclId view.declId "Base"
+  let baseIdent : Ident := ⟨baseDeclId.raw[0]⟩
 
   let deadBinderNamedArgs ← view.deadBinderNames.mapM fun n => 
         `(namedArgument| ($n:ident := $n:term))
-  let uncurriedApplied ← `($uncurriedIdent $deadBinderNamedArgs:namedArgument*)
+  let uncurriedApplied ← `($uncurriedIdent:ident $deadBinderNamedArgs:namedArgument*)
 
   let arity := view.liveBinders.size
 
@@ -524,9 +535,11 @@ def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
         name := `matchPattern
       }]
     }
+    let declId := mkIdent <| Name.stripPrefix (←getCurrNamespace) ctor.declName
+
     let cmd ← `(
       $(quote modifiers):declModifiers
-      def $(mkIdent ctor.declName) : $type
+      def $declId:ident : $type
         := $body:term
     )
 
