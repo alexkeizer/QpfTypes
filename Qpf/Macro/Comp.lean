@@ -133,11 +133,13 @@ partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Term
     `(@Prj $arity_stx $ind_stx)
 
   else if !target.hasAnyFVar isLiveVar then
-    trace[QPF] f!"target {target} is a constant"
+    trace[QPF] "target {target} is a constant"
     let targetStx ← match targetStx with
       | some stx => pure stx
       | none     => delab target
-    `(Const $arity_stx $targetStx)
+    let stx ← `(Const $arity_stx $targetStx)
+    trace[QPF] "represented by: {stx}"
+    pure stx
 
   else if target.isApp then
     let (F, args) ← (Comp.parseApp isLiveVar target)
@@ -206,6 +208,7 @@ def elabQpfCompositionBody (view: QpfCompositionBodyView) : CommandElabM Term :=
     liveBinders := {view.liveBinders}
     deadBinders := {view.deadBinders}
   "
+  -- runTermElabM fun _ => do
   liftTermElabM do
     let body_type ← 
       if let some typeStx := view.type? then

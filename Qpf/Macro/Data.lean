@@ -397,25 +397,27 @@ def mkShape (view: DataView) : CommandElabM MkShapeResult := do
   mkQpf view ctorArgs headTId PId r.expr.size
   
 
-  pure ⟨r, declName, PName⟩  
+  pure ⟨r, declName, PName⟩
 
-
-
-open Elab.Term in
+open Elab.Term Parser.Term in
 /--
   Checks whether the given term is a polynomial functor, i.e., whether there is an instance of 
   `IsPolynomial F`, and return that instance (if it exists).
 -/
-def isPolynomial (F: Term) : CommandElabM (Option Term) := do
+def isPolynomial (view : DataView) (F: Term) : CommandElabM (Option Term) := do
   liftTermElabM do
-    trace[QPF] "isPolynomial::F = {F}"
-    let inst_type ← elabTerm (← `(MvQPF.IsPolynomial $F:term)) none
-    try
-      let inst ← synthInstance inst_type
-      return some <|<- delab inst
-    catch e =>
-      trace[QPF] "{e.toMessageData}"
-      return none
+    elabBinders view.deadBinders fun _deadVars => do
+      trace[QPF] "isPolynomial::F = {F}"
+      let inst_type ← `(MvQPF.IsPolynomial $F:term)
+      trace[QPF] "isPolynomial :: inst_type_stx: {inst_type}"
+      let inst_type ← elabTerm inst_type none
+      trace[QPF] "isPolynomial :: inst_type: {inst_type}"
+      try
+        let inst ← synthInstance inst_type
+        return some <|<- delab inst
+      catch e =>
+        trace[QPF] "{e.toMessageData}"
+        return none
 
 
 
@@ -438,6 +440,7 @@ def DataCommand.fixOrCofixPolynomial : DataCommand → Ident
   and define the desired type as the curried version of `Internal`
 -/
 def mkType (view : DataView) (base : Term) : CommandElabM Unit := do
+  trace[QPF] "mkType"
   let (_, uncurriedDeclId, _) ← addSuffixToDeclId view.declId "Uncurried"
   let uncurriedIdent : Ident := ⟨uncurriedDeclId.raw[0]⟩
 
@@ -450,7 +453,7 @@ def mkType (view : DataView) (base : Term) : CommandElabM Unit := do
 
   let arity := view.liveBinders.size
 
-  let poly ← isPolynomial base
+  let poly ← isPolynomial view base
   trace[QPF] "poly: {poly}"
 
   -- let cmd ← match poly with
@@ -574,7 +577,7 @@ def elabData : CommandElab := fun stx => do
       $(mkIdent shape):ident $r.expr:term*
     )
   }
-  trace[QPF] m!"base = {base}"
+  trace[QPF] "base = {base}"
 
   mkType view base  
   mkConstructors view shape
