@@ -45,11 +45,12 @@ protected def parseApp (isLiveVar : FVarId → Bool) (e : Expr) : TermElabM (Exp
     if !e.isApp then
       throwError "application expected:\n {e}"
     else
-      parseAppAux 1 e List.nil none
+      parseAppAux e List.nil none
 where
-  parseAppAux : Nat → Expr → List Expr → Option Exception → _
-  | depth, Expr.app F a, args, _ => do
+  parseAppAux : Expr → List Expr → Option Exception → _
+  | Expr.app F a, args, _ => do
     let args := a :: args
+    let depth := args.length
     
     try
       -- Only try to infer QPF if `F` contains no live variables
@@ -64,8 +65,10 @@ where
         -/
         let F_stx ← delab F
         let depth := quote (k:=numLitKind) depth
+        trace[QPF] "F_stx := {F_stx}\ndepth := {depth}"
         let F ← `(@TypeFun.ofCurried $depth $F_stx)
         let inst_type ← elabTerm (← `(MvQPF $F)) none
+
         let Nat := Expr.const ``Nat .nil
         let u ← mkFreshLevelMVar
         let v ← mkFreshLevelMVar
@@ -78,11 +81,11 @@ where
         return (F, args)
       throwError "Smallest function subexpression still contains live variables:\n  {F}\ntry marking more variables as dead"
     catch e =>
-      parseAppAux (depth+1) F args (some e)
+      parseAppAux F args (some e)
     
 
-  | _, _, _, some e => throw e
-  | _, ex, _, none  => 
+  | _, _, some e => throw e
+  | ex, _, none  => 
     if ex.hasAnyFVar isLiveVar then
       throwError "Smallest function subexpression still contains live variables:\n  {ex}\ntry marking more variables as dead"
     else
@@ -146,22 +149,28 @@ partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Term
     trace[QPF] "target {target} is an application of {F} to {args}"
 
     let F_stx ← delab F;
-    trace[QPF] "F_stx := {F_stx}"
+    trace[QPF] "F_stx := {F_stx}\nargs := {args}"
+
     /-
       Optimization: check if the application is of the form `F α β γ .. = F α β γ ..`.
-      In such cases, we can directly return `F`, rather than generate a composition of projections
+      In such cases, we can directly return `F`, rather than generate a composition of projections.
     -/
-    let is_trivial := args.enum.all fun ⟨i, arg⟩ => 
-        arg.isFVar && isLiveVar arg.fvarId! && vars'.indexOf arg == i
+    let is_trivial := 
+      args.length == vars'.length
+      && args.enum.all fun ⟨i, arg⟩ => 
+          arg.isFVar && isLiveVar arg.fvarId! && vars'.indexOf arg == i
     if is_trivial then
+      trace[QPF] "The application is trivial"
       return F_stx
     else
       let mut G : Array Term := #[]
       for a in args do
         let Ga ← elabQpf vars a none false
         G := G.push Ga
-    
-      `(Comp (n:=$(quote args.length)) $F_stx !![$G,*])
+      trace[QPF] "F_stx := {F_stx}\nargs := {args}\nG := {G}"
+      let comp ← `(Comp (n:=$(quote args.length)) $F_stx !![$G,*])
+      trace[QPF] "comp := {comp}"
+      pure comp
 
   else if target.isArrow then
     match target with

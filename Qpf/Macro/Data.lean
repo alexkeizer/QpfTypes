@@ -453,8 +453,8 @@ def mkType (view : DataView) (base : Term) : CommandElabM Unit := do
 
   let arity := view.liveBinders.size
 
-  let poly ← isPolynomial view base
-  trace[QPF] "poly: {poly}"
+  -- let poly ← isPolynomial view base
+  -- trace[QPF] "poly: {poly}"
 
   -- let cmd ← match poly with
   --   | some poly => 

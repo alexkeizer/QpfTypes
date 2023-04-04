@@ -1,9 +1,14 @@
 import Qpf
 
 set_option trace.QPF true
+set_option pp.analyze true
+set_option pp.raw true
 
-data Arrow (α : Type) β
-  | mk : α → Arrow α β
+#check MvQPF.Arrow _
 
--- data Arrow (α : Type _) β
---   | mk : (α → β) → Arrow α β
+data Arrow (α : Type _) β
+  | mk : (α → β) → Arrow α β
+
+
+#print Arrow.Shape
+#print Arrow.Base
