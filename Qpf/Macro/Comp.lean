@@ -149,7 +149,8 @@ partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Term
       Optimization: check if the application is of the form `F α β γ .. = F α β γ ..`.
       In such cases, we can directly return `F`, rather than generate a composition of projections
     -/
-    let is_trivial := args.enum.all fun ⟨i, arg⟩ => arg.isFVar && vars'.indexOf arg == i
+    let is_trivial := args.enum.all fun ⟨i, arg⟩ => 
+        arg.isFVar && isLiveVar arg.fvarId! && vars'.indexOf arg == i
     if is_trivial then
       return F_stx
     else
