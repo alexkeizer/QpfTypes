@@ -57,8 +57,8 @@ def elim0 {C : PFin2 0 → Sort u} : ∀ i : PFin2 0, C i :=
 
 /-- Converts a `PFin2` into a natural. -/
 def toNat : ∀ {n}, PFin2 n → Nat
-  | _, @fz n => 0
-  | _, @fs n i => succ (toNat i)
+  | _, @fz _ => 0
+  | _, @fs _ i => succ (toNat i)
 
 /-- Shows that `toNat` produces a natural withing the range -/
 theorem toNat_in_range (i : PFin2 n) :
@@ -68,21 +68,38 @@ by
   case fz       => apply succ_pos
   case fs _ ih  => apply lt_succ_of_le ih
 
+
+theorem toNat_inj {i j : PFin2 n} :
+  i.toNat = j.toNat → i = j :=
+by
+  intro h
+  induction i
+  <;> cases j
+  case fz.fz => 
+    rfl
+  case fs.fs i ih j =>
+    simp only [toNat, Nat.succ.injEq] at h
+    specialize ih h
+    cases ih
+    rfl
+  case fs.fz | fz.fs =>
+    simp only [toNat] at h
+
 /-- Converts a `PFin2` into the a `Fin` -/
 def toFin : PFin2 n → Fin n
   := fun i => ⟨i.toNat, toNat_in_range i⟩
 
 
 /-- Converts a natural into a `PFin2` if it is in range -/
-def optOfNat : ∀ {n} (k : Nat), Option (PFin2 n)
+def optOfNat : ∀ {n} (_ : Nat), Option (PFin2 n)
   | 0, _ => none
-  | succ n, 0 => some fz
+  | succ _, 0 => some fz
   | succ n, succ k => fs <$> @optOfNat n k
 
 /-- Converts a natural into a `PFin2` given a proof that it is in range -/
-def ofNatLt : ∀ {n} (k : Nat) (h : k < n), PFin2 n
+def ofNatLt : ∀ {n} (k : Nat) (_ : k < n), PFin2 n
   | 0, _, h            => by contradiction
-  | succ n, 0, h       => fz
+  | succ n, 0, _       => fz
   | succ n, succ k, h  => fs $ @ofNatLt n k (lt_of_succ_lt_succ h)
 
 
@@ -98,18 +115,18 @@ def add {n} (i : PFin2 n) : ∀ k, PFin2 (n + k)
 
 /-- `left k` is the embedding `PFin2 n → PFin2 (k + n)` -/
 def left k : ∀ {n}, PFin2 n → PFin2 (k + n)
-  | _, @fz n => fz
-  | _, @fs n i => fs (left k i)
+  | _, fz => fz
+  | _, fs i => fs (left k i)
 
 /-- `insertPerm a` is a permutation of `PFin2 n` with the following properties:
   * `insertPerm a i = i+1` if `i < a`
   * `insertPerm a a = 0`
   * `insertPerm a i = i` if `i > a` -/
 def insertPerm : ∀ {n}, PFin2 n → PFin2 n → PFin2 n
-  | _, @fz n, @fz _ => fz
-  | _, @fz n, @fs _ j => fs j
-  | _, @fs (succ n) i, @fz _ => fs fz
-  | _, @fs (succ n) i, @fs _ j =>
+  | _, fz, fz => fz
+  | _, fz, fs j => fs j
+  | _, @fs (succ _) _, @fz _ => fs fz
+  | _, @fs (succ _) i, @fs _ j =>
     match insertPerm i j with
     | fz => fz
     | fs k => fs (fs k)
@@ -119,8 +136,8 @@ def insertPerm : ∀ {n}, PFin2 n → PFin2 n → PFin2 n
   on the right (that is, `remapLeft f k (m + i) = n + i`). -/
 def remapLeft {m n} (f : PFin2 m → PFin2 n) : ∀ k, PFin2 (m + k) → PFin2 (n + k)
   | 0, i => f i
-  | succ k, @fz _ => fz
-  | succ k, @fs _ i => fs (remapLeft f _ i)
+  | succ _, @fz _ => fz
+  | succ _, @fs _ i => fs (remapLeft f _ i)
 
 /-- This is a simple type class inference prover for proof obligations
   of the form `m < n` where `m n : Nat`. -/
@@ -136,8 +153,8 @@ instance IsLt.succ m n [l : IsLt m n] : IsLt (succ m) (succ n) :=
 /-- Use type class inference to infer the boundedness proof, so that we can directly convert a
 `nat` into a `PFin2 n`. This supports notation like `&1 : fin 3`. -/
 def ofNat' : ∀ {n} m [IsLt m n], PFin2 n
-  | 0, m, ⟨h⟩ => absurd h (Nat.not_lt_zero _)
-  | succ n, 0, ⟨h⟩ => fz
+  | 0, _, ⟨h⟩ => absurd h (Nat.not_lt_zero _)
+  | succ _, 0, ⟨_⟩ => fz
   | succ n, succ m, ⟨h⟩ => fs (@ofNat' n m ⟨lt_of_succ_lt_succ h⟩)
 
 -- mathport name: «expr& »
@@ -153,7 +170,7 @@ by funext i; cases i
 /-- There is only one function with empty domain `PFin2 0`
     We take `PFin2.elim0` to be the "normalized" such function
  -/ 
-@[simp] def eq_fn0_elim0 {α} (f g : PFin2 0 → α) : f = PFin2.elim0
+@[simp] def eq_fn0_elim0 {α} (f _g : PFin2 0 → α) : f = PFin2.elim0
   := by apply eq_fn0
 
 
@@ -162,8 +179,8 @@ by funext i; cases i
 -/
 def strengthen : ∀{n}, PFin2 (succ n) → Option (PFin2 n)
   | 0, _            => none
-  | (succ n), fz    => some fz
-  | (succ n), fs k  => fs <$> strengthen k
+  | (succ _), fz    => some fz
+  | (succ _), fs k  => fs <$> strengthen k
 
 
 /--
@@ -342,7 +359,7 @@ instance decidable_le {n : Nat} : DecidableRel (@LE.le (PFin2 n) instLE) := fun 
     | isTrue h  => isTrue  $ by assumption
     | isFalse h => isFalse $ by intro a_le_b; apply h a_le_b
 
-instance instLinOrd : LinearOrder (PFin2 n) where  
+instance instLinOrd : LinearOrder (PFin2 n) where
   le_refl _             := by apply Nat.le_refl;
   le_trans _ _ _        := by apply Nat.le_trans;
   lt_iff_le_not_le _ _  := by simp[LT.lt, LE.le]; exact le_of_lt
@@ -351,8 +368,8 @@ instance instLinOrd : LinearOrder (PFin2 n) where
                               from by clear h₁ h₂;
                                       induction x 
                                       <;> cases y
-                                      <;> simp[toNat] at this;
-                                      rfl;
+                                      <;> simp [toNat] at this;
+                                      case fz => rfl
                                       case fs x ih y => {
                                         simp;
                                         apply ih;
@@ -361,6 +378,31 @@ instance instLinOrd : LinearOrder (PFin2 n) where
                               apply Nat.le_antisymm h₁ h₂
   le_total _ _          := by apply Nat.le_total
   decidable_le          := decidable_le
+  compare_eq_compareOfLessAndEq := by 
+    intro x y
+    simp only [compare, instOrd, compareOfLessAndEq]
+    conv => {
+      arg 2
+      simp[LT.lt]
+    }
+    by_cases h : (toNat x < toNat y)
+    <;> simp [h, ite_true, ite_false]
+    by_cases h : x = y
+    {
+      cases h
+      simp only [ite_true]
+    }
+    {
+      suffices ¬(toNat x = toNat y)
+      from by simp only [ite_false, this, h]
+      intro contra
+      have : x = y := toNat_inj contra
+      contradiction
+    }
+    
+
+    
+
 
 def le_refl {n : Nat} : 
   ∀ (x : PFin2 n), x ≤ x := 
