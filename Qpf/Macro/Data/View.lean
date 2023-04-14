@@ -4,6 +4,7 @@ import Qpf.Macro.Common
 open Lean
 open Meta Elab Elab.Command 
 
+open Elab.Term (elabTerm)
 open Parser.Term (bracketedBinder)
 open Parser.Command (declId)
 
@@ -180,7 +181,11 @@ def DataView.doSanityChecks (view : DataView) : CommandElabM Unit := do
   -- TODO: make this more intelligent. In particular, allow types like `Type`, `Type 3`, or `Type u`
   --       and only throw an error if the user tries to define a family of types
   match view.type? with
-  | some t => throwErrorAt t "Unexpected type; type will be automatically inferred. Note that inductive families are not supported due to inherent limitations of QPFs"
+  | some t => 
+    runTermElabM fun _ => do
+      let type ← elabTerm t none
+      if !type.isSort then
+        throwErrorAt t "Unexpected type; type will be automatically inferred. Note that inductive families are not supported due to inherent limitations of QPFs"
   | none => pure ()
 
 

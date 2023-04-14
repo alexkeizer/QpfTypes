@@ -20,6 +20,8 @@
 import Qpf.Qpf
 import Qpf.Macro.Common
 
+import Qq
+
 namespace Macro.Comp
   open MvQPF
   open Lean Elab Term Command Meta
@@ -29,9 +31,10 @@ namespace Macro.Comp
   open Parser.Term (bracketedBinder)
   open Parser.Command (declModifiers «def»)
 
+  open Qq
+
   -- TODO: make everything work without this compatibility coercion
   open TSyntax.Compat
-
 
 /--
   Given an expression `e`, tries to find the largest subexpression `F` such that 
@@ -50,7 +53,7 @@ where
   parseAppAux : Expr → List Expr → Option Exception → _
   | Expr.app F a, args, _ => do
     let args := a :: args
-    let depth := args.length
+    let depth : Nat := args.length
     
     try
       -- Only try to infer QPF if `F` contains no live variables
@@ -63,18 +66,15 @@ where
             let F ← uncurry F (mkNatLit depth)
             let inst_type ← mkAppM ``MvQPF #[F];
         -/
-        let F_stx ← delab F
-        let depth := quote (k:=numLitKind) depth
-        trace[QPF] "F_stx := {F_stx}\ndepth := {depth}"
-        let F ← `(@TypeFun.ofCurried $depth $F_stx)
-        let inst_type ← elabTerm (← `(MvQPF $F)) none
-
-        let Nat := Expr.const ``Nat .nil
-        let u ← mkFreshLevelMVar
-        let v ← mkFreshLevelMVar
-        let F_type := Expr.app (.const ``TypeFun (.cons u <| .cons v .nil)) 
-                                (←elabTerm depth Nat)
-        let F ← elabTerm F <| some F_type
+        let u : Level ← mkFreshLevelMVar
+        let F : Q(CurriedTypeFun.{u,u} $depth) := F
+        trace[QPF] "F := {F}\ndepth := {depth}"
+        let inst_type : Q(CurriedTypeFun.{u,u} $depth → TypeFun.{u,u} $depth) 
+          := q(@TypeFun.ofCurried.{u,u} $depth)
+        let inst_type : Q(TypeFun.{u,u} $depth)
+          := .app inst_type F
+        let inst_type : Q(Type (u+1))
+          := q(MvQPF $inst_type)
         
         -- asserts that the instance exists, or throws an error
         let _inst ← synthInstance inst_type
@@ -109,47 +109,53 @@ def Fin2.quote {n : Nat} : Fin2 n → Term
   | .fs i => mkApp (mkCIdent ``Fin2.fs) #[quote i]
 
 instance : {n : Nat} → Quote (Fin2 n) := ⟨Fin2.quote⟩
-  
 
+
+open Meta in
+/-- Turns a vec of expressions `as` into an expr that represents `!![as,*]`-/
+def Vec.exprOf (α : Q(Type u)) : {n : Nat} → Vec Q($α) n → Q(Vec $α $n)
+  | 0, _ => q(Vec.nil)
+  | _+1, as => 
+    let a := as.last
+    let as := exprOf α as.drop
+    q(Vec.append1 $as $a)
+
+  
 
 open PrettyPrinter in
 /--
   Elaborate the body of a qpf
 -/
-partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Term := none) (normalized := false) : TermElabM Term := do
+partial def elabQpf {u : Level} {n : Q(Nat)}
+                    (vars : Array Q(Type u)) (target : Q(Type u)) (normalized := false) : 
+      TermElabM Q(TypeFun.{u,u} $n) := do
   trace[QPF] "elabQPF :: {vars} -> {target}"
+  let arity : Q(Nat) := mkNatLit vars.size
+  
   let vars' := vars.toList;
-  let arity := vars'.length;
-  let arity_stx := quote arity;
-
   let varIds := vars'.map fun expr => expr.fvarId!
   let isLiveVar : FVarId → Bool
     := fun fvarId => (List.indexOf' fvarId varIds).isSome
 
   if target.isFVar && isLiveVar target.fvarId! then
     trace[QPF] f!"target {target} is a free variable"
-    let ind ← match List.indexOf' target vars' with
+    let index ← match List.indexOf' target vars' with
     | none      => throwError "Free variable {target} is not one of the qpf arguments"
     | some ind  => pure ind
 
-    let ind_stx := quote ind.inv;
-    `(@Prj $arity_stx $ind_stx)
+    let index : Q(Fin2 $arity) ← elabTerm (quote (k:=`term) index.inv) none;
+    let F := mkAppN (.const ``MvQPF.Prj ([u])) #[arity, index]
+    return F
 
   else if !target.hasAnyFVar isLiveVar then
     trace[QPF] "target {target} is a constant"
-    let targetStx ← match targetStx with
-      | some stx => pure stx
-      | none     => delab target
-    let stx ← `(Const $arity_stx $targetStx)
-    trace[QPF] "represented by: {stx}"
-    pure stx
+    let F := mkAppN (.const ``MvQPF.Const ([u,u])) #[arity, target]
+    trace[QPF] "represented by: {F}"
+    pure F
 
   else if target.isApp then
     let (F, args) ← (Comp.parseApp isLiveVar target)
     trace[QPF] "target {target} is an application of {F} to {args}"
-
-    let F_stx ← delab F;
-    trace[QPF] "F_stx := {F_stx}\nargs := {args}"
 
     /-
       Optimization: check if the application is of the form `F α β γ .. = F α β γ ..`.
@@ -159,16 +165,19 @@ partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Term
       args.length == vars'.length
       && args.enum.all fun ⟨i, arg⟩ => 
           arg.isFVar && isLiveVar arg.fvarId! && vars'.indexOf arg == i
-    if is_trivial then
+    if is_trivial && false then
       trace[QPF] "The application is trivial"
-      return F_stx
+      return F
     else
-      let mut G : Array Term := #[]
+      let mut G : Array Q(TypeFun.{u,u} $arity) := #[]
       for a in args do
-        let Ga ← elabQpf vars a none false
+        let Ga ← elabQpf vars a false
         G := G.push Ga
-      trace[QPF] "F_stx := {F_stx}\nargs := {args}\nG := {G}"
-      let comp ← `(Comp (n:=$(quote args.length)) $F_stx !![$G,*])
+      trace[QPF] "G := {G}"
+      let G_type : Q(Type (u+1)) := Expr.app (.const ``TypeFun ([u,u])) arity
+      let G' := Vec.exprOf G_type (Vec.ofList G.toList)
+
+      let comp ← mkAppM ``MvQPF.Comp #[F, G']
       trace[QPF] "comp := {comp}"
       pure comp
 
@@ -176,13 +185,13 @@ partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Term
     match target with
     | Expr.forallE _ e₁ e₂ .. => 
       let newTarget ← mkAppM ``MvQPF.Arrow.Arrow #[e₁, e₂]
-      elabQpf vars newTarget targetStx normalized
+      elabQpf vars newTarget normalized
     | _ => unreachable!
 
   else
     if !normalized then
       let target ← whnfR target
-      elabQpf vars target targetStx true
+      elabQpf vars target true
     else 
       let extra :=
         if target.isForall then
@@ -210,7 +219,7 @@ structure QpfCompositionBinders where
   Given the description of a QPF composition (`QpfCompositionView`), generate the syntax for a term
   that represents the desired functor (in uncurried form)
 -/
-def elabQpfCompositionBody (view: QpfCompositionBodyView) : CommandElabM Term := do  
+def elabQpfCompositionBody (view: QpfCompositionBodyView) : CommandElabM Expr := do  
   trace[QPF] "elabQpfCompositionBody ::
     type?       := {view.type?}
     target      := {view.target}
@@ -225,19 +234,24 @@ def elabQpfCompositionBody (view: QpfCompositionBodyView) : CommandElabM Term :=
         trace[QPF] "Expected (Syntax): {typeStx}"
         let type ← elabTermEnsuringType typeStx (mkSort <| mkLevelSucc u)
         trace[QPF] "Expected (Expr): {type}"
-        if !(←whnf type).isType then
-          throwErrorAt typeStx "invalid qpf, resulting type must be a type (e.g., `Type`, `Type _`, or `Type u`)"
         pure type
       else 
         let u ← mkFreshLevelMVar;
         pure <| mkSort <| mkLevelSucc u
+
+    let u ← match body_type with
+      | .sort (.succ v) => pure v
+      | _ => 
+        let stx : Syntax := view.type?.getD .missing
+        throwErrorAt stx "invalid qpf, resulting type must be a type (e.g., `Type`, `Type _`, or `Type u`)"
   
     withAutoBoundImplicit <|
       elabBinders view.deadBinders fun _deadVars => 
         withLiveBinders view.liveBinders fun vars =>
           withoutAutoBoundImplicit <| do
             let target_expr ← elabTermEnsuringType view.target body_type;
-            elabQpf vars target_expr view.target
+            let n : Q(Nat) := mkNatLit vars.size
+            @elabQpf u n vars target_expr false
 
 
 structure QpfCompositionView where
@@ -266,6 +280,7 @@ def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
     liveBinders,
     deadBinders,
   }
+  let body ← runTermElabM fun _ => delab body 
   
   /-
     Define the qpf using the elaborated body

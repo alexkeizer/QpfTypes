@@ -399,18 +399,19 @@ def mkShape (view: DataView) : CommandElabM MkShapeResult := do
 
   pure ⟨r, declName, PName⟩
 
+
 open Elab.Term Parser.Term in
 /--
   Checks whether the given term is a polynomial functor, i.e., whether there is an instance of 
   `IsPolynomial F`, and return that instance (if it exists).
 -/
-def isPolynomial (view : DataView) (F: Term) : CommandElabM (Option Term) := do
-  liftTermElabM do
+def isPolynomial (view : DataView) (F: Expr) : CommandElabM (Option Term) := do
+  runTermElabM fun _ => do
     elabBinders view.deadBinders fun _deadVars => do
       trace[QPF] "isPolynomial::F = {F}"
-      let inst_type ← `(MvQPF.IsPolynomial $F:term)
-      trace[QPF] "isPolynomial :: inst_type_stx: {inst_type}"
-      let inst_type ← elabTerm inst_type none
+      trace[QPF] "isPolynomial::F (elaborated) = {F}"
+      let levels := [←mkFreshLevelMVar, ←mkFreshLevelMVar]
+      let inst_type := Expr.app (Expr.const ``MvQPF.IsPolynomial levels) F
       trace[QPF] "isPolynomial :: inst_type: {inst_type}"
       try
         let inst ← synthInstance inst_type
@@ -439,7 +440,7 @@ def DataCommand.fixOrCofixPolynomial : DataCommand → Ident
   Take either the fixpoint or cofixpoint of `base` to produce an `Internal` uncurried QPF, 
   and define the desired type as the curried version of `Internal`
 -/
-def mkType (view : DataView) (base : Term) : CommandElabM Unit := do
+def mkType (view : DataView) (base : Expr) : CommandElabM Unit := do
   trace[QPF] "mkType"
   let (_, uncurriedDeclId, _) ← addSuffixToDeclId view.declId "Uncurried"
   let uncurriedIdent : Ident := ⟨uncurriedDeclId.raw[0]⟩
@@ -453,8 +454,22 @@ def mkType (view : DataView) (base : Term) : CommandElabM Unit := do
 
   let arity := view.liveBinders.size
 
-  -- let poly ← isPolynomial view base
-  -- trace[QPF] "poly: {poly}"
+  let fix_or_cofix := DataCommand.fixOrCofix view.command
+  let uncurried ← runTermElabM fun _ =>
+    mkAppM fix_or_cofix.getId #[base]
+  let cmd ← runTermElabM fun _ => do
+    let base ← delab base
+    let uncurried ← delab uncurried
+    `(
+          abbrev $baseIdent:ident $view.deadBinders:bracketedBinder* : _root_.TypeFun $(quote <| arity + 1)
+            := $base
+
+          abbrev $uncurriedIdent:ident $view.deadBinders:bracketedBinder* : _root_.TypeFun $(quote arity)
+            := $uncurried
+    ) 
+
+  let poly ← isPolynomial view uncurried
+  trace[QPF] "poly: {poly}"
 
   -- let cmd ← match poly with
   --   | some poly => 
@@ -467,14 +482,7 @@ def mkType (view : DataView) (base : Term) : CommandElabM Unit := do
   --           := ($fix_or_cofix $base).Obj
   --       ) 
   --   | none =>
-  let fix_or_cofix := DataCommand.fixOrCofix view.command
-  let cmd ← `(
-          abbrev $baseIdent:ident $view.deadBinders:bracketedBinder* : _root_.TypeFun $(quote <| arity + 1)
-            := $base
-
-          abbrev $uncurriedIdent:ident $view.deadBinders:bracketedBinder* : _root_.TypeFun $(quote arity)
-            := $fix_or_cofix $base
-  ) 
+  
 
   trace[QPF] "elabData.cmd = {cmd}"
   elabCommand cmd
@@ -570,8 +578,8 @@ def elabData : CommandElab := fun stx => do
 
   /- Composition pipeline -/
   let base ← elabQpfCompositionBody {
-    liveBinders := nonRecView.liveBinders, 
-    deadBinders := nonRecView.deadBinders,     
+    liveBinders := nonRecView.liveBinders,
+    deadBinders := nonRecView.deadBinders,
     type?   := none,
     target  := ←`(
       $(mkIdent shape):ident $r.expr:term*

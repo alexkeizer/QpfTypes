@@ -4,28 +4,25 @@ import Qpf
 -- set_option trace.Elab.inductive true
 sudo set_option trace.QPF true
 set_option pp.rawOnError true
-
-#print List.noConfusionType
-#check List.noConfusion
-#check List.recOn
-#check List.casesOn
-
--- #print prefix List
-
-theorem nil_neq_cons (a : α) (as : List α) : List.nil ≠ List.cons a as := 
-  by simp
-
-#print nil_neq_cons
+set_option pp.analyze true
+set_option pp.universes true
 
 
-
-data QpfList α where
+data QpfList α : Type 2 where 
   | nil : QpfList α
   | cons : α → QpfList α → QpfList α
+
+
+
+-- #check TypeFun.ofCurried QpfList.Shape
+
+#synth MvQPF.IsPolynomial <| MvQPF.Fix <| @TypeFun.ofCurried 2 QpfList.Shape
 
 #check QpfList
 
 #check @MvQPF.Fix.drec _ QpfList.Uncurried _
+
+#exit
 
 namespace QpfList
   #print QpfList.nil
@@ -61,7 +58,10 @@ namespace QpfList
 
   theorem nil_neq_cons (a : α) (as : QpfList α) : @QpfList.nil α ≠ QpfList.cons a as := 
     by
+      simp[nil, cons]
+      intro contra
       sorry
+      -- contradiction
 
   #print nil_neq_cons
 end QpfList
