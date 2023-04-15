@@ -116,18 +116,30 @@ def Fin2.toExpr {n : Nat} : Fin2 n → Q(Fin2 $n)
 instance {n : Nat} : ToExpr (Fin2 n) where 
   toExpr      := Fin2.toExpr
   toTypeExpr  := q(Fin2 $n)
-  
 
+
+def Vec.toExpr {α : Q(Type u)} : {n : Nat} → Vec Q($α) n → Q(Vec $α $n)
+  | 0,   _  => q(Vec.nil)
+  | _+1, as => 
+    let a : Q($α) := as.last
+    let as := toExpr as.drop
+    q(Vec.append1 $as $a)
+
+instance {α : Q(Type u)} {n : Nat} : ToExpr (Vec Q($α) n) where
+  toExpr      := Vec.toExpr
+  toTypeExpr  := q(Vec $α $n)
+
+  
+#check Vector.map
 
 open PrettyPrinter in
 /--
   Elaborate the body of a qpf
 -/
-partial def elabQpf (vars : Array Q(Type u)) (target : Q(Type u)) (targetStx : Option Term := none) (normalized := false) : 
-    TermElabM Term := do
-  trace[QPF] "elabQPF :: {vars} -> {target}"
+partial def elabQpf {arity : Nat} (vars : Vector Q(Type u) arity) (target : Q(Type u)) (targetStx : Option Term := none) (normalized := false) : 
+    TermElabM Q(TypeFun.{u,u} $arity) := do
+  trace[QPF] "elabQPF :: {vars.toList} -> {target}"
   let vars' := vars.toList;
-  let arity : Nat := vars'.length;
 
   let varIds := vars'.map fun expr => expr.fvarId!
   let isLiveVar : FVarId → Bool
@@ -139,41 +151,50 @@ partial def elabQpf (vars : Array Q(Type u)) (target : Q(Type u)) (targetStx : O
     | none      => throwError "Free variable {target} is not one of the qpf arguments"
     | some ind  => pure ind
 
-    let ind : Fin2 arity := ind.inv
-    delab q(@Prj.{u} $arity $ind)
+    let ind : Fin2 arity := cast (by simp) ind.inv
+    let prj := q(@Prj.{u} $arity $ind)
+    trace[QPF] "represented by: {prj}"
+    pure prj
 
   else if !target.hasAnyFVar isLiveVar then
     trace[QPF] "target {target} is a constant"
-    let stx ← delab q(Const.{u} $arity $target)
-    trace[QPF] "represented by: {stx}"
-    pure stx
+    let const := q(Const.{u} $arity $target)
+    trace[QPF] "represented by: {const}"
+    pure const
 
   else if target.isApp then
-    let ⟨_, F, args⟩ ← (Comp.parseApp isLiveVar target)
-    let args := args.toList
-    trace[QPF] "target {target} is an application of {F} to {args}"
-
-    let F_stx ← delab F;
-    trace[QPF] "F_stx := {F_stx}\nargs := {args}"
+    let ⟨m, F, args⟩ ← (Comp.parseApp isLiveVar target)
+    trace[QPF] "target {target} is an application of {F} to {args.toList}"
 
     /-
       Optimization: check if the application is of the form `F α β γ .. = F α β γ ..`.
       In such cases, we can directly return `F`, rather than generate a composition of projections.
     -/
     let is_trivial := 
-      args.length == vars'.length
-      && args.enum.all fun ⟨i, arg⟩ => 
+      args.length == arity
+      && args.toList.enum.all fun ⟨i, arg⟩ => 
           arg.isFVar && isLiveVar arg.fvarId! && vars'.indexOf arg == i
     if is_trivial then
       trace[QPF] "The application is trivial"
-      return F_stx
+      return F
     else
-      let mut G : Array Term := #[]
-      for a in args do
-        let Ga ← elabQpf vars a none false
-        G := G.push Ga
-      trace[QPF] "F_stx := {F_stx}\nargs := {args}\nG := {G}"
-      let comp ← `(Comp (n:=$(quote args.length)) $F_stx !![$G,*])
+      let G ← args.toList.mapM fun a =>
+        elabQpf vars a none false
+
+      /-
+        HACK: We're redefining `m`, which was equal to `args.length`, in terms of `G.length`.
+        These lengths are the same, but it's a bit difficult to prove so.
+        Thus, we simply assert that `F` is an `m`-ary typefunction, with the new definition of `m`
+      -/
+      let m : Nat := G.length
+      let F : Q(TypeFun.{u,u} $m) := F
+
+      let GExpr : Vec _ m := fun i => G.get i.inv
+      let GExpr' : Q(Vec (TypeFun.{u,u} $arity) $m) := Vec.toExpr GExpr
+
+      trace[QPF] "G := {GExpr'}"
+      -- let comp ← `(Comp (n:=$(quote args.length)) $F_stx !![$G,*])
+      let comp := q(@Comp _ _ $F $GExpr')
       trace[QPF] "comp := {comp}"
       pure comp
 
@@ -199,8 +220,6 @@ partial def elabQpf (vars : Array Q(Type u)) (target : Q(Type u)) (targetStx : O
 
 
 
-
-
 structure QpfCompositionBodyView where
   (type?  : Option Syntax := none)
   (target : Term)
@@ -215,7 +234,8 @@ structure QpfCompositionBinders where
   Given the description of a QPF composition (`QpfCompositionView`), generate the syntax for a term
   that represents the desired functor (in uncurried form)
 -/
-def elabQpfCompositionBody (view: QpfCompositionBodyView) : CommandElabM Term := do  
+def elabQpfCompositionBody (view: QpfCompositionBodyView) : 
+      CommandElabM Term := do  
   trace[QPF] "elabQpfCompositionBody ::
     type?       := {view.type?}
     target      := {view.target}
@@ -239,7 +259,10 @@ def elabQpfCompositionBody (view: QpfCompositionBodyView) : CommandElabM Term :=
         withLiveBinders view.liveBinders fun vars =>
           withoutAutoBoundImplicit <| do          
             let target_expr ← elabTermEnsuringTypeQ (u:=u.succ.succ) view.target q(Type u)
-            elabQpf vars target_expr view.target
+            let arity := vars.toList.length
+            let vars : Vector _ arity := ⟨vars.toList, rfl⟩
+            let F ← elabQpf vars target_expr view.target
+            delab F
 
 
 structure QpfCompositionView where

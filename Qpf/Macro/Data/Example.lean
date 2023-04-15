@@ -5,20 +5,6 @@ import Qpf
 sudo set_option trace.QPF true
 set_option pp.rawOnError true
 
-#print List.noConfusionType
-#check List.noConfusion
-#check List.recOn
-#check List.casesOn
-
--- #print prefix List
-
-theorem nil_neq_cons (a : α) (as : List α) : List.nil ≠ List.cons a as := 
-  by simp
-
-#print nil_neq_cons
-
-
-
 data QpfList α where
   | nil : QpfList α
   | cons : α → QpfList α → QpfList α
@@ -51,19 +37,6 @@ namespace QpfList
       → motive t 
     :=
       fun t nil cons => QpfList.rec nil cons t
-
-  #print List.recOn
-
-  #check @List.rec
-  #check @QpfList.rec
-
-  
-
-  theorem nil_neq_cons (a : α) (as : QpfList α) : @QpfList.nil α ≠ QpfList.cons a as := 
-    by
-      sorry
-
-  #print nil_neq_cons
 end QpfList
 
 
