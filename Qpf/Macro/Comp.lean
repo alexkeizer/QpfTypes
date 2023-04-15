@@ -109,11 +109,13 @@ def List.indexOf' {α : Type} [BEq α] :  α → (as : List α) → Option (Fin2
                       | some i => some <| .fs i
 
 
-def Fin2.quote {n : Nat} : Fin2 n → Term
-  | .fz   => mkCIdent ``Fin2.fz
-  | .fs i => mkApp (mkCIdent ``Fin2.fs) #[quote i]
+def Fin2.toExpr {n : Nat} : Fin2 n → Q(Fin2 $n)
+  | .fz   => q(Fin2.fz)
+  | .fs i => q(Fin2.fs $(toExpr i))
 
-instance : {n : Nat} → Quote (Fin2 n) := ⟨Fin2.quote⟩
+instance {n : Nat} : ToExpr (Fin2 n) where 
+  toExpr      := Fin2.toExpr
+  toTypeExpr  := q(Fin2 $n)
   
 
 
@@ -125,8 +127,7 @@ partial def elabQpf (vars : Array Q(Type u)) (target : Q(Type u)) (targetStx : O
     TermElabM Term := do
   trace[QPF] "elabQPF :: {vars} -> {target}"
   let vars' := vars.toList;
-  let arity := vars'.length;
-  let arity_stx := quote arity;
+  let arity : Nat := vars'.length;
 
   let varIds := vars'.map fun expr => expr.fvarId!
   let isLiveVar : FVarId → Bool
@@ -138,15 +139,12 @@ partial def elabQpf (vars : Array Q(Type u)) (target : Q(Type u)) (targetStx : O
     | none      => throwError "Free variable {target} is not one of the qpf arguments"
     | some ind  => pure ind
 
-    let ind_stx := quote ind.inv;
-    `(@Prj $arity_stx $ind_stx)
+    let ind : Fin2 arity := ind.inv
+    delab q(@Prj.{u} $arity $ind)
 
   else if !target.hasAnyFVar isLiveVar then
     trace[QPF] "target {target} is a constant"
-    let targetStx ← match targetStx with
-      | some stx => pure stx
-      | none     => delab target
-    let stx ← `(Const $arity_stx $targetStx)
+    let stx ← delab q(Const.{u} $arity $target)
     trace[QPF] "represented by: {stx}"
     pure stx
 
