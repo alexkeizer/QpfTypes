@@ -44,15 +44,20 @@ namespace Macro.Comp
     * `F` is a QPF
   Then, tries to infer an instance of `MvQPF (TypeFun.curried F)`
 -/
-protected def parseApp (isLiveVar : FVarId → Bool) (e : Expr) : TermElabM (Expr × (List Expr))
-  := 
-    if !e.isApp then
-      throwError "application expected:\n {e}"
-    else
-      parseAppAux e List.nil none
+protected def parseApp (isLiveVar : FVarId → Bool) : 
+    Q(Type u) → TermElabM ((n : Nat) × Q(TypeFun.{u,u} $n) × Vector Expr n)
+  | Expr.app F a  => parseAppAux F ⟨[a], rfl⟩ none
+  | e             => throwError "application expected:\n {e}"
+      
 where
-  parseAppAux : Expr → List Expr → Option Exception → _
-  | Expr.app F a, args, _ => do
+  parseAppAux : {n : Nat} → Q(CurriedTypeFun.{u,u} $n) → Vector Expr n → Option Exception → _
+  | depth', Expr.app F a, args', _ => do
+    let args := Vector.cons a args'
+    let depth : Nat := depth' + 1
+    let F : Q(CurriedTypeFun.{u,u} $depth) := F
+
+    trace[QPF] "F := {F}\nargs := {args.toList}\ndepth := {depth}"
+    QQ.check F
     /- 
       It's important that we define `depth` in terms of the original `args`.
       The following, seemingly more natural formulation, does not work 
@@ -60,34 +65,25 @@ where
       ```
         let args := a :: args
         let depth : Nat := args.length
-      ```
-            
-    -/
-    let depth : Nat := args.length + 1
-    let args := a :: args
-    
+      ```            
+    -/    
     try
       -- Only try to infer QPF if `F` contains no live variables
-      if !F.hasAnyFVar isLiveVar then
-        let u ← mkFreshLevelMVar
-        let F : Q(CurriedTypeFun.{u,u} $depth) := F
-        QQ.check F
-        let F : Q(TypeFun.{u,u} $depth) := q(@TypeFun.ofCurried $depth $F)
-
-        trace[QPF] "F := {F}\ndepth := {depth}"
+      if !F.hasAnyFVar isLiveVar then        
+        let F : Q(TypeFun.{u,u} $depth) := q(@TypeFun.ofCurried $depth $F)        
         let inst_type : Q(Type (u+1))
           := q(MvQPF $F)
         
         -- asserts that the instance exists, or throws an error
         let _inst ← synthInstanceQ inst_type
-        return (F, args)
+        return ⟨depth, F, args⟩
       throwError "Smallest function subexpression still contains live variables:\n  {F}\ntry marking more variables as dead"
     catch e =>
-      parseAppAux F args (some e)
+      @parseAppAux depth F args (some e)
     
 
-  | _, _, some e => throw e
-  | ex, _, none  => 
+  | _, _, _, some e => throw e
+  | _, ex, _, none  => 
     if ex.hasAnyFVar isLiveVar then
       throwError "Smallest function subexpression still contains live variables:\n  {ex}\ntry marking more variables as dead"
     else
@@ -118,7 +114,8 @@ open PrettyPrinter in
 /--
   Elaborate the body of a qpf
 -/
-partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Term := none) (normalized := false) : TermElabM Term := do
+partial def elabQpf (vars : Array Q(Type u)) (target : Q(Type u)) (targetStx : Option Term := none) (normalized := false) : 
+    TermElabM Term := do
   trace[QPF] "elabQPF :: {vars} -> {target}"
   let vars' := vars.toList;
   let arity := vars'.length;
@@ -147,7 +144,8 @@ partial def elabQpf (vars : Array Expr) (target : Expr) (targetStx : Option Term
     pure stx
 
   else if target.isApp then
-    let (F, args) ← (Comp.parseApp isLiveVar target)
+    let ⟨_, F, args⟩ ← (Comp.parseApp isLiveVar target)
+    let args := args.toList
     trace[QPF] "target {target} is an application of {F} to {args}"
 
     let F_stx ← delab F;
@@ -221,24 +219,21 @@ def elabQpfCompositionBody (view: QpfCompositionBodyView) : CommandElabM Term :=
   "
   -- runTermElabM fun _ => do
   liftTermElabM do
-    let body_type ← 
-      if let some typeStx := view.type? then
-        let u ← mkFreshLevelMVar;
-        trace[QPF] "Expected (Syntax): {typeStx}"
-        let type ← elabTermEnsuringType typeStx (mkSort <| mkLevelSucc u)
-        trace[QPF] "Expected (Expr): {type}"
-        if !(←whnf type).isType then
-          throwErrorAt typeStx "invalid qpf, resulting type must be a type (e.g., `Type`, `Type _`, or `Type u`)"
-        pure type
+    let u : Level ← 
+      if let some typeStx := view.type? then             
+        let type ← elabTerm typeStx (some <| .sort <|<- mkFreshLevelMVar)
+        let type ← whnf type
+        match type with
+          | .sort (.succ u) => pure u
+          | _ => throwErrorAt typeStx "invalid qpf, resulting type must be a type (e.g., `Type`, `Type _`, or `Type u`)"
       else 
-        let u ← mkFreshLevelMVar;
-        pure <| mkSort <| mkLevelSucc u
+        mkFreshLevelMVar
   
     withAutoBoundImplicit <|
       elabBinders view.deadBinders fun _deadVars => 
         withLiveBinders view.liveBinders fun vars =>
-          withoutAutoBoundImplicit <| do
-            let target_expr ← elabTermEnsuringType view.target body_type;
+          withoutAutoBoundImplicit <| do          
+            let target_expr ← elabTermEnsuringTypeQ (u:=u.succ.succ) view.target q(Type u)
             elabQpf vars target_expr view.target
 
 
