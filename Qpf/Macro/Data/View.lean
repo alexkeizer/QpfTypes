@@ -75,6 +75,13 @@ def DataView.asInductive (view : DataView) : InductiveView
   }
 
 
+/-- The arity, i.e., the number of live parameters -/
+def DataView.arity (view : DataView) : Nat
+  := view.liveBinders.size
+
+
+
+
 open Lean.Parser in
 def DataView.pushLiveBinder (view : DataView) (binderIdent : TSyntax ``Parser.Term.binderIdent) : DataView
   :=  let liveBinders := view.liveBinders.push binderIdent
@@ -92,8 +99,19 @@ def DataView.popLiveBinder (view : DataView) : DataView
         { view with liveBinders, binders, }
 
 
+open Parser.Term in
+def DataView.applyDeadParametersTo {m} [Monad m] [MonadQuotation m] (view : DataView) (F : Term) : m Term := do
+  let args ← view.deadBinderNames.mapM fun n => 
+    `(namedArgument| ($n:ident := $n:term))
+  `($F $args:namedArgument*)
+
+
 def DataView.setCtors (view : DataView) (ctors : Array CtorView) : DataView
   :=  { view with ctors, }
+
+
+
+
 
 
 

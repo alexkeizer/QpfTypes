@@ -1,5 +1,6 @@
 import Lean
 import Mathlib
+import Qq
 
 import Qpf.Macro.Data.Replace
 import Qpf.Macro.Data.Count
@@ -11,6 +12,8 @@ open Lean Meta Elab.Command
 open Elab (Modifiers elabModifiers)
 open Parser.Term (namedArgument)
 open PrettyPrinter (delab)
+
+open Qq
 
 private def Array.enum (as : Array α) : Array (Nat × α) :=
   (Array.range as.size).zip as
@@ -430,32 +433,28 @@ def isPolynomial (view : DataView) (F: Term) : CommandElabM (Option Term) := do
 /--
   Return a syntax tree for `MvQPF.Fix` or `MvQPF.Cofix` when self is `Data`, resp. `Codata`.
 -/
-def DataCommand.fixOrCofix : DataCommand → Ident
-  | .Data   => mkIdent ``_root_.MvQPF.Fix
-  | .Codata => mkIdent ``_root_.MvQPF.Cofix
+def fixOrCofixQ {n : Nat} (F : Q(TypeFun.{u,u} ($n+1))) (_q : Q(MvQPF $F)) : DataCommand → Q(TypeFun.{u,u} $n)
+  | .Data   => q(MvQPF.Fix $F)
+  | .Codata => q(MvQPF.Cofix $F)
 
-/--
-  Return a syntax tree for `MvPFunctor.W` or `MvPFunctor.M` when self is `Data`, resp. `Codata`.
--/
-def DataCommand.fixOrCofixPolynomial : DataCommand → Ident
-  | .Data   => mkIdent ``_root_.MvPFunctor.W
-  | .Codata => mkIdent ``_root_.MvPFunctor.M
+def fixOrCofix : DataCommand → Name
+  | .Data => ``MvQPF.Fix
+  | .Codata => ``MvQPF.Cofix
+
 
 /--
   Take either the fixpoint or cofixpoint of `base` to produce an `Internal` uncurried QPF, 
   and define the desired type as the curried version of `Internal`
 -/
-def mkType (view : DataView) (base : Term) : CommandElabM Unit := do
+def mkType (view : DataView) (base : Term) : CommandElabM (Ident × Ident) := do
   trace[QPF] "mkType"
   let uncurriedIdent ← addSuffixToDeclIdent view.declId "Uncurried"
   let baseIdent ← addSuffixToDeclIdent view.declId "Base"
 
-  let deadBinderNamedArgs ← view.deadBinderNames.mapM fun n => 
-        `(namedArgument| ($n:ident := $n:term))
-  let uncurriedApplied ← `($uncurriedIdent:ident $deadBinderNamedArgs:namedArgument*)
-
-  let arity := view.liveBinders.size
-  let fix_or_cofix := DataCommand.fixOrCofix view.command
+  let arity := view.arity
+  let fix_or_cofix := mkIdent <| fixOrCofix view.command
+  let uncurriedApplied ← view.applyDeadParametersTo uncurriedIdent
+  
   let cmd ← `(
     abbrev $baseIdent:ident $view.deadBinders:bracketedBinder* : TypeFun $(quote <| arity + 1)
       := $base
@@ -468,7 +467,9 @@ def mkType (view : DataView) (base : Term) : CommandElabM Unit := do
   ) 
 
   trace[QPF] "elabData.cmd = {cmd}"
-  elabCommand cmd
+  let _ ← elabCommand cmd
+  return (uncurriedIdent, baseIdent)
+
 
 
 
@@ -501,7 +502,7 @@ def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
       do pure <| mkIdent <|← Elab.Term.mkFreshBinderName
     let args := args.toArray
 
-    let mk := mkIdent ((DataCommand.fixOrCofix view.command).getId ++ `mk)
+    let mk := mkIdent ((fixOrCofix view.command) ++ `mk)
     let shapeCtor := mkIdent <| Name.replacePrefix view.declName shape ctor.declName
     trace[QPF] "shapeCtor = {shapeCtor}"
 
@@ -536,6 +537,32 @@ def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
     elabCommand cmd
   return ()
 
+
+#check MvQPF.Fix.mk
+
+open MvFunctor in
+/--
+  Add (co)recursion principles, and destructor
+-/
+def mkEliminator (view : DataView) (uncurried base : Term) : CommandElabM Unit := do
+  let arity := quote view.arity
+  let uncurried ← view.applyDeadParametersTo uncurried
+  let base ← view.applyDeadParametersTo base
+
+  match view.command with
+  | .Data   => 
+    let recId ← addSuffixToDeclIdent view.declId "rec"
+    elabCommand <|<- `(
+      def $recId $view.deadBinders:bracketedBinder*
+          {α : TypeVec $arity} {motive : $uncurried α → Type _} :
+          (g : ∀ (x : $base (α ::: Sigma motive)), motive (Fix.mk <| (TypeVec.id ::: Sigma.fst) <$$> x))
+          → (x : $uncurried α)
+          → motive x            
+        := fun g x => MvQPF.Fix.drec g x
+    )
+  | .Codata => 
+    -- TODO: corec
+    pure ()
   
 
 
@@ -568,8 +595,10 @@ def elabData : CommandElab := fun stx => do
   }
   trace[QPF] "base = {base}"
 
-  mkType view base  
-  mkConstructors view shape  
+  let (uncurriedIdent, baseIdent) ← mkType view base  
+  mkConstructors view shape
+  mkEliminator view uncurriedIdent baseIdent
+
 
 
 end Data.Command
