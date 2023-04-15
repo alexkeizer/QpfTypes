@@ -98,6 +98,11 @@ private def addSuffixToDeclId {m} [Monad m] [MonadResolveName m] (declId : Synta
   let shortDeclName := Name.mkSimple suffix
   return (declName, declId, shortDeclName)
 
+private def addSuffixToDeclIdent {m} [Monad m] [MonadResolveName m] (declId : Syntax) (suffix : String) :
+    m Ident := do
+  let (_, uncurriedDeclId, _) ← addSuffixToDeclId declId suffix
+  pure ⟨uncurriedDeclId.raw[0]⟩
+
 
 open Parser in
 /--
@@ -442,48 +447,28 @@ def DataCommand.fixOrCofixPolynomial : DataCommand → Ident
 -/
 def mkType (view : DataView) (base : Term) : CommandElabM Unit := do
   trace[QPF] "mkType"
-  let (_, uncurriedDeclId, _) ← addSuffixToDeclId view.declId "Uncurried"
-  let uncurriedIdent : Ident := ⟨uncurriedDeclId.raw[0]⟩
-
-  let (_, baseDeclId, _) ← addSuffixToDeclId view.declId "Base"
-  let baseIdent : Ident := ⟨baseDeclId.raw[0]⟩
+  let uncurriedIdent ← addSuffixToDeclIdent view.declId "Uncurried"
+  let baseIdent ← addSuffixToDeclIdent view.declId "Base"
 
   let deadBinderNamedArgs ← view.deadBinderNames.mapM fun n => 
         `(namedArgument| ($n:ident := $n:term))
   let uncurriedApplied ← `($uncurriedIdent:ident $deadBinderNamedArgs:namedArgument*)
 
   let arity := view.liveBinders.size
-
-  -- let poly ← isPolynomial view base
-  -- trace[QPF] "poly: {poly}"
-
-  -- let cmd ← match poly with
-  --   | some poly => 
-  --       let fix_or_cofix := DataCommand.fixOrCofixPolynomial view.command
-  --       `(
-  --         abbrev $baseIdent:ident $view.deadBinders:bracketedBinder* : _root_.TypeFun $(quote <| arity + 1)
-  --           := (@MvQPF.P _ _ $poly).Obj
-
-  --         abbrev $uncurriedIdent:ident $view.deadBinders:bracketedBinder* : _root_.TypeFun $(quote arity)
-  --           := ($fix_or_cofix $base).Obj
-  --       ) 
-  --   | none =>
   let fix_or_cofix := DataCommand.fixOrCofix view.command
   let cmd ← `(
-          abbrev $baseIdent:ident $view.deadBinders:bracketedBinder* : _root_.TypeFun $(quote <| arity + 1)
-            := $base
+    abbrev $baseIdent:ident $view.deadBinders:bracketedBinder* : TypeFun $(quote <| arity + 1)
+      := $base
 
-          abbrev $uncurriedIdent:ident $view.deadBinders:bracketedBinder* : _root_.TypeFun $(quote arity)
-            := $fix_or_cofix $base
+    abbrev $uncurriedIdent:ident $view.deadBinders:bracketedBinder* : TypeFun $(quote arity)
+      := $fix_or_cofix $base
+
+    abbrev $(view.declId) $view.deadBinders:bracketedBinder*
+      := TypeFun.curried $uncurriedApplied
   ) 
 
   trace[QPF] "elabData.cmd = {cmd}"
   elabCommand cmd
-
-  elabCommand <|<- `(
-    abbrev $(view.declId)   $view.deadBinders:bracketedBinder*
-      := _root_.TypeFun.curried $uncurriedApplied
-  )
 
 
 
