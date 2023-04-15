@@ -86,8 +86,8 @@ def CtorView.declReplacePrefix (pref new_pref : Name) (ctor: CtorView) : CtorVie
 
 open Parser.Command (declId)
 /-- Return a tuple of `declName, declId, shortDeclName` -/
-private def addSuffixToDeclId (declId : Syntax) (suffix : String) : 
-    CommandElabM (Name × (TSyntax ``declId) × Name) := do
+private def addSuffixToDeclId {m} [Monad m] [MonadResolveName m] (declId : Syntax) (suffix : String) : 
+    m (Name × (TSyntax ``declId) × Name) := do
   let (id, _) := Elab.expandDeclIdCore declId
   let declName := Name.mkStr id suffix
   let declId := mkNode ``declId #[mkIdent declName, mkNullNode]
@@ -335,9 +335,10 @@ structure MkShapeResult where
   (r : Replace)
   (shape : Name)
   (P : Name)
+  (effects : CommandElabM Unit)
 
 open Parser in
-def mkShape (view: DataView) : CommandElabM MkShapeResult := do
+def mkShape (view: DataView) : TermElabM MkShapeResult := do
   -- If the original declId was `MyType`, we want to register the shape type under `MyType.Shape`
   let (declName, declId, shortDeclName) ← addSuffixToDeclId view.declId "Shape"
 
@@ -369,35 +370,35 @@ def mkShape (view: DataView) : CommandElabM MkShapeResult := do
   }
 
   trace[QPF] "mkShape :: elabInductiveViews :: binders = {view.binders}"
-  elabInductiveViews #[view]
-
-  let headTName ← mkHeadT view
-  let childTName ← mkChildT view r headTName
 
   let PName := Name.mkStr declName "P"
-  let PId := mkIdent PName
-  -- let u ← Elab.Term.mkFreshBinderName
-  let PDeclId := mkNode ``Command.declId #[PId, mkNullNode 
-    -- #[ TODO: make this universe polymorphic
-    --   mkAtom ".{",
-    --   mkNullNode #[u],
-    --   mkAtom "}"
-    -- ]
-  ]
+  return ⟨r, declName, PName, do
+    elabInductiveViews #[view]
 
-  let headTId := mkIdent headTName
-  let childTId := mkIdent childTName
+    let headTName ← mkHeadT view
+    let childTName ← mkChildT view r headTName
+    
+    let PId := mkIdent PName
+    -- let u ← Elab.Term.mkFreshBinderName
+    let PDeclId := mkNode ``Command.declId #[PId, mkNullNode 
+      -- #[ TODO: make this universe polymorphic
+      --   mkAtom ".{",
+      --   mkNullNode #[u],
+      --   mkAtom "}"
+      -- ]
+    ]
 
-  elabCommand <|<- `(
-    def $PDeclId := 
-      MvPFunctor.mk $headTId $childTId
-  )
+    let headTId := mkIdent headTName
+    let childTId := mkIdent childTName
 
- 
-  mkQpf view ctorArgs headTId PId r.expr.size
+    elabCommand <|<- `(
+      def $PDeclId := 
+        MvPFunctor.mk $headTId $childTId
+    )
+
   
-
-  pure ⟨r, declName, PName⟩
+    mkQpf view ctorArgs headTId PId r.expr.size
+  ⟩
 
 open Elab.Term Parser.Term in
 /--
@@ -550,7 +551,7 @@ def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
     elabCommand cmd
   return ()
 
-
+  
 
 
 open Macro Comp in
@@ -563,10 +564,13 @@ def elabData : CommandElab := fun stx => do
   let decl := stx[1]
   let view ← dataSyntaxToView modifiers decl
 
-  let (nonRecView, _rho) ← makeNonRecursive view;
-  trace[QPF] "nonRecView: {nonRecView}"
+  let (nonRecView, ⟨r, shape, _P, eff⟩) ← runTermElabM fun _ => do
+    let (nonRecView, _rho) ← makeNonRecursive view;
+    trace[QPF] "nonRecView: {nonRecView}"
+    pure (nonRecView, ←mkShape nonRecView)
 
-  let ⟨r, shape, _P⟩ ← mkShape nonRecView
+  /- Execute the `ComandElabM` side-effects prescribed by `mkShape` -/
+  let _ ← eff
 
   /- Composition pipeline -/
   let base ← elabQpfCompositionBody {
@@ -580,7 +584,7 @@ def elabData : CommandElab := fun stx => do
   trace[QPF] "base = {base}"
 
   mkType view base  
-  mkConstructors view shape
+  mkConstructors view shape  
 
 
 end Data.Command

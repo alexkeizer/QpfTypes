@@ -23,18 +23,23 @@ structure Replace where
   (ctor: CtorArgs)
 
 
-private def Replace.new : CommandElabM Replace := 
+variable (m) [Monad m] [MonadQuotation m] [MonadError m] [MonadTrace m] [MonadOptions m]
+              [AddMessageContext m] [MonadLiftT IO m]
+
+private abbrev ReplaceM := StateT Replace m
+
+variable {m}
+
+private def Replace.new : m Replace := 
   do pure ⟨#[], #[], ⟨#[], #[]⟩⟩
 
-private abbrev ReplaceM := StateT Replace CommandElabM
-
-private def CtorArgs.reset : ReplaceM Unit := do
+private def CtorArgs.reset : ReplaceM m Unit := do
   let r ← StateT.get
   let n := r.vars.size
   let ctor: CtorArgs := ⟨#[], (Array.range n).map fun _ => #[]⟩
   StateT.set ⟨r.expr, r.vars, ctor⟩
 
-private def CtorArgs.get : ReplaceM CtorArgs := do
+private def CtorArgs.get : ReplaceM m CtorArgs := do
   pure (←StateT.get).ctor
 
 /--
@@ -47,7 +52,7 @@ def Replace.getBinderIdents (r : Replace) : Array Ident :=
   r.vars.map mkIdent
 
 open Parser.Term in
-def Replace.getBinders (r : Replace) : CommandElabM <| TSyntax ``bracketedBinder := do
+def Replace.getBinders {m} [Monad m] [MonadQuotation m] (r : Replace) : m <| TSyntax ``bracketedBinder := do
   let names := r.getBinderIdents
   `(bracketedBinderF | ($names* : Type _ ))
 
@@ -58,7 +63,7 @@ def Replace.getBinders (r : Replace) : CommandElabM <| TSyntax ``bracketedBinder
 
 
 
-private def ReplaceM.identFor (stx : Term) : ReplaceM Ident := do
+private def ReplaceM.identFor (stx : Term) : ReplaceM m Ident := do
   let r ← StateT.get
   let ctor := r.ctor
   let argName ← mkFreshBinderName
@@ -88,7 +93,7 @@ open Lean.Parser in
   with a fresh variable, such that repeated occurrences of the same expression map to the same
   variable
 -/
-private partial def shapeOf' : Syntax → ReplaceM Syntax
+private partial def shapeOf' : Syntax → ReplaceM m Syntax
   | Syntax.node _ ``Term.arrow #[arg, arrow, tail] => do
     let ctor_arg ← ReplaceM.identFor ⟨arg⟩ 
     let ctor_tail ← shapeOf' tail
@@ -105,7 +110,7 @@ open Lean.Parser in
 /--
   Given a sequence of (non-dependent) arrows, change the last expression into `res_type`
 -/
-private partial def setResultingType (res_type : Syntax) : Syntax → ReplaceM Syntax
+private partial def setResultingType (res_type : Syntax) : Syntax → ReplaceM m Syntax
   | Syntax.node _ ``Term.arrow #[arg, arrow, tail] => do
     let tail ← setResultingType res_type tail
     pure $ mkNode ``Term.arrow #[arg, arrow, tail]
@@ -137,7 +142,7 @@ def CtorView.withType? (ctor : CtorView) (type? : Option Syntax) : CtorView := {
 
 
 /-- Runs the given action with a fresh instance of `Replace` -/
-def Replace.run : ReplaceM α → CommandElabM (α × Replace) := 
+def Replace.run : ReplaceM m α → m (α × Replace) := 
   fun x => do 
     let r ← Replace.new
     StateT.run x r
@@ -150,7 +155,7 @@ def Replace.run : ReplaceM α → CommandElabM (α × Replace) :=
 -/
 def Replace.shapeOfCtors (view : DataView) 
                           (shapeIdent : Syntax) 
-    : CommandElabM ((Array CtorView × Array CtorArgs) × Replace) := 
+    : m ((Array CtorView × Array CtorArgs) × Replace) := 
 Replace.run <| do
   for var in view.liveBinders do
     let varIdent : Ident := ⟨if var.raw.getKind == ``Parser.Term.binderIdent then
@@ -217,7 +222,7 @@ open Parser in
   *other* occurences (i.e., in e₁ ... eₖ₋₁) of `recType` with `newParam`.
 
 -/
-partial def Replace.replaceStx (recType newParam : Term) : Term → CommandElabM Term
+partial def Replace.replaceStx (recType newParam : Term) : Term → MetaM Term
   | ⟨stx⟩ => match stx with
     | stx@(Syntax.node _ ``Term.arrow #[arg, arrow, tail]) => do
         pure <| TSyntax.mk <| stx.setArgs #[
@@ -250,7 +255,7 @@ open Parser
   Simultaneously checks that each constructor type, if given, is indeed a sequence of arrows
   ... → ... → ... culminating in the type to be defined.
 -/
-def makeNonRecursive (view : DataView) : CommandElabM (DataView × Name) := do
+def makeNonRecursive (view : DataView) : MetaM (DataView × Name) := do
   let expected := view.getExpectedType
 
   let rec ← mkFreshBinderName
