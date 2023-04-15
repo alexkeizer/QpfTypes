@@ -405,7 +405,7 @@ open Elab.Term Parser.Term in
   `IsPolynomial F`, and return that instance (if it exists).
 -/
 def isPolynomial (view : DataView) (F: Term) : CommandElabM (Option Term) := do
-  liftTermElabM do
+  runTermElabM fun _ => do
     elabBinders view.deadBinders fun _deadVars => do
       trace[QPF] "isPolynomial::F = {F}"
       let inst_type ← `(MvQPF.IsPolynomial $F:term)

@@ -1,6 +1,10 @@
-import Test.DeadWrap
 import Test.Arrow
+import Test.Comp
+import Test.CoTree
+import Test.Dead
+import Test.DeadWrap
 import Test.List
-import Test.Wrap
+import Test.Misc
 import Test.Tree
-import Test.Variable
+-- import Test.Variable
+import Test.Wrap

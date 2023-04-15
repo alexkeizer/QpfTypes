@@ -1,23 +1,13 @@
 import Qpf
 
--- set_option trace.Meta.debug true
--- set_option trace.Elab.inductive true
-sudo set_option trace.QPF true
+set_option trace.QPF true
 set_option pp.rawOnError true
 
 data QpfList α where
   | nil : QpfList α
   | cons : α → QpfList α → QpfList α
 
-#check QpfList
-
-#check @MvQPF.Fix.drec _ QpfList.Uncurried _
-
 namespace QpfList
-  #print QpfList.nil
-  #print QpfList.cons
-
-
   def rec {α : Type _} {motive : QpfList α → Sort _} :
     motive QpfList.nil 
     → ((head : α) → (tail : QpfList α) → motive tail → motive (QpfList.cons head tail))
@@ -41,18 +31,6 @@ end QpfList
 
 
 
-
-
-
-
-
-
-
-data QpfTree α where
-  | node : α → List (QpfTree α) → QpfTree α
-
-codata QpfCoTree α where
-  | node : α → List (QpfCoTree α) → QpfCoTree α
 
 
 
@@ -159,26 +137,6 @@ def QpfStream.add (as bs : QpfStream Nat) : QpfStream Nat :=
 
 
 
-
-
-#print QpfList.Uncurried
-#print QpfList.Shape
-#print QpfList.Shape.P
-
-  
-
-data QpfList₂ α where
-  | My.nil : QpfList₂ α
-  | My2.nil : α → QpfList₂ α
-
-#check QpfList₂
-
-data QpfList₃ α where
-  | My.nil : QpfList₃ α
-  | My2.nil : α → QpfList₃ α → QpfList₃ α
-
-
-
 #check QpfList
 
 
@@ -218,57 +176,8 @@ namespace Quotient
 end Quotient
 
 
-/-
-  # Composition pipeline
--/
-
-qpf P₁ α β := α
-qpf P₂ α β := β
-
-qpf C₁ α β := Nat
-qpf C₂ (n : Nat) α β := PFin2 n
-
-qpf G₄ α β ρ := QpfList ρ
-
-
-/-
-  # Dead variables
--/
-
-data Arrow (α : Type _) β
-  | mk : (α → β) → Arrow α β
-
-codata FinAlt {n : Nat} β
-  | mk : PFin2 n → FinAlt β
-
-#print FinAlt.mk
-
-
-data QpfList₄ (dead : Type) β γ where
-  | nil   : QpfList₄ dead β γ
-  | cons  : QpfList₄ dead β γ → QpfList₄ dead β γ
 
 
 
-/-
-  # Regression tests
 
-  These cases failed at some point, include them here as a regression test
--/
 
-data PairOf α β
-  | mk : α → β → β → PairOf α β
-
-data QpfTest α β where
-  | A : α → α → β → QpfTest α β → QpfTree β → QpfCoTree (QpfTree (QpfTest α β)) → QpfTest α β
-
-data RepAfterConst β
-  | mk : Nat →  β → β → RepAfterConst β
-
-codata NatList α where
-  | nil : NatList α
-  | cons : Nat → NatList α → NatList α
-
-data QpfList₅ (A : Type) (dead : Type) β where
-  | nil   : QpfList₅ A dead β
-  | cons  : A → (dead → β) → QpfList₅ A dead β → QpfList₅ A dead β

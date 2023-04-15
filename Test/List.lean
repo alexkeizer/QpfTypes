@@ -2,8 +2,8 @@ import Qpf
 
 namespace Test
 
-data List α 
+data QpfList α 
   | nil
-  | cons : α → List α → List α   
+  | cons : α → QpfList α → QpfList α   
 
 end Test

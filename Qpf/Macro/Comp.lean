@@ -242,8 +242,7 @@ def elabQpfCompositionBody (view: QpfCompositionBodyView) :
     liveBinders := {view.liveBinders}
     deadBinders := {view.deadBinders}
   "
-  -- runTermElabM fun _ => do
-  liftTermElabM do
+  runTermElabM fun _ => do
     let u : Level ← 
       if let some typeStx := view.type? then             
         let type ← elabTerm typeStx (some <| .sort <|<- mkFreshLevelMVar)
