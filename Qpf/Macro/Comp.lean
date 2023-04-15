@@ -20,6 +20,8 @@
 import Qpf.Qpf
 import Qpf.Macro.Common
 
+import Qq
+
 namespace Macro.Comp
   open MvQPF
   open Lean Elab Term Command Meta
@@ -28,6 +30,8 @@ namespace Macro.Comp
   -- open Parser (ident)
   open Parser.Term (bracketedBinder)
   open Parser.Command (declModifiers «def»)
+
+  open Qq
 
   -- TODO: make everything work without this compatibility coercion
   open TSyntax.Compat
@@ -49,35 +53,33 @@ protected def parseApp (isLiveVar : FVarId → Bool) (e : Expr) : TermElabM (Exp
 where
   parseAppAux : Expr → List Expr → Option Exception → _
   | Expr.app F a, args, _ => do
+    /- 
+      It's important that we define `depth` in terms of the original `args`.
+      The following, seemingly more natural formulation, does not work 
+      (see https://github.com/gebner/quote4/issues/8)
+      ```
+        let args := a :: args
+        let depth : Nat := args.length
+      ```
+            
+    -/
+    let depth : Nat := args.length + 1
     let args := a :: args
-    let depth := args.length
     
     try
       -- Only try to infer QPF if `F` contains no live variables
       if !F.hasAnyFVar isLiveVar then
-        /-
-          HACK: For some reason building the following application directly with `Expr`s leads to
-          weird universe issues. So, instead we build it with syntax.
-
-          The original, `Expr` version was as follows:
-            let F ← uncurry F (mkNatLit depth)
-            let inst_type ← mkAppM ``MvQPF #[F];
-        -/
-        let F_stx ← delab F
-        let depth := quote (k:=numLitKind) depth
-        trace[QPF] "F_stx := {F_stx}\ndepth := {depth}"
-        let F ← `(@TypeFun.ofCurried $depth $F_stx)
-        let inst_type ← elabTerm (← `(MvQPF $F)) none
-
-        let Nat := Expr.const ``Nat .nil
         let u ← mkFreshLevelMVar
-        let v ← mkFreshLevelMVar
-        let F_type := Expr.app (.const ``TypeFun (.cons u <| .cons v .nil)) 
-                                (←elabTerm depth Nat)
-        let F ← elabTerm F <| some F_type
+        let F : Q(CurriedTypeFun.{u,u} $depth) := F
+        QQ.check F
+        let F : Q(TypeFun.{u,u} $depth) := q(@TypeFun.ofCurried $depth $F)
+
+        trace[QPF] "F := {F}\ndepth := {depth}"
+        let inst_type : Q(Type (u+1))
+          := q(MvQPF $F)
         
         -- asserts that the instance exists, or throws an error
-        let _inst ← synthInstance inst_type
+        let _inst ← synthInstanceQ inst_type
         return (F, args)
       throwError "Smallest function subexpression still contains live variables:\n  {F}\ntry marking more variables as dead"
     catch e =>
