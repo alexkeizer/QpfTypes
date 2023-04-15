@@ -54,6 +54,11 @@ def synthQPF {n : Nat} (F : Q(TypeFun.{u,u} $n)) : MetaM Q(MvQPF $F) := do
 protected def parseApp (isLiveVar : FVarId → Bool) (F : Q(Type u)) : 
     TermElabM ((n : Nat) × Q(TypeFun.{u,u} $n) × Vector Expr n) :=
   if F.isApp then
+    /-
+      HACK: Technically `F` is *not* an instance of `CurriedTypeFun 0`.
+      However, we know that it is an application, and we only check the type after
+      deconstructing the application
+    -/
     parseAppAux F ⟨[], rfl⟩ none
   else     
     throwError "application expected:\n {F}"
