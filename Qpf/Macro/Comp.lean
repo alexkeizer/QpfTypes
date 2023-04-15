@@ -37,6 +37,13 @@ namespace Macro.Comp
   open TSyntax.Compat
 
 
+def synthQPF {n : Nat} (F : Q(TypeFun.{u,u} $n)) : MetaM Q(MvQPF $F) := do
+  let inst_type : Q(Type (u+1)) 
+    := q(MvQPF $F)
+  synthInstanceQ inst_type
+
+
+
 /--
   Given an expression `e`, tries to find the largest subexpression `F` such that 
     * `e = F α₀ ... αₙ`, for some list of arguments `α_i`, and
@@ -44,10 +51,12 @@ namespace Macro.Comp
     * `F` is a QPF
   Then, tries to infer an instance of `MvQPF (TypeFun.curried F)`
 -/
-protected def parseApp (isLiveVar : FVarId → Bool) : 
-    Q(Type u) → TermElabM ((n : Nat) × Q(TypeFun.{u,u} $n) × Vector Expr n)
-  | Expr.app F a  => parseAppAux F ⟨[a], rfl⟩ none
-  | e             => throwError "application expected:\n {e}"
+protected def parseApp (isLiveVar : FVarId → Bool) (F : Q(Type u)) : 
+    TermElabM ((n : Nat) × Q(TypeFun.{u,u} $n) × Vector Expr n) :=
+  if F.isApp then
+    parseAppAux F ⟨[], rfl⟩ none
+  else     
+    throwError "application expected:\n {F}"
       
 where
   parseAppAux : {n : Nat} → Q(CurriedTypeFun.{u,u} $n) → Vector Expr n → Option Exception → _
@@ -58,36 +67,29 @@ where
 
     trace[QPF] "F := {F}\nargs := {args.toList}\ndepth := {depth}"
     QQ.check F
-    /- 
-      It's important that we define `depth` in terms of the original `args`.
-      The following, seemingly more natural formulation, does not work 
-      (see https://github.com/gebner/quote4/issues/8)
-      ```
-        let args := a :: args
-        let depth : Nat := args.length
-      ```            
-    -/    
     try
       -- Only try to infer QPF if `F` contains no live variables
       if !F.hasAnyFVar isLiveVar then        
-        let F : Q(TypeFun.{u,u} $depth) := q(@TypeFun.ofCurried $depth $F)        
-        let inst_type : Q(Type (u+1))
-          := q(MvQPF $F)
-        
-        -- asserts that the instance exists, or throws an error
-        let _inst ← synthInstanceQ inst_type
+        let F : Q(TypeFun.{u,u} $depth)
+          := q(TypeFun.ofCurried $F)
+        let _ ← synthQPF F
         return ⟨depth, F, args⟩
       throwError "Smallest function subexpression still contains live variables:\n  {F}\ntry marking more variables as dead"
     catch e =>
       @parseAppAux depth F args (some e)
     
-
-  | _, _, _, some e => throw e
-  | _, ex, _, none  => 
-    if ex.hasAnyFVar isLiveVar then
-      throwError "Smallest function subexpression still contains live variables:\n  {ex}\ntry marking more variables as dead"
+  | depth, F, args, e  => do
+    if F.hasAnyFVar isLiveVar then
+      match e with 
+      | some e => throw e
+      | none =>
+        throwError "Smallest function subexpression still contains live variables:\n  {F}\ntry marking more variables as dead"
     else
-      throwError "Failed to infer an instance of `MvQPF ({ex})`, even though it is the smallest possible prefix expression"
+      trace[QPF] "F := {F}\nargs := {args.toList}\ndepth := {depth}"
+      let F : Q(TypeFun.{u,u} $depth)
+        := q(TypeFun.ofCurried $F)
+      let _ ← synthQPF F
+      return ⟨depth, F, args⟩
 
 
 
