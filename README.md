@@ -62,7 +62,7 @@ codata CoTree (α : Type _)
   --           ^^^^^^^^^^^^^^^^^^ <-- this is where it goes wrong
 ```
 
-Reusing the type ascription to distinguish live/dead variable is not ideal; in future we'll either introduce dedicate syntax, or automatically determine which variables can be live and which have to be dead.
+Reusing the type ascription to distinguish live/dead variable is not ideal; in future we'll either introduce dedicated syntax, or automatically determine which variables can be live and which have to be dead.
 
 
 
