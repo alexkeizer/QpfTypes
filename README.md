@@ -1,7 +1,7 @@
 
 # A (co)datatype package for Lean 4, based on Quotients of Polynomial Functors
 
-This library implements a `codata` command, which can be used to define *coinductive* types 
+This library implements a `codata` command, which can be used to define *coinductive* types in [Lean 4](https://leanprover-community.github.io/)
 using a syntax similar to `inductive`. For example, the following specifies a type of (potentially)
 infinite lists.
 
