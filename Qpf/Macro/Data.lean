@@ -552,7 +552,7 @@ def mkEliminator (view : DataView) (uncurried base : Term) : CommandElabM Unit :
   match view.command with
   | .Data   => 
     let recId ← addSuffixToDeclIdent view.declId "rec"
-    elabCommand <|<- `(
+    let stx <- `(
       def $recId $view.deadBinders:bracketedBinder*
           {α : TypeVec $arity} {motive : $uncurried α → Type _} :
           (g : ∀ (x : $base (α ::: Sigma motive)), motive (Fix.mk <| (TypeVec.id ::: Sigma.fst) <$$> x))
@@ -560,6 +560,7 @@ def mkEliminator (view : DataView) (uncurried base : Term) : CommandElabM Unit :
           → motive x            
         := fun g x => MvQPF.Fix.drec g x
     )
+    -- elabCommand stx
   | .Codata => 
     -- TODO: corec
     pure ()

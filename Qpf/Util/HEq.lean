@@ -192,6 +192,7 @@ import Mathlib
   # Function Extensionality
   -/
 
+  /-- `funext` for heterogenous equality of functions with defeq argument types -/
   theorem HEq.funext {α : Sort u} {β₁ β₂ : α → Sort _}
                       {f₁ : (x : α) → β₁ x} 
                       {f₂ : (x : α) → β₂ x} 
@@ -205,6 +206,7 @@ import Mathlib
     funext a
     apply eq_of_heq <| h a
 
+  /-- `funext` for heterogenous equality of functions with propositionally equal argument types -/
   theorem HEq.funext' {α₁ α₂ : Sort u} {β₁ : α₁ → Sort _} {β₂ : α₂ → Sort _}
                       {f₁ : (x : α₁) → β₁ x} 
                       {f₂ : (x : α₂) → β₂ x} 
