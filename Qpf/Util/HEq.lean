@@ -4,8 +4,6 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Alex Keizer
 -/
 
-import Mathlib
-
 /-
   Some helpful lemmas about heterogenous equalities
 -/
@@ -105,7 +103,7 @@ import Mathlib
                      (H₂ : P = P') :
     HEq (f a) (f' a) :=
   by
-    cases H₂; cases H₁; rfl;
+    cases H₂; cases H₁; apply HEq.rfl;
     
 
 

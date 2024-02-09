@@ -6,7 +6,7 @@ Authors: Jeremy Avigad, Mario Carneiro, Simon Hudon, Alex Keizer
 
 import Qpf.MathlibPort.Fin2
 import Qpf.Util.HEq
--- import Mathlib
+import Mathlib.Data.TypeVec
 
 universe u v w
 

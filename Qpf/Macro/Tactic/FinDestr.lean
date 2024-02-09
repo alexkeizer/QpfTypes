@@ -1,4 +1,4 @@
-
+import Mathlib.Tactic.PermuteGoals
 import Qpf.MathlibPort.Fin2
 
 /-!

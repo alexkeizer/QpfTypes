@@ -17,6 +17,10 @@
   Note that the macro just compiles these equations into the appropriate constructions on QPFs.
 -/
 
+import Mathlib.Data.QPF.Multivariate.Constructions.Comp
+import Mathlib.Data.QPF.Multivariate.Constructions.Const
+import Mathlib.Data.QPF.Multivariate.Constructions.Prj
+
 import Qpf.Qpf
 import Qpf.Macro.Common
 

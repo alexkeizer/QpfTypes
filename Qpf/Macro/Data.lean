@@ -1,5 +1,5 @@
-import Lean
-import Mathlib
+import Mathlib.Data.QPF.Multivariate.Constructions.Cofix
+import Mathlib.Data.QPF.Multivariate.Constructions.Fix
 
 import Qpf.Macro.Data.Replace
 import Qpf.Macro.Data.Count

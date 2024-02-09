@@ -2,7 +2,7 @@
   Provides an instance of `MvQPF` for (the uncurried version of) the `Sum` built-in type
 -/
 
-import Mathlib
+import Mathlib.Data.QPF.Multivariate.Basic
 import Qpf.Macro.Tactic.FinDestr
 import Qpf.Util
 

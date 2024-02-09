@@ -1,4 +1,4 @@
-import Mathlib
+import Mathlib.Data.QPF.Multivariate.Basic
 import Qpf.Util
 import Qpf.Macro.Tactic.FinDestr
 
