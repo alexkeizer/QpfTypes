@@ -4,7 +4,9 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Mario Carneiro
 -/
 
-import Mathlib
+import Mathlib.Data.Fin.Fin2
+import Mathlib.Data.Nat.Order.Basic
+import Mathlib.Init.Order.Defs
 
 /-!
 # Inductive type variant of `Fin`
@@ -218,9 +220,9 @@ def inv : {n : Nat} → PFin2.{u} n → PFin2.{u} n
 theorem strengthen_last_is_none {n : Nat} :
   (@last n).strengthen = none :=
 by
-  induction n;
-  simp [last]
-  simp [strengthen, last, *]
+  induction n
+  . simp [strengthen, last]
+  . simp [strengthen, last, *]
 
 
 theorem strengthen_is_none_imp_eq_last {n : Nat} {i : PFin2 (n+1)} :
@@ -228,7 +230,7 @@ theorem strengthen_is_none_imp_eq_last {n : Nat} {i : PFin2 (n+1)} :
 by
   induction n;
   . cases i;
-    . simp [strengthen]
+    . simp [strengthen, last]
     . intros; contradiction
   case succ n ih => 
     simp [strengthen, last, *]
@@ -312,7 +314,7 @@ theorem inv_involution {i : PFin2 n} :
   i.inv.inv = i :=
 by
     induction i
-    <;> simp[inv]
+    simp [inv]
     case fz => apply inv_last_eq_fz
     case fs n i ih => {
       cases n;
@@ -377,7 +379,7 @@ instance instLinOrd : LinearOrder (PFin2 n) where
                                       }
                               apply Nat.le_antisymm h₁ h₂
   le_total _ _          := by apply Nat.le_total
-  decidable_le          := decidable_le
+  decidableLE          := decidable_le
   compare_eq_compareOfLessAndEq := by 
     intro x y
     simp only [compare, instOrd, compareOfLessAndEq]
@@ -441,7 +443,7 @@ by
   induction n;
   case zero =>
     cases i;
-    . simp;
+    . simp [last];
     . contradiction
   case succ n ih =>
     cases i;

@@ -1,4 +1,4 @@
-import Mathlib
+import Mathlib.Control.Functor.Multivariate
 import Qpf.Util.TypeFun
 import Qpf.Util.VecClass
 

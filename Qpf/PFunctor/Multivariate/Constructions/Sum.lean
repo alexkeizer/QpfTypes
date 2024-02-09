@@ -2,9 +2,10 @@
   Provides an instance of `MvQPF` for (the uncurried version of) the `Sum` built-in type
 -/
 
-import Mathlib
+import Mathlib.Data.QPF.Multivariate.Basic
 import Qpf.Macro.Tactic.FinDestr
 import Qpf.Util
+import Qpf.Qpf.Multivariate.Basic
 
 namespace MvQPF
 namespace Sum
@@ -61,6 +62,10 @@ def equiv {Γ} : Sum' Γ ≃ QpfSum' Γ :=
       fin_destr <;> rfl
     }
 } 
+
+instance : MvFunctor Sum' where
+  map f x   := equiv.invFun <| SumPFunctor.map f <| equiv.toFun <| x
+
 
 instance : MvQPF.IsPolynomial Sum' := 
   .ofEquiv _ equiv

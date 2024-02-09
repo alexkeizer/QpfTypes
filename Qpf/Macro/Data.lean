@@ -1,5 +1,5 @@
-import Lean
-import Mathlib
+import Mathlib.Data.QPF.Multivariate.Constructions.Cofix
+import Mathlib.Data.QPF.Multivariate.Constructions.Fix
 
 import Qpf.Macro.Data.Replace
 import Qpf.Macro.Data.Count
@@ -213,6 +213,8 @@ open Parser.Term in
 -/
 def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT P : Ident) (arity : Nat) : CommandElabM Unit := do
   let (shapeN, _) := Elab.expandDeclIdCore shapeView.declId
+  let eqv := mkIdent $ Name.mkStr shapeN "equiv"
+  let functor := mkIdent $ Name.mkStr shapeN "functor"
   let q := mkIdent $ Name.mkStr shapeN "qpf"
   let shape := mkIdent shapeN
 
@@ -303,25 +305,29 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT P : Ide
   )
 
   let cmd ← `(
+    def $eqv:ident {Γ} : (@TypeFun.ofCurried $(quote arity) $shape) Γ ≃ ($P).Obj Γ where
+      toFun     := $box
+      invFun    := $unbox
+      left_inv  := by 
+        simp only [Function.LeftInverse]
+        intro x
+        cases x
+        <;> rfl
+      right_inv := by
+        simp only [Function.RightInverse, Function.LeftInverse]
+        intro x
+        rcases x with ⟨head, child⟩;
+        cases head
+        <;> simp
+        <;> apply congrArg
+        <;> fin_destr
+        <;> rfl
+
+    instance $functor:ident : MvFunctor (@TypeFun.ofCurried $(quote arity) $shape) where
+      map f x   := ($eqv).invFun <| ($P).map f <| ($eqv).toFun <| x
+
     instance $q:ident : MvQPF.IsPolynomial (@TypeFun.ofCurried $(quote arity) $shape) :=
-      .ofEquiv $P {
-        toFun     := $box,
-        invFun    := $unbox,
-        left_inv  := by 
-          simp only [Function.LeftInverse]
-          intro x
-          cases x
-          <;> rfl
-        right_inv := by
-          simp only [Function.RightInverse, Function.LeftInverse]
-          intro x
-          rcases x with ⟨head, child⟩;
-          cases head
-          <;> simp
-          <;> apply congrArg
-          <;> fin_destr
-          <;> rfl
-      }
+      .ofEquiv $P $eqv
   )
   trace[QPF] "qpf: {cmd}\n"
   elabCommand cmd
@@ -413,12 +419,17 @@ open Elab.Term Parser.Term in
 def isPolynomial (view : DataView) (F: Term) : CommandElabM (Option Term) := do
   runTermElabM fun _ => do
     elabBinders view.deadBinders fun _deadVars => do
+      let inst_func ← `(MvFunctor $F:term)
+      let inst_func ← elabTerm inst_func none
+
       trace[QPF] "isPolynomial::F = {F}"
       let inst_type ← `(MvQPF.IsPolynomial $F:term)
       trace[QPF] "isPolynomial :: inst_type_stx: {inst_type}"
       let inst_type ← elabTerm inst_type none
       trace[QPF] "isPolynomial :: inst_type: {inst_type}"
+
       try
+        let _ ← synthInstance inst_func
         let inst ← synthInstance inst_type
         return some <|<- delab inst
       catch e =>

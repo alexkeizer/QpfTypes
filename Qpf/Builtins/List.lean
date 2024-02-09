@@ -31,6 +31,9 @@ namespace List
     cases f_eq_g; rfl
 
 
+  instance : MvFunctor List' :=
+    MvFunctor.ofIsomorphism _ box unbox
+
   instance : MvQPF List' := 
     .ofIsomorphism _ box unbox (
       by

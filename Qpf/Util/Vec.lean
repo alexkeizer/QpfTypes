@@ -6,7 +6,7 @@ Authors: Jeremy Avigad, Mario Carneiro, Simon Hudon, Alex Keizer
 
 import Qpf.MathlibPort.Fin2
 import Qpf.Util.HEq
--- import Mathlib
+import Mathlib.Data.TypeVec
 
 universe u v w
 
@@ -32,6 +32,7 @@ namespace Vec
 end Vec
 
 unif_hint (n : Nat) where |- Fin2 n → Type u =?= Vec.{u+1} (Type u) n
+
 unif_hint {α : Type _} (n : Nat) where |- DVec.{u+1} (Vec.constVec α n) =?= Vec.{u+1} α n
 
 namespace DVec
@@ -161,7 +162,6 @@ namespace Vec
         dsimp[ofList, toList, append1, last, DVec.last]
         apply hcongr <;> (try solve | intros; rfl)
         simp_heq;
-        simp only [OfNat.ofNat]
         apply hcongr <;> (try solve | intros; rfl)
         simp
       }
@@ -202,7 +202,8 @@ namespace Vec
   by
     induction as;
     case nil          => rfl
-    case cons a as ih => simp only [toList, ofList, append1, last, DVec.last, drop, ih]
+    case cons a as ih => 
+      simp only [toList, ofList, append1, last, DVec.last, drop_append1', ih]
 
   instance : Coe (Vec (Type u) n) (TypeVec.{u} n) where
     coe v i := v i

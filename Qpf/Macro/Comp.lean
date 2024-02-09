@@ -17,6 +17,10 @@
   Note that the macro just compiles these equations into the appropriate constructions on QPFs.
 -/
 
+import Mathlib.Data.QPF.Multivariate.Constructions.Comp
+import Mathlib.Data.QPF.Multivariate.Constructions.Const
+import Mathlib.Data.QPF.Multivariate.Constructions.Prj
+
 import Qpf.Qpf
 import Qpf.Macro.Common
 
@@ -36,8 +40,12 @@ namespace Macro.Comp
   -- TODO: make everything work without this compatibility coercion
   open TSyntax.Compat
 
+def synthMvFunctor {n : Nat} (F : Q(TypeFun.{u,u} $n)) : MetaM Q(MvFunctor $F) := do
+  let inst_type : Q(Type (u+1)) 
+    := q(MvFunctor $F)
+  synthInstanceQ inst_type
 
-def synthQPF {n : Nat} (F : Q(TypeFun.{u,u} $n)) : MetaM Q(MvQPF $F) := do
+def synthQPF {n : Nat} (F : Q(TypeFun.{u,u} $n)) (_ : Q(MvFunctor $F)) : MetaM Q(MvQPF $F) := do
   let inst_type : Q(Type (u+1)) 
     := q(MvQPF $F)
   synthInstanceQ inst_type
@@ -71,13 +79,14 @@ where
     let F : Q(CurriedTypeFun.{u,u} $depth) := F
 
     trace[QPF] "F := {F}\nargs := {args.toList}\ndepth := {depth}"
-    QQ.check F
+    F.check
     try
       -- Only try to infer QPF if `F` contains no live variables
       if !F.hasAnyFVar isLiveVar then        
         let F : Q(TypeFun.{u,u} $depth)
           := q(TypeFun.ofCurried $F)
-        let _ ← synthQPF F
+        let functor ← synthMvFunctor F
+        let _ ← synthQPF F functor
         return ⟨depth, F, args⟩
       throwError "Smallest function subexpression still contains live variables:\n  {F}\ntry marking more variables as dead"
     catch e =>
@@ -93,7 +102,8 @@ where
       trace[QPF] "F := {F}\nargs := {args.toList}\ndepth := {depth}"
       let F : Q(TypeFun.{u,u} $depth)
         := q(TypeFun.ofCurried $F)
-      let _ ← synthQPF F
+      let functor ← synthMvFunctor F
+      let _ ← synthQPF F functor
       return ⟨depth, F, args⟩
 
 
@@ -318,6 +328,10 @@ def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
       TypeFun.curried $F_internal_applied
 
       $modifiers:declModifiers
+      instance : MvFunctor ($F_internal_applied) := 
+      by unfold $F_internal; infer_instance
+
+      $modifiers:declModifiers
       instance $deadBinders:bracketedBinder* : 
         MvQPF ($F_internal_applied) := 
       by unfold $F_internal; infer_instance
@@ -328,7 +342,11 @@ def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
 
   let F_applied ← `($F $deadBinderNamedArgs:namedArgument*)
 
-  let cmd ← `(command|
+  let cmd ← `(
+    $modifiers:declModifiers
+    instance : MvFunctor (TypeFun.ofCurried $F_applied) := 
+      MvQPF.instMvFunctor_ofCurried_curried
+
     $modifiers:declModifiers
     instance $deadBindersNoHoles:bracketedBinder* : 
       MvQPF (TypeFun.ofCurried $F_applied) 

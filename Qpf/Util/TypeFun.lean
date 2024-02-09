@@ -1,5 +1,4 @@
-
-import Mathlib
+import Mathlib.Data.Matrix.Basic
 import Qpf.Util.Vec
 
 universe u v
@@ -29,8 +28,8 @@ namespace TypeFun
   theorem reverseArgs_involution (F : TypeFun n) :
     F.reverseArgs.reverseArgs = F :=
   by
-    simp only [reverseArgs, Vec.reverse_involution]
-
+    unfold reverseArgs
+    simp only [Vec.reverse_involution]
 
   def curriedAux : {n : Nat} → TypeFun n → CurriedTypeFun n
     | 0,    F => fun _ => F !![]
@@ -44,7 +43,7 @@ namespace TypeFun
   def ofCurriedAux : {n : Nat} → CurriedTypeFun n → TypeFun n
     | 0,    F, _ => F PUnit.unit
     | 1,    F, α => F (α 0)
-    | n+2,  F, α => ofCurriedAux (F α.last) α.drop
+    | _+2,  F, α => ofCurriedAux (F α.last) α.drop
 
   def ofCurried (F : CurriedTypeFun n) : TypeFun n
     := (ofCurriedAux F).reverseArgs
@@ -63,7 +62,6 @@ namespace TypeFun
 
       case succ _ ih => {
         funext a;
-        simp[reverseArgs_involution]
         apply @ih (F a);
       }
     } 
