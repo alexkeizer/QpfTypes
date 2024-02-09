@@ -1,3 +1,4 @@
+import Mathlib.Data.QPF.Multivariate.Constructions.Quot
 import Qpf
 
 set_option trace.QPF true
