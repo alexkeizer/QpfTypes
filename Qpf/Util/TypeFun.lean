@@ -33,8 +33,8 @@ namespace TypeFun
 
 
   def curriedAux : {n : Nat} → TypeFun n → CurriedTypeFun n
-    | 0,    F => fun _ => F !![]
-    | 1,    F => fun a => F !![a] 
+    | 0,    F => fun _ => F myvec[]
+    | 1,    F => fun a => F myvec[a] 
     | _+2,  F => fun a => curriedAux fun αs => F (αs ::: a)
 
   def curried (F : TypeFun n) : CurriedTypeFun n
@@ -44,7 +44,7 @@ namespace TypeFun
   def ofCurriedAux : {n : Nat} → CurriedTypeFun n → TypeFun n
     | 0,    F, _ => F PUnit.unit
     | 1,    F, α => F (α 0)
-    | n+2,  F, α => ofCurriedAux (F α.last) α.drop
+    | _+2,  F, α => ofCurriedAux (F α.last) α.drop
 
   def ofCurried (F : CurriedTypeFun n) : TypeFun n
     := (ofCurriedAux F).reverseArgs
@@ -63,7 +63,6 @@ namespace TypeFun
 
       case succ _ ih => {
         funext a;
-        simp[reverseArgs_involution]
         apply @ih (F a);
       }
     } 

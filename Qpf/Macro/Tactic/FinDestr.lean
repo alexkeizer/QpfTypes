@@ -68,7 +68,7 @@ elab "fin_destr_one " i:ident : tactic => do
 
 syntax "fin_destr' " ident* : tactic 
 macro_rules
-| `(tactic| fin_destr' $i:ident $is:ident*) => `(tactic| fin_destr_one $i <;> dsimp <;> fin_destr' $is:ident*)
+| `(tactic| fin_destr' $i:ident $is:ident*) => `(tactic| fin_destr_one $i <;> dsimp (config := {failIfUnchanged := false}) <;> fin_destr' $is:ident*)
 | `(tactic| fin_destr') => `(tactic| skip)
 
 syntax "fin_destr " ident* : tactic 

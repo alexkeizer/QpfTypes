@@ -312,7 +312,7 @@ theorem inv_involution {i : PFin2 n} :
   i.inv.inv = i :=
 by
     induction i
-    <;> simp[inv]
+    simp [inv]
     case fz => apply inv_last_eq_fz
     case fs n i ih => {
       cases n;
@@ -377,7 +377,7 @@ instance instLinOrd : LinearOrder (PFin2 n) where
                                       }
                               apply Nat.le_antisymm h₁ h₂
   le_total _ _          := by apply Nat.le_total
-  decidable_le          := decidable_le
+  decidableLE          := decidable_le
   compare_eq_compareOfLessAndEq := by 
     intro x y
     simp only [compare, instOrd, compareOfLessAndEq]

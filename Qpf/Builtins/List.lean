@@ -10,7 +10,7 @@ namespace MvQPF
 namespace List
 
   def ListPFunctor : MvPFunctor.{u} 1
-    := ⟨ULift Nat, fun n => !![PFin2 n.down]⟩
+    := ⟨ULift Nat, fun n => myvec[PFin2 n.down]⟩
 
 
   abbrev QpfList' := ListPFunctor.Obj

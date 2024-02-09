@@ -188,7 +188,7 @@ def mkChildT (view : InductiveView) (r : Replace) (headTName : Name) : CommandEl
     let counts := counts.map fun n => 
                     Syntax.mkApp (mkIdent ``PFin2) #[quote n]
 
-    `(matchAltExpr| | $head => (!![ $counts,* ]))
+    `(matchAltExpr| | $head => (myvec[ $counts,* ]))
 
   let body := declValEqnsOfMatchAltArray matchAlts
   let headT := mkIdent headTName

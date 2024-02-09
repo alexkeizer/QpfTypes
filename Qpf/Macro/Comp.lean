@@ -71,7 +71,7 @@ where
     let F : Q(CurriedTypeFun.{u,u} $depth) := F
 
     trace[QPF] "F := {F}\nargs := {args.toList}\ndepth := {depth}"
-    QQ.check F
+    check F
     try
       -- Only try to infer QPF if `F` contains no live variables
       if !F.hasAnyFVar isLiveVar then        
