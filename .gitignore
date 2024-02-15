@@ -1,6 +1,7 @@
 build/
 *.olean
 lake-packages/
+.lake/
 Qpf/Scratch.lean
 Scratch2.lean
 

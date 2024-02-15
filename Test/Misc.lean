@@ -22,8 +22,9 @@ data QpfList₃ α where
 data PairOf α β
   | mk : α → β → β → PairOf α β
 
-data QpfTest α β where
-  | A : α → α → β → QpfTest α β → QpfTree β → QpfCoTree (QpfTree (QpfTest α β)) → QpfTest α β
+-- FIXME: this broke after Upgrading to Lean/Mathlib 4.5.0 and the associated changes
+-- data QpfTest α β where
+--   | A : α → α → β → QpfTest α β → QpfTree β → QpfCoTree (QpfTree (QpfTest α β)) → QpfTest α β
 
 data RepAfterConst β
   | mk : Nat →  β → β → RepAfterConst β

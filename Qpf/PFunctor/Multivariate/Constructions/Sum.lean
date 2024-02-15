@@ -5,6 +5,7 @@
 import Mathlib.Data.QPF.Multivariate.Basic
 import Qpf.Macro.Tactic.FinDestr
 import Qpf.Util
+import Qpf.Qpf.Multivariate.Basic
 
 namespace MvQPF
 namespace Sum
@@ -62,8 +63,12 @@ def equiv {Γ} : Sum' Γ ≃ QpfSum' Γ :=
     }
 } 
 
+instance equivMvFunctor : MvFunctor Sum' where
+  map f x   := equiv.invFun <| SumPFunctor.map f <| equiv.toFun <| x
+
+
 instance : MvQPF.IsPolynomial Sum' := 
-  .ofEquiv _ equiv
+  .ofEquiv _ equiv equivMvFunctor (by simp [equivMvFunctor])
 
 
 

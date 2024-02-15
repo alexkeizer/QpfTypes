@@ -31,6 +31,9 @@ namespace List
     cases f_eq_g; rfl
 
 
+  instance funcInst : MvFunctor List' :=
+    MvQPF.ofIsomorphismMvFunctor _ box unbox
+
   instance : MvQPF List' := 
     .ofIsomorphism _ box unbox (
       by
@@ -77,6 +80,8 @@ namespace List
           congr
         }
     )
+    funcInst
+    (by simp[funcInst, MvQPF.ofIsomorphismMvFunctor])
 
 end List
 end MvQPF

@@ -1,15 +1,115 @@
 import Mathlib.Data.QPF.Multivariate.Basic
 import Qpf.Util.TypeFun
 
+namespace MvQPF
+  /--
+    A QPF is polynomial, if it is equivalent to the underlying `MvPFunctor`.
+    `repr_abs` is the last property needed to show that `abs` is an isomorphism, with `repr`
+    its inverse
+  -/
+  class IsPolynomial {n} (F : TypeVec n → Type _) [MvFunctor F] extends MvQPF F where
+    repr_abs : ∀ {α} (x : P.Obj α), repr (abs x) = x
+  #align mvqpf.is_polynomial MvQPF.IsPolynomial
+
+
+  namespace IsPolynomial
+    variable {n : ℕ} {F : TypeVec n → Type _}
+
+    /--
+      Show that the desired equivalence follows from `IsPolynomial`
+    -/
+    def equiv [MvFunctor F] [p : IsPolynomial F] :
+      ∀ α, F α ≃ p.P.Obj α
+    := fun _ => {
+      toFun := p.repr,
+      invFun := p.abs,
+      left_inv := p.abs_repr,
+      right_inv := p.repr_abs,
+    }
+    #align mvqpf.is_polynomial.equiv MvQPF.IsPolynomial.equiv
+
+    def ofEquiv (P : MvPFunctor n) (eqv : ∀ {α}, F α ≃ P.Obj α) (func : MvFunctor F) (func_map : ∀ (α β : TypeVec n) (f : TypeVec.Arrow α β) (x : F α), func.map f x = (eqv.invFun <| P.map f <| eqv.toFun <| x)) : IsPolynomial F where
+      -- map f x   := eqv.invFun <| P.map f <| eqv.toFun <| x
+      P         := P
+      abs       := eqv.invFun
+      repr      := eqv.toFun
+      abs_repr  := eqv.left_inv
+      abs_map   := by intros;
+                      simp only [Equiv.invFun_as_coe, func_map, Equiv.toFun_as_coe,
+                                 Equiv.apply_symm_apply, Equiv.symm_apply_apply, EmbeddingLike.apply_eq_iff_eq];
+                      rfl
+      repr_abs  := eqv.right_inv
+
+  end IsPolynomial
+
+end MvQPF
+
+namespace mvpfunctor
+  variable {n : Nat} (P : MvPFunctor n)
+
+  /--
+    Every polynomial functor is trivially a QPF
+  -/
+  instance : MvQPF P.Obj :=
+  {
+    P         := P,
+    abs       := id,
+    repr      := id,
+    abs_repr  := by intros; rfl,
+    abs_map   := by intros; rfl,
+  }
+
+  /--
+    Every polynomial functor is a polynomial QPF
+  -/
+  instance : MvQPF.IsPolynomial P.Obj :=
+  {
+    repr_abs := by intros; rfl
+  }
+
+end mvpfunctor
+
+
 variable {n} {F : TypeFun n}
 
 namespace MvQPF
-  instance instQPF_ofCurried_curried [q : MvQPF F] : 
-      MvQPF <| TypeFun.ofCurried <| F.curried := 
-    by rw[TypeFun.ofCurried_curried_involution]; exact q
+  lemma helperFunc {A} {B} : A = B -> @MvFunctor n A = @MvFunctor n B := by
+    intro h
+    rw [h]
 
-  instance instIsPolynomial_ofCurried_curried [p : IsPolynomial F] : 
+  lemma helperQpf {A} {B} [func : @MvFunctor n A] [func' : @MvFunctor n B] : A = B ∧ HEq func func' -> MvQPF A = MvQPF B := by 
+    intro h 
+    congr
+    exact h.left
+    exact h.right
+
+  lemma helperPoly {A} {B} [func : @MvFunctor n A] [func' : @MvFunctor n B] : A = B ∧ HEq func func' -> IsPolynomial A = IsPolynomial B := by 
+    intro h 
+    congr
+    exact h.left
+    exact h.right
+
+  instance instMvFunctor_ofCurried_curried [f : MvFunctor F] :
+      MvFunctor <| TypeFun.ofCurried <| F.curried := 
+    by rw[TypeFun.ofCurried_curried_involution]; exact f
+
+  instance instQPF_ofCurried_curried [func : MvFunctor F] [q : MvQPF F] : 
+      MvQPF <| TypeFun.ofCurried <| F.curried :=
+    by 
+      have : TypeFun.ofCurried (TypeFun.curried F) = F ∧ HEq (@instMvFunctor_ofCurried_curried n F func) func := by 
+        constructor 
+        exact TypeFun.ofCurried_curried_involution
+        simp [instMvFunctor_ofCurried_curried]
+      rw[helperQpf this]; exact q
+
+  instance instIsPolynomial_ofCurried_curried [func : MvFunctor F] [p : IsPolynomial F] : 
       IsPolynomial <| TypeFun.ofCurried <| F.curried := 
-    by rw[TypeFun.ofCurried_curried_involution]; exact p
+    by 
+      have : TypeFun.ofCurried (TypeFun.curried F) = F ∧ HEq (@instMvFunctor_ofCurried_curried n F func) func := by 
+        constructor 
+        exact TypeFun.ofCurried_curried_involution
+        simp [instMvFunctor_ofCurried_curried]
+      rw[helperPoly this]; exact p
 
 end MvQPF
+

@@ -1,6 +1,7 @@
 import Mathlib.Data.QPF.Multivariate.Basic
 import Qpf.Util
 import Qpf.Macro.Tactic.FinDestr
+import Qpf.PFunctor.Multivariate.Basic
 
 namespace MvQPF 
 
@@ -18,9 +19,8 @@ namespace Arrow
   abbrev QpfArrow : CurriedTypeFun 2
     := fun x => (QpfArrow' x).curried
 
-
-  instance : MvQPF (QpfArrow' x) :=
-    by unfold QpfArrow'; infer_instance
+  instance : MvFunctor (QpfArrow' x) := by unfold QpfArrow'; infer_instance
+  instance : MvQPF (QpfArrow' x) := by unfold QpfArrow'; infer_instance
 
   abbrev Arrow (x : Type u) : CurriedTypeFun 1
     := (x → ·)
@@ -56,11 +56,11 @@ namespace Arrow
   by
     rfl
 
-
+  instance : MvFunctor (Arrow' x) where 
+    map f a     := unbox <| (ArrowPFunctor x).map f <| box a
 
   instance : MvQPF (Arrow' x) where
     P           := ArrowPFunctor x
-    map f a     := unbox <| (ArrowPFunctor x).map f <| box a
     abs         := @unbox x
     repr        := @box x
     abs_repr    := unbox_box_id

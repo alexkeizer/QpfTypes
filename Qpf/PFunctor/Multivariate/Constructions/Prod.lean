@@ -5,6 +5,7 @@
 import Mathlib.Data.QPF.Multivariate.Basic
 import Qpf.Util
 import Qpf.Macro.Tactic.FinDestr
+import Qpf.Qpf.Multivariate.Basic
 
 namespace MvQPF
 namespace Prod
@@ -36,8 +37,7 @@ def mk (a : Γ 1) (b : Γ 0) : QpfProd' Γ
       | 0, _ => b
   ⟩
 
-instance : MvQPF.IsPolynomial Prod' := .ofEquiv _
-{
+def equiv {Γ} : Prod' Γ ≃ QpfProd' Γ := {
   toFun     := fun ⟨a, b⟩ => mk a b,
   invFun    := fun ⟨_, f⟩ => (f 1 fz, f 0 fz),
   left_inv  := by intro _; rfl,
@@ -51,6 +51,10 @@ instance : MvQPF.IsPolynomial Prod' := .ofEquiv _
     rfl
 }
 
+instance equivMvFunctor : MvFunctor Prod' where
+  map f x   := equiv.invFun <| P.map f <| equiv.toFun <| x
+
+instance : MvQPF.IsPolynomial Prod' := .ofEquiv _ equiv equivMvFunctor (by simp [equivMvFunctor])
   
 
 end Prod

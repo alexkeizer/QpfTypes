@@ -28,8 +28,8 @@ namespace TypeFun
   theorem reverseArgs_involution (F : TypeFun n) :
     F.reverseArgs.reverseArgs = F :=
   by
-    simp only [reverseArgs, Vec.reverse_involution]
-
+    unfold reverseArgs
+    simp only [Vec.reverse_involution]
 
   def curriedAux : {n : Nat} → TypeFun n → CurriedTypeFun n
     | 0,    F => fun _ => F myvec[]

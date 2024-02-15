@@ -206,7 +206,9 @@ namespace Vec
   by
     induction as;
     case nil          => rfl
-    case cons a as ih => simp only [toList, ofList, append1, last, DVec.last, drop, ih]
+    case cons a as ih => 
+      have : drop (append1 (ofList as) a) = ofList as := by unfold drop append1; dsimp
+      simp only [toList, ofList, append1, last, DVec.last, this, ih]
 
   instance : Coe (Vec (Type u) n) (TypeVec.{u} n) where
     coe v i := v i

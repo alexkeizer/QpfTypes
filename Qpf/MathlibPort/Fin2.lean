@@ -5,7 +5,7 @@ Authors: Mario Carneiro
 -/
 
 import Mathlib.Data.Fin.Fin2
-import Mathlib.Data.Nat.Basic
+import Mathlib.Data.Nat.Order.Basic
 import Mathlib.Init.Order.Defs
 
 /-!
@@ -220,9 +220,9 @@ def inv : {n : Nat} → PFin2.{u} n → PFin2.{u} n
 theorem strengthen_last_is_none {n : Nat} :
   (@last n).strengthen = none :=
 by
-  induction n;
-  simp [last]
-  simp [strengthen, last, *]
+  induction n
+  . simp [strengthen, last]
+  . simp [strengthen, last, *]
 
 
 theorem strengthen_is_none_imp_eq_last {n : Nat} {i : PFin2 (n+1)} :
@@ -230,7 +230,7 @@ theorem strengthen_is_none_imp_eq_last {n : Nat} {i : PFin2 (n+1)} :
 by
   induction n;
   . cases i;
-    . simp [strengthen]
+    . simp [strengthen, last]
     . intros; contradiction
   case succ n ih => 
     simp [strengthen, last, *]
@@ -443,7 +443,7 @@ by
   induction n;
   case zero =>
     cases i;
-    . simp;
+    . simp [last];
     . contradiction
   case succ n ih =>
     cases i;

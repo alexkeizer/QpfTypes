@@ -40,8 +40,12 @@ namespace Macro.Comp
   -- TODO: make everything work without this compatibility coercion
   open TSyntax.Compat
 
+def synthFunc {n : Nat} (F : Q(TypeFun.{u,u} $n)) : MetaM Q(MvFunctor $F) := do
+  let inst_type : Q(Type (u+1)) 
+    := q(MvFunctor $F)
+  synthInstanceQ inst_type
 
-def synthQPF {n : Nat} (F : Q(TypeFun.{u,u} $n)) : MetaM Q(MvQPF $F) := do
+def synthQPF {n : Nat} (F : Q(TypeFun.{u,u} $n)) (_ : Q(MvFunctor $F)) : MetaM Q(MvQPF $F) := do
   let inst_type : Q(Type (u+1)) 
     := q(MvQPF $F)
   synthInstanceQ inst_type
@@ -81,7 +85,8 @@ where
       if !F.hasAnyFVar isLiveVar then        
         let F : Q(TypeFun.{u,u} $depth)
           := q(TypeFun.ofCurried $F)
-        let _ ← synthQPF F
+        let func ← synthFunc F
+        let _ ← synthQPF F func
         return ⟨depth, F, args⟩
       throwError "Smallest function subexpression still contains live variables:\n  {F}\ntry marking more variables as dead"
     catch e =>
@@ -97,7 +102,8 @@ where
       trace[QPF] "F := {F}\nargs := {args.toList}\ndepth := {depth}"
       let F : Q(TypeFun.{u,u} $depth)
         := q(TypeFun.ofCurried $F)
-      let _ ← synthQPF F
+      let func ← synthFunc F
+      let _ ← synthQPF F func
       return ⟨depth, F, args⟩
 
 
@@ -322,6 +328,11 @@ def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
       TypeFun.curried $F_internal_applied
 
       $modifiers:declModifiers
+      instance : 
+        MvFunctor ($F_internal_applied) := 
+      by unfold $F_internal; infer_instance
+
+      $modifiers:declModifiers
       instance $deadBinders:bracketedBinder* : 
         MvQPF ($F_internal_applied) := 
       by unfold $F_internal; infer_instance
@@ -332,7 +343,12 @@ def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
 
   let F_applied ← `($F $deadBinderNamedArgs:namedArgument*)
 
-  let cmd ← `(command|
+  let cmd ← `(
+    $modifiers:declModifiers
+    instance : 
+      MvFunctor (TypeFun.ofCurried $F_applied) 
+    := MvQPF.instMvFunctor_ofCurried_curried
+
     $modifiers:declModifiers
     instance $deadBindersNoHoles:bracketedBinder* : 
       MvQPF (TypeFun.ofCurried $F_applied) 
