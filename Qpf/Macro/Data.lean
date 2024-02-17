@@ -40,9 +40,9 @@ section
   open Lean.Parser Lean.Parser.Command
 
   def inductive_like (cmd : String) : Parser
-    := leading_parser cmd >> declId  >> optDeclSig  
-                        >> Parser.optional  (symbol " :=" <|> " where") 
-                        >> many ctor 
+    := leading_parser cmd >> declId  >> optDeclSig
+                        >> Parser.optional  (symbol " :=" <|> " where")
+                        >> many ctor
                         >> optDeriving
 
   def data := inductive_like "data "
@@ -86,7 +86,7 @@ def CtorView.declReplacePrefix (pref new_pref : Name) (ctor: CtorView) : CtorVie
 
 open Parser.Command (declId)
 /-- Return a tuple of `declName, declId, shortDeclName` -/
-private def addSuffixToDeclId {m} [Monad m] [MonadResolveName m] (declId : Syntax) (suffix : String) : 
+private def addSuffixToDeclId {m} [Monad m] [MonadResolveName m] (declId : Syntax) (suffix : String) :
     m (Name × (TSyntax ``declId) × Name) := do
   let (id, _) := Elab.expandDeclIdCore declId
   let declName := Name.mkStr id suffix
@@ -114,7 +114,7 @@ open Parser in
 def mkHeadT (view : InductiveView) : CommandElabM Name := do
   -- If the original declId was `MyType`, we want to register the head type under `MyType.HeadT`
   let (declName, declId, shortDeclName) ← addSuffixToDeclId view.declId "HeadT"
-  
+
 
   let modifiers : Modifiers := {
     isUnsafe := view.modifiers.isUnsafe
@@ -122,13 +122,13 @@ def mkHeadT (view : InductiveView) : CommandElabM Name := do
   -- The head type is the same as the original type, but with all constructor arguments removed
   let ctors ← view.ctors.mapM fun ctor => do
     let declName := Name.replacePrefix view.declName declName ctor.declName
-    pure { 
+    pure {
       modifiers, declName,
       ref := ctor.ref
       binders := mkNullNode
       type? := none
       : CtorView
-    } 
+    }
 
   -- let type ← `(Type $(mkIdent `u))
 
@@ -138,9 +138,9 @@ def mkHeadT (view : InductiveView) : CommandElabM Name := do
     binders         := view.binders.setArgs #[]
     levelNames      := view.levelNames
 
-    ref             := view.ref            
+    ref             := view.ref
     type?           := view.type?
-    
+
     derivingClasses := view.derivingClasses
     computedFields  := #[]
     : InductiveView
@@ -175,17 +175,17 @@ open Parser Parser.Term Parser.Command in
   `ChildT a i` corresponds to the times that constructor `a` takes an argument of the `i`-th type
   argument
 -/
-def mkChildT (view : InductiveView) (r : Replace) (headTName : Name) : CommandElabM Name := do  
+def mkChildT (view : InductiveView) (r : Replace) (headTName : Name) : CommandElabM Name := do
   -- If the original declId was `MyType`, we want to register the child type under `MyType.ChildT`
   let (declName, declId, _shortDeclName) ← addSuffixToDeclId view.declId "ChildT"
 
   let target_type := Syntax.mkApp (mkIdent ``TypeVec) #[quote r.arity]
 
-  let matchAlts ← view.ctors.mapM fun ctor => do  
-    let head := mkIdent $ Name.replacePrefix view.declName headTName ctor.declName 
+  let matchAlts ← view.ctors.mapM fun ctor => do
+    let head := mkIdent $ Name.replacePrefix view.declName headTName ctor.declName
 
     let counts := countVarOccurences r ctor.type?
-    let counts := counts.map fun n => 
+    let counts := counts.map fun n =>
                     Syntax.mkApp (mkIdent ``PFin2) #[quote n]
 
     `(matchAltExpr| | $head => (!![ $counts,* ]))
@@ -193,7 +193,7 @@ def mkChildT (view : InductiveView) (r : Replace) (headTName : Name) : CommandEl
   let body := declValEqnsOfMatchAltArray matchAlts
   let headT := mkIdent headTName
 
-  
+
 
   let cmd ← `(
     def $declId : $headT → $target_type
@@ -229,9 +229,9 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT P : Ide
      fun x => match x with
     | MyList.Shape.nil a b => ⟨MyList.Shape.HeadT.nil, fun i => match i with
         | 0 => Fin2.elim0 (C:=fun _ => _)
-        | 1 => fun j => match j with 
+        | 1 => fun j => match j with
                 | (.ofNat' 0) => b
-        | 2 => fun j => match j with 
+        | 2 => fun j => match j with
                 | (.ofNat' 0) => a
     ⟩
     | MyList.Shape.cons a as => ⟨MyList.Shape.HeadT.cons, fun i j => match i with
@@ -284,12 +284,12 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT P : Ide
   let unboxBody ← ctors.mapM fun (ctor, args) => do
     let alt     := mkIdent ctor.declName
     let headAlt := mkIdent $ Name.replacePrefix shapeView.declName headT.getId ctor.declName
-      
+
     let args : Array Term ← args.args.mapM fun arg => do
       -- find the pair `(i, j)` such that the argument is the `j`-th occurence of the `i`-th type
-      let (i, j) := (args.per_type.enum.map fun (i, t) => 
+      let (i, j) := (args.per_type.enum.map fun (i, t) =>
         -- the order of types is reversed, since `TypeVec`s count right-to-left
-        let i := arity - 1 - i 
+        let i := arity - 1 - i
         ((t.indexOf? arg).map fun ⟨j, _⟩ => (i, j)).toList
       ).toList.join.get! 0
 
@@ -308,7 +308,7 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT P : Ide
     def $eqv:ident {Γ} : (@TypeFun.ofCurried $(quote arity) $shape) Γ ≃ ($P).Obj Γ where
       toFun     := $box
       invFun    := $unbox
-      left_inv  := by 
+      left_inv  := by
         simp only [Function.LeftInverse]
         intro x
         cases x
@@ -363,7 +363,7 @@ def mkShape (view: DataView) : TermElabM MkShapeResult := do
   trace[QPF] "mkShape :: r.expr = {r.expr}"
 
   -- Assemble it back together, into the shape inductive type
-  let binders ← r.getBinders  
+  let binders ← r.getBinders
   let binders := view.binders.setArgs #[binders]
   let modifiers : Modifiers := {
     isUnsafe := view.modifiers.isUnsafe
@@ -372,9 +372,9 @@ def mkShape (view: DataView) : TermElabM MkShapeResult := do
     ctors, declId, declName, shortDeclName, modifiers, binders,
     levelNames      := []
 
-    ref             := view.ref            
-    type?           := view.type?          
-    
+    ref             := view.ref
+    type?           := view.type?
+
     derivingClasses := view.derivingClasses
     computedFields  := #[]
     : InductiveView
@@ -388,10 +388,10 @@ def mkShape (view: DataView) : TermElabM MkShapeResult := do
 
     let headTName ← mkHeadT view
     let childTName ← mkChildT view r headTName
-    
+
     let PId := mkIdent PName
     -- let u ← Elab.Term.mkFreshBinderName
-    let PDeclId := mkNode ``Command.declId #[PId, mkNullNode 
+    let PDeclId := mkNode ``Command.declId #[PId, mkNullNode
       -- #[ TODO: make this universe polymorphic
       --   mkAtom ".{",
       --   mkNullNode #[u],
@@ -403,17 +403,17 @@ def mkShape (view: DataView) : TermElabM MkShapeResult := do
     let childTId := mkIdent childTName
 
     elabCommand <|<- `(
-      def $PDeclId := 
+      def $PDeclId :=
         MvPFunctor.mk $headTId $childTId
     )
 
-  
+
     mkQpf view ctorArgs headTId PId r.expr.size
   ⟩
 
 open Elab.Term Parser.Term in
 /--
-  Checks whether the given term is a polynomial functor, i.e., whether there is an instance of 
+  Checks whether the given term is a polynomial functor, i.e., whether there is an instance of
   `IsPolynomial F`, and return that instance (if it exists).
 -/
 def isPolynomial (view : DataView) (F: Term) : CommandElabM (Option Term) := do
@@ -453,40 +453,41 @@ def DataCommand.fixOrCofixPolynomial : DataCommand → Ident
   | .Codata => mkIdent ``_root_.MvPFunctor.M
 
 /--
-  Take either the fixpoint or cofixpoint of `base` to produce an `Internal` uncurried QPF, 
+  Take either the fixpoint or cofixpoint of `base` to produce an `Internal` uncurried QPF,
   and define the desired type as the curried version of `Internal`
 -/
-def mkType (view : DataView) (base : Term) : CommandElabM Unit := do
+def mkType (view : DataView) (base : Term × Term × Term) : CommandElabM Unit := do
   trace[QPF] "mkType"
   let uncurriedIdent ← addSuffixToDeclIdent view.declId "Uncurried"
   let baseIdent ← addSuffixToDeclIdent view.declId "Base"
+  let baseFunctorIdent ← addSuffixToDeclIdent baseIdent "instMvFunctor"
+  let baseQPFIdent ← addSuffixToDeclIdent baseIdent "instQPF"
 
-  let deadBinderNamedArgs ← view.deadBinderNames.mapM fun n => 
+  let deadBinderNamedArgs ← view.deadBinderNames.mapM fun n =>
         `(namedArgument| ($n:ident := $n:term))
   let uncurriedApplied ← `($uncurriedIdent:ident $deadBinderNamedArgs:namedArgument*)
+  let baseApplied ← `($baseIdent:ident $deadBinderNamedArgs:namedArgument*)
 
   let arity := view.liveBinders.size
   let fix_or_cofix := DataCommand.fixOrCofix view.command
-  let cmd ← `(
-    abbrev $baseIdent:ident $view.deadBinders:bracketedBinder* : TypeFun $(quote <| arity + 1)
-      := $base
 
-    abbrev $uncurriedIdent:ident $view.deadBinders:bracketedBinder* : TypeFun $(quote arity)
-      := $fix_or_cofix $base
+  let ⟨base, functor, q⟩ := base
+  trace[QPF] m!"instMvFunctor: {functor}"
+  let cmd ← `(
+    abbrev $baseIdent:ident $view.deadBinders:bracketedBinder* : TypeFun $(quote <| arity + 1) :=
+      $base
+
+    instance $baseFunctorIdent:ident : MvFunctor ($baseApplied) := $functor
+    instance $baseQPFIdent:ident : MvQPF ($baseApplied) := $q
+
+    abbrev $uncurriedIdent:ident $view.deadBinders:bracketedBinder* : TypeFun $(quote arity) := $fix_or_cofix $base
 
     abbrev $(view.declId) $view.deadBinders:bracketedBinder*
       := TypeFun.curried $uncurriedApplied
-  ) 
+  )
 
   trace[QPF] "elabData.cmd = {cmd}"
   elabCommand cmd
-
-
-
-
-
-
-
 
 
 
@@ -508,7 +509,7 @@ def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
     trace[QPF] "mkConstructors\n{ctor.declName} : {ctor.type?}"
     let n_args := (ctor.type?.map countConstructorArgs).getD 0
 
-    let args ← (List.range n_args).mapM fun _ => 
+    let args ← (List.range n_args).mapM fun _ =>
       do pure <| mkIdent <|← Elab.Term.mkFreshBinderName
     let args := args.toArray
 
@@ -516,17 +517,17 @@ def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
     let shapeCtor := mkIdent <| Name.replacePrefix view.declName shape ctor.declName
     trace[QPF] "shapeCtor = {shapeCtor}"
 
-    
+
 
     let body := if n_args = 0 then
         `($mk $shapeCtor)
       else
         `(fun $args:ident* => $mk ($shapeCtor $args:ident*))
     let body ← body
-    
+
     let explicit ← view.getExplicitExpectedType
     let type : Term := TSyntax.mk <|
-      (ctor.type?.map fun type => 
+      (ctor.type?.map fun type =>
         Replace.replaceAllStx view.getExpectedType explicit type
       ).getD explicit
     let modifiers : Modifiers := {
@@ -547,7 +548,7 @@ def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
     elabCommand cmd
   return ()
 
-  
+
 
 
 open Macro Comp in
@@ -555,7 +556,7 @@ open Macro Comp in
   Top-level elaboration for both `data` and `codata` declarations
 -/
 @[command_elab declaration]
-def elabData : CommandElab := fun stx => do 
+def elabData : CommandElab := fun stx => do
   let modifiers ← elabModifiers stx[0]
   let decl := stx[1]
   let view ← dataSyntaxToView modifiers decl
@@ -570,8 +571,8 @@ def elabData : CommandElab := fun stx => do
 
   /- Composition pipeline -/
   let base ← elabQpfCompositionBody {
-    liveBinders := nonRecView.liveBinders, 
-    deadBinders := nonRecView.deadBinders,     
+    liveBinders := nonRecView.liveBinders,
+    deadBinders := nonRecView.deadBinders,
     type?   := none,
     target  := ←`(
       $(mkIdent shape):ident $r.expr:term*
@@ -579,8 +580,8 @@ def elabData : CommandElab := fun stx => do
   }
   trace[QPF] "base = {base}"
 
-  mkType view base  
-  mkConstructors view shape  
+  mkType view base
+  mkConstructors view shape
 
 
 end Data.Command
