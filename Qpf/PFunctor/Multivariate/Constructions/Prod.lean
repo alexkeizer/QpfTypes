@@ -51,10 +51,10 @@ def equiv {Γ} : Prod' Γ ≃ QpfProd' Γ := {
     rfl
 }
 
-instance equivMvFunctor : MvFunctor Prod' where
+instance : MvFunctor Prod' where
   map f x   := equiv.invFun <| P.map f <| equiv.toFun <| x
 
-instance : MvQPF.IsPolynomial Prod' := .ofEquiv _ equiv equivMvFunctor (by simp [equivMvFunctor])
+instance : MvQPF.IsPolynomial Prod' := .ofEquiv _ equiv
   
 
 end Prod

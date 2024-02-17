@@ -85,8 +85,8 @@ where
       if !F.hasAnyFVar isLiveVar then        
         let F : Q(TypeFun.{u,u} $depth)
           := q(TypeFun.ofCurried $F)
-        let func ← synthMvFunctor F
-        let _ ← synthQPF F func
+        let functor ← synthMvFunctor F
+        let _ ← synthQPF F functor
         return ⟨depth, F, args⟩
       throwError "Smallest function subexpression still contains live variables:\n  {F}\ntry marking more variables as dead"
     catch e =>
@@ -102,8 +102,8 @@ where
       trace[QPF] "F := {F}\nargs := {args.toList}\ndepth := {depth}"
       let F : Q(TypeFun.{u,u} $depth)
         := q(TypeFun.ofCurried $F)
-      let func ← synthMvFunctor F
-      let _ ← synthQPF F func
+      let functor ← synthMvFunctor F
+      let _ ← synthQPF F functor
       return ⟨depth, F, args⟩
 
 

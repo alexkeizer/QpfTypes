@@ -214,7 +214,7 @@ open Parser.Term in
 def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT P : Ident) (arity : Nat) : CommandElabM Unit := do
   let (shapeN, _) := Elab.expandDeclIdCore shapeView.declId
   let eqv := mkIdent $ Name.mkStr shapeN "equiv"
-  let func := mkIdent $ Name.mkStr shapeN "func"
+  let functor := mkIdent $ Name.mkStr shapeN "functor"
   let q := mkIdent $ Name.mkStr shapeN "qpf"
   let shape := mkIdent shapeN
 
@@ -323,11 +323,11 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT P : Ide
         <;> fin_destr
         <;> rfl
 
-    instance $func:ident : MvFunctor (@TypeFun.ofCurried $(quote arity) $shape) where
+    instance $functor:ident : MvFunctor (@TypeFun.ofCurried $(quote arity) $shape) where
       map f x   := ($eqv).invFun <| ($P).map f <| ($eqv).toFun <| x
 
     instance $q:ident : MvQPF.IsPolynomial (@TypeFun.ofCurried $(quote arity) $shape) :=
-      .ofEquiv $P $eqv $func (by simp [$func:ident])
+      .ofEquiv $P $eqv
   )
   trace[QPF] "qpf: {cmd}\n"
   elabCommand cmd

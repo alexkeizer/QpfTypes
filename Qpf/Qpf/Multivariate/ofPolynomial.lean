@@ -26,7 +26,8 @@ namespace MvQPF
   /-- If `F` is isomorphic to a QPF `F'`, then `F` is also a QPF -/
   def ofIsomorphism {F : TypeFun n} 
                     (F' : TypeFun n)
-                    [func' : MvFunctor F']
+                    [functor' : MvFunctor F']
+                    [functor : MvFunctor F]
                     [q : MvQPF F']
                     (box    : ∀{α}, F α → F' α) 
                     (unbox  : ∀{α}, F' α → F α) 
@@ -34,8 +35,7 @@ namespace MvQPF
                     (unbox_box_id : ∀{α} (x : F α), unbox (box x) = x 
                                   := by intros; rfl
                                 )
-                    (func : MvFunctor F)
-                    (func_map : ∀ (α β : TypeVec n) (f : TypeVec.Arrow α β) (a : F α), func.map f a = (unbox <| func'.map f <| box a))
+                    (map_eq : ∀ (α β : TypeVec n) (f : TypeVec.Arrow α β) (a : F α), functor.map f a = (unbox <| functor'.map f <| box a) := by intros; rfl)
                   : MvQPF F
     where
       P           := q.P
@@ -46,14 +46,14 @@ namespace MvQPF
                       simp only [q.abs_repr, unbox_box_id, Function.comp]
       abs_map f x := by 
                       dsimp
-                      rw [func_map]
+                      rw [map_eq]
                       apply congrArg
                       simp [box_unbox_id, q.abs_map]
 
   /-- If `F` is isomorphic to a polynomial functor `P'`, then `F` is a QPF -/
   def ofPolynomial  {F : TypeFun n} 
                     (P : MvPFunctor n)
-    := @ofIsomorphism _ F P.Obj _
+    := @ofIsomorphism _ F P.Obj 
   
 
 end MvQPF

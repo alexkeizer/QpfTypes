@@ -63,12 +63,12 @@ def equiv {Γ} : Sum' Γ ≃ QpfSum' Γ :=
     }
 } 
 
-instance equivMvFunctor : MvFunctor Sum' where
+instance : MvFunctor Sum' where
   map f x   := equiv.invFun <| SumPFunctor.map f <| equiv.toFun <| x
 
 
 instance : MvQPF.IsPolynomial Sum' := 
-  .ofEquiv _ equiv equivMvFunctor (by simp [equivMvFunctor])
+  .ofEquiv _ equiv
 
 
 
