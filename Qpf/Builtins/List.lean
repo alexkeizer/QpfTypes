@@ -10,7 +10,7 @@ namespace MvQPF
 namespace List
 
   def ListPFunctor : MvPFunctor.{u} 1
-    := ⟨ULift Nat, fun n => myvec[PFin2 n.down]⟩
+    := ⟨ULift Nat, fun n => !![PFin2 n.down]⟩
 
 
   abbrev QpfList' := ListPFunctor.Obj
@@ -32,7 +32,7 @@ namespace List
 
 
   instance funcInst : MvFunctor List' :=
-    MvQPF.ofIsomorphismMvFunctor _ box unbox
+    MvFunctor.ofIsomorphism _ box unbox
 
   instance : MvQPF List' := 
     .ofIsomorphism _ box unbox (
@@ -81,7 +81,7 @@ namespace List
         }
     )
     funcInst
-    (by simp[funcInst, MvQPF.ofIsomorphismMvFunctor])
+    (by simp[funcInst, MvFunctor.ofIsomorphism])
 
 end List
 end MvQPF

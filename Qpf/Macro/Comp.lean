@@ -40,7 +40,7 @@ namespace Macro.Comp
   -- TODO: make everything work without this compatibility coercion
   open TSyntax.Compat
 
-def synthFunc {n : Nat} (F : Q(TypeFun.{u,u} $n)) : MetaM Q(MvFunctor $F) := do
+def synthMvFunctor {n : Nat} (F : Q(TypeFun.{u,u} $n)) : MetaM Q(MvFunctor $F) := do
   let inst_type : Q(Type (u+1)) 
     := q(MvFunctor $F)
   synthInstanceQ inst_type
@@ -79,13 +79,13 @@ where
     let F : Q(CurriedTypeFun.{u,u} $depth) := F
 
     trace[QPF] "F := {F}\nargs := {args.toList}\ndepth := {depth}"
-    check F
+    F.check
     try
       -- Only try to infer QPF if `F` contains no live variables
       if !F.hasAnyFVar isLiveVar then        
         let F : Q(TypeFun.{u,u} $depth)
           := q(TypeFun.ofCurried $F)
-        let func ← synthFunc F
+        let func ← synthMvFunctor F
         let _ ← synthQPF F func
         return ⟨depth, F, args⟩
       throwError "Smallest function subexpression still contains live variables:\n  {F}\ntry marking more variables as dead"
@@ -102,7 +102,7 @@ where
       trace[QPF] "F := {F}\nargs := {args.toList}\ndepth := {depth}"
       let F : Q(TypeFun.{u,u} $depth)
         := q(TypeFun.ofCurried $F)
-      let func ← synthFunc F
+      let func ← synthMvFunctor F
       let _ ← synthQPF F func
       return ⟨depth, F, args⟩
 
@@ -328,8 +328,7 @@ def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
       TypeFun.curried $F_internal_applied
 
       $modifiers:declModifiers
-      instance : 
-        MvFunctor ($F_internal_applied) := 
+      instance : MvFunctor ($F_internal_applied) := 
       by unfold $F_internal; infer_instance
 
       $modifiers:declModifiers
@@ -345,9 +344,8 @@ def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
 
   let cmd ← `(
     $modifiers:declModifiers
-    instance : 
-      MvFunctor (TypeFun.ofCurried $F_applied) 
-    := MvQPF.instMvFunctor_ofCurried_curried
+    instance : MvFunctor (TypeFun.ofCurried $F_applied) := 
+      MvQPF.instMvFunctor_ofCurried_curried
 
     $modifiers:declModifiers
     instance $deadBindersNoHoles:bracketedBinder* : 

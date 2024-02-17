@@ -32,8 +32,8 @@ namespace TypeFun
     simp only [Vec.reverse_involution]
 
   def curriedAux : {n : Nat} → TypeFun n → CurriedTypeFun n
-    | 0,    F => fun _ => F myvec[]
-    | 1,    F => fun a => F myvec[a] 
+    | 0,    F => fun _ => F !![]
+    | 1,    F => fun a => F !![a] 
     | _+2,  F => fun a => curriedAux fun αs => F (αs ::: a)
 
   def curried (F : TypeFun n) : CurriedTypeFun n

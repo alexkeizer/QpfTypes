@@ -44,7 +44,7 @@ namespace MvQPF
 
 end MvQPF
 
-namespace mvpfunctor
+namespace MvPFunctor
   variable {n : Nat} (P : MvPFunctor n)
 
   /--
@@ -67,28 +67,12 @@ namespace mvpfunctor
     repr_abs := by intros; rfl
   }
 
-end mvpfunctor
+end MvPFunctor
 
 
 variable {n} {F : TypeFun n}
 
 namespace MvQPF
-  lemma helperFunc {A} {B} : A = B -> @MvFunctor n A = @MvFunctor n B := by
-    intro h
-    rw [h]
-
-  lemma helperQpf {A} {B} [func : @MvFunctor n A] [func' : @MvFunctor n B] : A = B ∧ HEq func func' -> MvQPF A = MvQPF B := by 
-    intro h 
-    congr
-    exact h.left
-    exact h.right
-
-  lemma helperPoly {A} {B} [func : @MvFunctor n A] [func' : @MvFunctor n B] : A = B ∧ HEq func func' -> IsPolynomial A = IsPolynomial B := by 
-    intro h 
-    congr
-    exact h.left
-    exact h.right
-
   instance instMvFunctor_ofCurried_curried [f : MvFunctor F] :
       MvFunctor <| TypeFun.ofCurried <| F.curried := 
     by rw[TypeFun.ofCurried_curried_involution]; exact f
@@ -96,20 +80,18 @@ namespace MvQPF
   instance instQPF_ofCurried_curried [func : MvFunctor F] [q : MvQPF F] : 
       MvQPF <| TypeFun.ofCurried <| F.curried :=
     by 
-      have : TypeFun.ofCurried (TypeFun.curried F) = F ∧ HEq (@instMvFunctor_ofCurried_curried n F func) func := by 
-        constructor 
-        exact TypeFun.ofCurried_curried_involution
-        simp [instMvFunctor_ofCurried_curried]
-      rw[helperQpf this]; exact q
+      apply cast ?_ q
+      congr
+      . rw[TypeFun.ofCurried_curried_involution]
+      . exact (cast_heq _ _).symm
 
   instance instIsPolynomial_ofCurried_curried [func : MvFunctor F] [p : IsPolynomial F] : 
       IsPolynomial <| TypeFun.ofCurried <| F.curried := 
     by 
-      have : TypeFun.ofCurried (TypeFun.curried F) = F ∧ HEq (@instMvFunctor_ofCurried_curried n F func) func := by 
-        constructor 
-        exact TypeFun.ofCurried_curried_involution
-        simp [instMvFunctor_ofCurried_curried]
-      rw[helperPoly this]; exact p
+      apply cast ?_ p
+      congr
+      . rw[TypeFun.ofCurried_curried_involution]
+      . exact (cast_heq _ _).symm
 
 end MvQPF
 

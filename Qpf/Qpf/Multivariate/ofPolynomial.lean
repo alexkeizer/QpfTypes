@@ -10,8 +10,9 @@ import Qpf.Macro.Tactic.FinDestr
   easily redefined in terms of `MvPFunctor`
 -/
 
-namespace MvQPF
-  def ofIsomorphismMvFunctor {F : TypeFun n} 
+namespace MvFunctor 
+  /-- If `F` is isomorphic to a MvFunctor `F'`, then `F` is also a MvFunctor -/
+  def ofIsomorphism {F : TypeFun n}
                     (F' : TypeFun n)
                     [q : MvFunctor F']
                     (box    : ∀{α}, F α → F' α) 
@@ -19,7 +20,9 @@ namespace MvQPF
                   : MvFunctor F
     where
       map f a     := unbox <| q.map f <| box a
+end MvFunctor
 
+namespace MvQPF
   /-- If `F` is isomorphic to a QPF `F'`, then `F` is also a QPF -/
   def ofIsomorphism {F : TypeFun n} 
                     (F' : TypeFun n)

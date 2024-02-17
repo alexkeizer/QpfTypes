@@ -31,13 +31,9 @@ namespace Vec
     := fun _ => a
 end Vec
 
--- unif_hint (n : Nat) where 
---   |-
---   Fin2 n → Type u =?= Vec.{u+1} (Type u) n
---
--- unif_hint {α : Type _} (n : Nat) where 
---   |- 
---   DVec.{u+1} (Vec.constVec α n) =?= Vec.{u+1} α n
+unif_hint (n : Nat) where |- Fin2 n → Type u =?= Vec.{u+1} (Type u) n
+
+unif_hint {α : Type _} (n : Nat) where |- DVec.{u+1} (Vec.constVec α n) =?= Vec.{u+1} α n
 
 namespace DVec
   /-- Return the last element from a `DVec` -/
@@ -74,11 +70,11 @@ end Vec
   # Notation macros
 -/
 
-syntax "myvec[" term,* "]" : term
+syntax "!![" term,* "]" : term
 macro_rules
-  | `(myvec[])    => `(Vec.nil)
-  | `(myvec[$x])  => `(Vec.append1 myvec[] $x)
-  | `(myvec[ $xs,* , $x]) => `(Vec.append1 myvec[$xs,*] $x)
+  | `(!![])    => `(Vec.nil)
+  | `(!![$x])  => `(Vec.append1 !![] $x)
+  | `(!![ $xs,* , $x]) => `(Vec.append1 !![$xs,*] $x)
 
 
 
@@ -207,8 +203,7 @@ namespace Vec
     induction as;
     case nil          => rfl
     case cons a as ih => 
-      have : drop (append1 (ofList as) a) = ofList as := by unfold drop append1; dsimp
-      simp only [toList, ofList, append1, last, DVec.last, this, ih]
+      simp only [toList, ofList, append1, last, DVec.last, drop_append1', ih]
 
   instance : Coe (Vec (Type u) n) (TypeVec.{u} n) where
     coe v i := v i

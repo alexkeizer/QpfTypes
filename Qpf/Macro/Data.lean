@@ -188,7 +188,7 @@ def mkChildT (view : InductiveView) (r : Replace) (headTName : Name) : CommandEl
     let counts := counts.map fun n => 
                     Syntax.mkApp (mkIdent ``PFin2) #[quote n]
 
-    `(matchAltExpr| | $head => (myvec[ $counts,* ]))
+    `(matchAltExpr| | $head => (!![ $counts,* ]))
 
   let body := declValEqnsOfMatchAltArray matchAlts
   let headT := mkIdent headTName
@@ -305,10 +305,9 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT P : Ide
   )
 
   let cmd ← `(
-    def $eqv:ident {Γ} : (@TypeFun.ofCurried $(quote arity) $shape) Γ ≃ ($P).Obj Γ :=
-    {
-      toFun     := $box,
-      invFun    := $unbox,
+    def $eqv:ident {Γ} : (@TypeFun.ofCurried $(quote arity) $shape) Γ ≃ ($P).Obj Γ where
+      toFun     := $box
+      invFun    := $unbox
       left_inv  := by 
         simp only [Function.LeftInverse]
         intro x
@@ -323,7 +322,6 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT P : Ide
         <;> apply congrArg
         <;> fin_destr
         <;> rfl
-    }
 
     instance $func:ident : MvFunctor (@TypeFun.ofCurried $(quote arity) $shape) where
       map f x   := ($eqv).invFun <| ($P).map f <| ($eqv).toFun <| x

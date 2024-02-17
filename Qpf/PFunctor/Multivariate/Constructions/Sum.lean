@@ -15,8 +15,8 @@ universe u
 def SumPFunctor : MvPFunctor.{u} 2
   := ⟨PFin2 2, 
       fun 
-      | 0 => myvec[PFin2 1, PFin2 0] -- inl
-      | 1 => myvec[PFin2 0, PFin2 1] -- inr
+      | 0 => !![PFin2 1, PFin2 0] -- inl
+      | 1 => !![PFin2 0, PFin2 1] -- inr
     ⟩
 
 
