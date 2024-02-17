@@ -1,7 +1,7 @@
 import Qpf
 import Test.Tree
 import Test.CoTree
-
+import Test.List
 
 
 data QpfList₂ α where
@@ -35,3 +35,9 @@ codata NatList α where
 data QpfList₅ (A : Type) (dead : Type) β where
   | nil   : QpfList₅ A dead β
   | cons  : A → (dead → β) → QpfList₅ A dead β → QpfList₅ A dead β
+
+data QpfTreeInTreeTest α where
+  | A : QpfTree (QpfTree (QpfTreeInTreeTest α)) → QpfTreeInTreeTest α
+
+data QpfListInListTest α where
+  | A : Test.QpfList (Test.QpfList (QpfListInListTest α)) → QpfListInListTest α
