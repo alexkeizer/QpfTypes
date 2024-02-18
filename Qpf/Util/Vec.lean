@@ -52,7 +52,7 @@ namespace DVec
   def append1 {α : Type u} {αs : Vec (Type u) n} (tl : DVec αs) (hd : α) : DVec (Vec.append1 αs α)
     | .fs i => tl i
     | .fz   => hd
-  
+
 
   -- infixl:67 " ::: " => append1
 end DVec
@@ -79,15 +79,15 @@ macro_rules
 
 
 namespace Vec
-  theorem drop_append1 {v : Vec α n} {a : α} {i : PFin2 n} : 
-      drop (append1 v a) i = v i := 
+  theorem drop_append1 {v : Vec α n} {a : α} {i : PFin2 n} :
+      drop (append1 v a) i = v i :=
     rfl
 
-  theorem drop_append1' {v : Vec α n} {a : α} : 
+  theorem drop_append1' {v : Vec α n} {a : α} :
       drop (append1 v a) = v :=
   by funext x; rfl
 
-  theorem last_append1 {v : Vec α n} {a : α} : 
+  theorem last_append1 {v : Vec α n} {a : α} :
     last (append1 v a) = a
   := rfl
 
@@ -119,8 +119,8 @@ namespace Vec
   def ofList : (as : List α) → Vec α (as.length)
     | List.nil        => Vec.nil
     | List.cons a as  => Vec.append1 (ofList as) a
-  
-  
+
+
   /-- Create a `List` from a `Vec`. Note that this conceptually reverses the vector, since in a `Vec`
       the 0th index points to the right-most element
    -/
@@ -130,7 +130,7 @@ namespace Vec
 
 
   @[simp]
-  theorem toList_length_eq_n {v : Vec α n} : 
+  theorem toList_length_eq_n {v : Vec α n} :
     v.toList.length = n :=
   by
     induction n
@@ -148,7 +148,7 @@ namespace Vec
     apply HEq.trans (b := cast (β:=Vec α (List.length (toList v))) ?hc v);
     case hc =>
       simp only [toList_length_eq_n]
-    case h₂ => 
+    case h₂ =>
       apply cast_heq
     case h₁ =>
       apply heq_of_eq;
@@ -167,7 +167,7 @@ namespace Vec
       }
       case succ.fs n ih i => {
         dsimp[ofList, toList, append1, drop]
-        
+
         apply HEq.trans (@ih (fun i => v (.fs i)) i);
         apply hcongr <;> (try solve | intros; rfl)
         simp_heq
@@ -175,13 +175,13 @@ namespace Vec
         case H₂ => apply cast_heq
         case H₃ => apply congrArg; simp
         case H₄ => intro _; apply congrArg; simp
-        
+
         apply hcongr <;> (try solve | intros; rfl);
         simp
       }
 
   theorem ofList_toList_iso' {v : Vec α n} :
-    HEq (fun (j : PFin2.{u} (toList v).length) => ofList (toList v) j.toFin2) 
+    HEq (fun (j : PFin2.{u} (toList v).length) => ofList (toList v) j.toFin2)
         (fun (j : PFin2.{u} (toList v).length) => v <| PFin2.toFin2 <| cast (by rw[toList_length_eq_n]) j) :=
   by
     apply HEq.funext
@@ -202,7 +202,7 @@ namespace Vec
   by
     induction as;
     case nil          => rfl
-    case cons a as ih => 
+    case cons a as ih =>
       simp only [toList, ofList, append1, last, DVec.last, drop_append1', ih]
 
   instance : Coe (Vec (Type u) n) (TypeVec.{u} n) where
@@ -212,8 +212,6 @@ namespace Vec
     coe v i := v i
 
   instance : Coe (Fin n → α) (Vec α n) where
-    coe f i := f (Fin2.inv i)
+    coe f i := f ((i : Fin _).rev)
 
 end Vec
-
-
