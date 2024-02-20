@@ -46,6 +46,10 @@ inductive PFin2 : Nat → Type u
 
 namespace PFin2
 
+/-- Ex falso. The dependent eliminator for the empty `PFin2 0` type. -/
+def elim0 {C : PFin2 0 → Sort u} : ∀ i : PFin2 0, C i :=
+  by intro i; cases i
+
 /-- Converts a `PFin2` into a natural. -/
 def toNat : ∀ {n}, PFin2 n → Nat
   | _, @fz _ => 0
