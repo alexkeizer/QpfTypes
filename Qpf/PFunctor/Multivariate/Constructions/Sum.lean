@@ -10,27 +10,28 @@ import Qpf.Qpf.Multivariate.Basic
 namespace MvQPF
 namespace Sum
 
-universe u
+-- universe u
 
-def SumPFunctor : MvPFunctor.{u} 2
-  := ⟨PFin2 2, 
+def SumPFunctor : MvPFunctor 2
+  := ⟨Fin2 2, 
       fun 
-      | 0 => !![PFin2 1, PFin2 0] -- inl
-      | 1 => !![PFin2 0, PFin2 1] -- inr
+      | 0 => !![Fin2 1, Fin2 0] -- inl
+      | 1 => !![Fin2 0, Fin2 1] -- inr
     ⟩
 
+#check SumPFunctor
 
 abbrev QpfSum' := SumPFunctor.Obj
 abbrev QpfSum  := TypeFun.curried QpfSum'
 
 def inl {Γ : TypeVec 2} (a : Γ 1) : QpfSum' Γ
-  := ⟨PFin2.ofNat' 0, 
+  := ⟨Fin2.ofNat' 0, 
       fun 
       | 1, _ => a
     ⟩
 
 def inr {Γ : TypeVec 2} (b : Γ 0) : QpfSum' Γ
-  := ⟨PFin2.ofNat' 1, 
+  := ⟨Fin2.ofNat' 1, 
       fun 
       | 0, _ => b
       | 1, x => by cases x

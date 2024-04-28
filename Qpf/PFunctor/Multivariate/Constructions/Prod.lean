@@ -10,10 +10,10 @@ import Qpf.Qpf.Multivariate.Basic
 namespace MvQPF
 namespace Prod
 
-open PFin2 (fz fs)
+open Fin2 (fz fs)
 
 def P : MvPFunctor 2 
-  := .mk Unit fun _ _ => PFin2 1
+  := .mk Unit fun _ _ => Fin2 1
   
 
 abbrev QpfProd' := P.Obj

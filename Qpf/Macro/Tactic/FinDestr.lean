@@ -13,21 +13,21 @@ open Lean Syntax Elab Elab.Tactic Meta
 def elabFinDestrAux (i_stx : TSyntax `ident) : TacticM Unit := do
   let n ← mkFreshExprMVar (mkConst ``Nat) (kind:=MetavarKind.synthetic);
   
-  try {
-    let u ← mkFreshLevelMVar;
-    let us := [u]
-    let finTyp := mkApp (mkConst ``PFin2 us) n
+  -- try {
+  --   let u ← mkFreshLevelMVar;
+  --   let us := [u]
+  --   let finTyp := mkApp (mkConst ``PFin2 us) n
+  --
+  --   -- Ensure the `i_stx` term has type `finType`, causing the `n` metavar to unify
+  --   let _ ← elabTermEnsuringType i_stx finTyp false;
+  --   Term.synthesizeSyntheticMVarsNoPostponing
+  -- } catch _ => {
+  let finTyp := mkApp (mkConst ``Fin2) n
 
-    -- Ensure the `i_stx` term has type `finType`, causing the `n` metavar to unify
-    let _ ← elabTermEnsuringType i_stx finTyp false;
-    Term.synthesizeSyntheticMVarsNoPostponing
-  } catch _ => {
-    let finTyp := mkApp (mkConst ``Fin2) n
-
-    -- Ensure the `i_stx` term has type `finType`, causing the `n` metavar to unify
-    let _ ← elabTermEnsuringType i_stx finTyp false;
-    Term.synthesizeSyntheticMVarsNoPostponing
-  }
+  -- Ensure the `i_stx` term has type `finType`, causing the `n` metavar to unify
+  let _ ← elabTermEnsuringType i_stx finTyp false;
+  Term.synthesizeSyntheticMVarsNoPostponing
+  -- }
 
   let n ← match (← getExprMVarAssignment? n.mvarId!) with
   | none    => throwErrorAt i_stx "{i_stx} must be of type `Fin2 0` or `Fin2 (Nat.succ n)`"

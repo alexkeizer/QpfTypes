@@ -7,7 +7,7 @@ import Qpf
 
 
 codata FinAlt {n : Nat} β
-  | mk : PFin2 n → FinAlt β
+  | mk : Fin2 n → FinAlt β
 
 #print FinAlt.mk
 
