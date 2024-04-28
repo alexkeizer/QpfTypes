@@ -75,7 +75,7 @@ macro_rules
 
 
 namespace Vec
-  theorem drop_append1 {v : Vec α n} {a : α} {i : PFin2 n} :
+  theorem drop_append1 {v : Vec α n} {a : α} {i : Fin2 n} :
       drop (append1 v a) i = v i :=
     rfl
 
@@ -104,7 +104,7 @@ namespace Vec
     funext i;
     dsimp only [reverse]
     apply congrArg;
-    simp only [Fin2.inv, PFin2.toFin2_ofFin2, PFin2.inv_involution, PFin2.ofFin2_toFin2]
+    simp only [Fin2.inv, Fin2.inv_involution]
 end Vec
 
 
@@ -178,8 +178,8 @@ namespace Vec
       }
 
   theorem ofList_toList_iso' {v : Vec α n} :
-    HEq (fun (j : PFin2.{u} (toList v).length) => ofList (toList v) j.toFin2)
-        (fun (j : PFin2.{u} (toList v).length) => v <| PFin2.toFin2 <| cast (by rw[toList_length_eq_n]) j) :=
+    HEq (fun (j : Fin2 (toList v).length) => ofList (toList v) j)
+        (fun (j : Fin2 (toList v).length) => v <| cast (by rw[toList_length_eq_n]) j) :=
   by
     apply HEq.funext
     . rfl
@@ -187,9 +187,10 @@ namespace Vec
     have n_eq : (toList v).length = n := toList_length_eq_n;
     apply hcongr
     . apply ofList_toList_iso
-    . intros
-      apply hcongr <;> intros <;> (try rw[n_eq])
-      . simp_heq
+    . simp_heq 
+      -- intros
+      -- apply hcongr <;> intros <;> (try rw[n_eq])
+      -- . simp_heq
     . intros; simp
     . rw[n_eq]
 

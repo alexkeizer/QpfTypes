@@ -20,9 +20,9 @@ private def Array.enum (as : Array α) : Array (Nat × α) :=
 
   The result corresponds to a `i : PFin2 _` such that `i.toNat == n`
 -/
-private def PFin2.quoteOfNat : Nat → Term
-  | 0   => mkIdent ``PFin2.fz
-  | n+1 => Syntax.mkApp (mkIdent ``PFin2.fs) #[(quoteOfNat n)]
+-- private def PFin2.quoteOfNat : Nat → Term
+--   | 0   => mkIdent ``PFin2.fz
+--   | n+1 => Syntax.mkApp (mkIdent ``PFin2.fs) #[(quoteOfNat n)]
 
 private def Fin2.quoteOfNat : Nat → Term
   | 0   => mkIdent ``Fin2.fz
@@ -168,7 +168,7 @@ def mkChildT (view : InductiveView) (r : Replace) (headTName : Name) : CommandEl
 
     let counts := countVarOccurences r ctor.type?
     let counts := counts.map fun n =>
-                    Syntax.mkApp (mkIdent ``PFin2) #[quote n]
+                    Syntax.mkApp (mkIdent ``Fin2) #[quote n]
 
     `(matchAltExpr| | $head => (!![ $counts,* ]))
 
@@ -236,11 +236,11 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT P : Ide
             let i := arity - 1 - i
             let body ← if args.size == 0 then
                           -- `(fun j => Fin2.elim0 (C:=fun _ => _) j)
-                          `(PFin2.elim0)
+                          `(Fin2.elim0)
                         else
                           let alts ← args.enum.mapM fun (j, arg) =>
                               let arg := mkIdent arg
-                              `(matchAltExpr| | $(PFin2.quoteOfNat j) => $arg)
+                              `(matchAltExpr| | $(Fin2.quoteOfNat j) => $arg)
                           `(
                             fun j => match j with
                               $alts:matchAlt*
@@ -275,7 +275,7 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT P : Ide
         ((t.indexOf? arg).map fun ⟨j, _⟩ => (i, j)).toList
       ).toList.join.get! 0
 
-      `($unbox_child $(Fin2.quoteOfNat i) $(PFin2.quoteOfNat j))
+      `($unbox_child $(Fin2.quoteOfNat i) $(Fin2.quoteOfNat j))
 
     let body := Syntax.mkApp alt args
 
@@ -303,7 +303,7 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT P : Ide
         <;> simp
         <;> apply congrArg
         <;> (funext i; fin_cases i)
-        <;> (funext (j : PFin2 _); fin_cases j)
+        <;> (funext (j : Fin2 _); fin_cases j)
         <;> rfl
 
     instance $functor:ident : MvFunctor (@TypeFun.ofCurried $(quote arity) $shape) where
