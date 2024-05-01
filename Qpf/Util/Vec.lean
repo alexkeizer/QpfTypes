@@ -31,9 +31,9 @@ namespace Vec
     := fun _ => a
 end Vec
 
-unif_hint (n : Nat) where |- Fin2 n → Type u =?= Vec.{u+1} (Type u) n
-
-unif_hint {α : Type _} (n : Nat) where |- DVec.{u+1} (Vec.constVec α n) =?= Vec.{u+1} α n
+-- unif_hint (n : Nat) where |- Fin2 n → Type u =?= Vec.{u+1} (Type u) n
+--
+-- unif_hint {α : Type _} (n : Nat) where |- DVec.{u+1} (Vec.constVec α n) =?= Vec.{u+1} α n
 
 namespace DVec
   /-- Return the last element from a `DVec` -/

@@ -557,6 +557,7 @@ open Macro Comp in
 -/
 @[command_elab declaration]
 def elabData : CommandElab := fun stx => do
+  trace[QPF] "start"
   let modifiers ← elabModifiers stx[0]
   let decl := stx[1]
   let view ← dataSyntaxToView modifiers decl
@@ -582,6 +583,8 @@ def elabData : CommandElab := fun stx => do
 
   mkType view base
   mkConstructors view shape
+
+  trace[QPF] "done"
 
 
 end Data.Command

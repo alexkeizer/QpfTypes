@@ -10,4 +10,4 @@ lean_lib Qpf
 lean_lib Test
 
 require mathlib from git
-  "https://github.com/leanprover-community/mathlib4.git"@"v4.5.0"
+  "https://github.com/leanprover-community/mathlib4.git"@"v4.7.0"

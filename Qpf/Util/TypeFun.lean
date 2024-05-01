@@ -102,8 +102,7 @@ namespace TypeFun
         funext x;
         simp [ofCurriedAux, curriedAux];
         let F' := fun α => F (α ::: x.last);
-        have : F x = F' x.drop;
-        . simp
+        have : F x = F' x.drop := by simp [F']
         rw [this]
         rw [@ih F']
       }
