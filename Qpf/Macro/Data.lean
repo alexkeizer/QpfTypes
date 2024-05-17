@@ -150,23 +150,6 @@ def mkHeadT (view : InductiveView) : CommandElabM Name := do
   elabInductiveViews #[view]
   pure declName
 
-
-open Parser in
-private def matchAltsOfArray (matchAlts : Array Syntax) : Syntax :=
-  mkNode ``Term.matchAlts #[mkNullNode matchAlts]
-
-
-open Parser in
-/--
-  Wraps an array of `matchAltExpr` syntax objects into a single `Command.declValEqns` node, for
-  use in inductive definitions
--/
-private def declValEqnsOfMatchAltArray (matchAlts : Array Syntax) : TSyntax ``Command.declValEqns :=
-  let body := matchAltsOfArray matchAlts
-  let body := mkNode ``Term.matchAltsWhereDecls #[body, mkNullNode]
-  mkNode ``Command.declValEqns #[body]
-
-
 open Parser Parser.Term Parser.Command in
 /--
   Defines the "child" family of type vectors for an `n`-ary polynomial functor
@@ -190,10 +173,10 @@ def mkChildT (view : InductiveView) (r : Replace) (headTName : Name) : CommandEl
 
     `(matchAltExpr| | $head => (!![ $counts,* ]))
 
-  let body := declValEqnsOfMatchAltArray matchAlts
+  let body ← `(declValEqns|
+    $[$matchAlts:matchAlt]*
+  )
   let headT := mkIdent headTName
-
-
 
   let cmd ← `(
     def $declId : $headT → $target_type
@@ -403,10 +386,9 @@ def mkShape (view: DataView) : TermElabM MkShapeResult := do
     let childTId := mkIdent childTName
 
     elabCommand <|<- `(
-      def $PDeclId :=
+      def $PDeclId:declId :=
         MvPFunctor.mk $headTId $childTId
     )
-
 
     mkQpf view ctorArgs headTId PId r.expr.size
   ⟩
@@ -540,8 +522,7 @@ def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
 
     let cmd ← `(
       $(quote modifiers):declModifiers
-      def $declId:ident : $type
-        := $body:term
+      def $declId:ident : $type := $body:term
     )
 
     trace[QPF] "mkConstructor.cmd = {cmd}"

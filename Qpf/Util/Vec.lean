@@ -31,10 +31,6 @@ namespace Vec
     := fun _ => a
 end Vec
 
--- unif_hint (n : Nat) where |- Fin2 n → Type u =?= Vec.{u+1} (Type u) n
---
--- unif_hint {α : Type _} (n : Nat) where |- DVec.{u+1} (Vec.constVec α n) =?= Vec.{u+1} α n
-
 namespace DVec
   /-- Return the last element from a `DVec` -/
   abbrev last (v : @DVec (n+1) αs ) : αs 0
@@ -159,9 +155,10 @@ namespace Vec
 
       induction n <;> cases i;
       case succ.fz n ih => {
-        dsimp[ofList, toList, append1, last, DVec.last]
+        dsimp only [toList, last, DVec.last, ofList, append1, List.length_cons, Nat.succ_eq_add_one]
+        show HEq (v .fz) (v <| cast _ Fin2.fz)
         apply hcongr <;> (try solve | intros; rfl)
-        simp_heq;
+        simp_heq
         apply hcongr <;> (try solve | intros; rfl)
         simp
       }
@@ -190,7 +187,7 @@ namespace Vec
     have n_eq : (toList v).length = n := toList_length_eq_n;
     apply hcongr
     . apply ofList_toList_iso
-    . simp_heq 
+    . simp_heq
       -- intros
       -- apply hcongr <;> intros <;> (try rw[n_eq])
       -- . simp_heq

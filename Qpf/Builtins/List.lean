@@ -6,7 +6,7 @@ import Qpf.Macro.Data
 import Qpf.Qpf.Multivariate.ofPolynomial
 import Qpf.Util
 
-namespace MvQPF 
+namespace MvQPF
 namespace List
 
   def ListPFunctor : MvPFunctor 1
@@ -17,15 +17,15 @@ namespace List
   abbrev QpfList' := ListPFunctor.Obj
   abbrev List' := @TypeFun.ofCurried 1 List
 
-  abbrev box {Γ} (x : List' Γ) : QpfList' Γ 
+  abbrev box {Γ} (x : List' Γ) : QpfList' Γ
     := ⟨
-        x.length, 
+        x.length,
         fun .fz j => Vec.ofList x j
       ⟩
 
-  abbrev unbox {Γ} (x : QpfList' Γ) : List' Γ 
+  abbrev unbox {Γ} (x : QpfList' Γ) : List' Γ
     := Vec.toList fun i => x.snd 0 i
-    
+
   private theorem typeext {α} {f g : α → Sort _} (f_eq_g: f = g) :
     ((a : α) → f a) = ((a : α) → g a) :=
   by
@@ -35,7 +35,7 @@ namespace List
   instance : MvFunctor List' :=
     MvFunctor.ofIsomorphism _ box unbox
 
-  instance : MvQPF List' := 
+  instance : MvQPF List' :=
     .ofIsomorphism _ box unbox (
       by
         intros Γ x;
@@ -60,7 +60,7 @@ namespace List
           apply HEq.trans cast_fun_arg
           rfl
 
-        case H₃ => 
+        case H₃ =>
           apply typeext;
           fin_destr;
 
@@ -70,7 +70,7 @@ namespace List
 
         case H₄ => intros; rfl
     ) (
-      by 
+      by
         intros _ x;
         induction x
         . rfl

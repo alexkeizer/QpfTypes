@@ -14,15 +14,15 @@ abbrev CurriedFun (α : Type u) (β : Type v) : Nat → Type (max u v)
 abbrev CurriedTypeFun : Nat → Type ((max u v) + 1)
   := CurriedFun (Type u) (Type v)
 
-/-- An uncurried type function, all `n` arguments are collected into a single `TypeVec n` 
+/-- An uncurried type function, all `n` arguments are collected into a single `TypeVec n`
     Note that all arguments live in the same universe, but the result may be in a different universe
 -/
-abbrev TypeFun (n : Nat) : Type ((max u v) + 1) := 
+abbrev TypeFun (n : Nat) : Type ((max u v) + 1) :=
   TypeVec.{u} n → Type v
 
 namespace TypeFun
   def reverseArgs : TypeFun n → TypeFun n :=
-    fun v α => v <| Vec.reverse α 
+    fun v α => v <| Vec.reverse α
 
   @[simp]
   theorem reverseArgs_involution (F : TypeFun n) :
@@ -33,7 +33,7 @@ namespace TypeFun
 
   def curriedAux : {n : Nat} → TypeFun n → CurriedTypeFun n
     | 0,    F => fun _ => F !![]
-    | 1,    F => fun a => F !![a] 
+    | 1,    F => fun a => F !![a]
     | _+2,  F => fun a => curriedAux fun αs => F (αs ::: a)
 
   def curried (F : TypeFun n) : CurriedTypeFun n
@@ -53,7 +53,7 @@ namespace TypeFun
   @[simp]
   theorem curriedAux_ofCurriedAux_involution {F : CurriedTypeFun n} :
     curriedAux (ofCurriedAux F) = F :=
-  by    
+  by
     cases n
     case zero => simp [curriedAux, ofCurriedAux]
     case succ n => {
@@ -64,12 +64,12 @@ namespace TypeFun
         funext a;
         apply @ih (F a);
       }
-    } 
+    }
 
   @[simp]
   theorem curried_ofCurried_involution {F : CurriedTypeFun n} :
     curried (ofCurried F) = F :=
-  by    
+  by
     simp only [curried, ofCurried, reverseArgs_involution]
     apply curriedAux_ofCurriedAux_involution
 
@@ -78,9 +78,9 @@ namespace TypeFun
   @[simp]
   theorem ofCurriedAux_curriedAux_involution {F : TypeFun n} :
     ofCurriedAux (curriedAux F) = F :=
-  by    
+  by
     cases n
-    case zero => 
+    case zero =>
       funext x;
       simp [curriedAux, ofCurriedAux, Matrix.vecEmpty]
       congr
@@ -111,7 +111,7 @@ namespace TypeFun
   @[simp]
   theorem ofCurried_curried_involution {F : TypeFun n} :
     ofCurried (curried F) = F :=
-  by    
+  by
     simp only [ofCurried, curried, ofCurriedAux_curriedAux_involution]
     apply reverseArgs_involution
 end TypeFun
