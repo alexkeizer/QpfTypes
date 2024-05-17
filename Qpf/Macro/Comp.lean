@@ -178,7 +178,7 @@ partial def elabQpf {arity : Nat} (vars : Vector Q(Type u) arity) (target : Q(Ty
     | none      => throwError "Free variable {target} is not one of the qpf arguments"
     | some ind  => pure ind
 
-    let ind : Fin2 arity := cast (by simp) ind.inv
+    let ind : Fin2 arity := cast (by simp [vars']) ind.inv
     let prj := q(@Prj.{u} $arity $ind)
     trace[QPF] "represented by: {prj}"
     pure ⟨prj, q(Prj.mvfunctor _), q(Prj.mvqpf _)⟩

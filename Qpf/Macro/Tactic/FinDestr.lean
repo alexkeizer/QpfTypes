@@ -12,7 +12,7 @@ open Lean Syntax Elab Elab.Tactic Meta
 
 def elabFinDestrAux (i_stx : TSyntax `ident) : TacticM Unit := do
   let n ← mkFreshExprMVar (mkConst ``Nat) (kind:=MetavarKind.synthetic);
-  
+
   try {
     let u ← mkFreshLevelMVar;
     let us := [u]
@@ -38,7 +38,7 @@ def elabFinDestrAux (i_stx : TSyntax `ident) : TacticM Unit := do
   if let some n := n.natLit? then
     let rec genTactic : Nat → TacticM (TSyntax `tactic)
     | 0   =>  `(tactic| cases $i_stx:ident)
-    | n+1 => do 
+    | n+1 => do
               let tct ← genTactic n
               `(tactic| (cases $i_stx:ident; swap; rename_i $i_stx:ident; $tct:tactic))
 
@@ -47,7 +47,7 @@ def elabFinDestrAux (i_stx : TSyntax `ident) : TacticM Unit := do
 
   else
     let rec genTacticExpr : Expr → TacticM (Option <| TSyntax `tactic)
-      | Expr.const ``Nat.zero .. => 
+      | Expr.const ``Nat.zero .. =>
         `(tactic| cases $i_stx:ident)
 
       | Expr.app (Expr.const ``Nat.succ ..) n .. => do
@@ -66,26 +66,26 @@ elab "fin_destr_one " i:ident : tactic => do
   withMainContext <|
     elabFinDestrAux i
 
-syntax "fin_destr' " ident* : tactic 
+syntax "fin_destr' " ident* : tactic
 macro_rules
 | `(tactic| fin_destr' $i:ident $is:ident*) => `(tactic| fin_destr_one $i <;> dsimp (config := {failIfUnchanged := false}) <;> fin_destr' $is:ident*)
 | `(tactic| fin_destr') => `(tactic| skip)
 
-syntax "fin_destr " ident* : tactic 
+syntax "fin_destr " ident* : tactic
 macro_rules
-| `(tactic| fin_destr $i:ident $is:ident*) => `(tactic| 
-      fin_destr' $i:ident $is:ident* 
+| `(tactic| fin_destr $i:ident $is:ident*) => `(tactic|
+      fin_destr' $i:ident $is:ident*
       <;> try fin_destr
     )
 
-| `(tactic| fin_destr) => `(tactic| 
+| `(tactic| fin_destr) => `(tactic|
       first
       | intro i;  fin_destr i
       | funext i; fin_destr i
   )
 
 
-syntax "vec_eq " (tactic)? : tactic 
+syntax "vec_eq " (tactic)? : tactic
 macro_rules
 | `(tactic| vec_eq) => `(tactic| vec_eq trivial)
 | `(tactic| vec_eq $tct:tactic ) => `(tactic| funext i; fin_destr i <;> $tct:tactic)

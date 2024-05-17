@@ -12,9 +12,9 @@ namespace Prod
 
 open PFin2 (fz fs)
 
-def P : MvPFunctor 2 
+def P : MvPFunctor 2
   := .mk Unit fun _ _ => PFin2 1
-  
+
 
 abbrev QpfProd' := P.Obj
 abbrev QpfProd  := TypeFun.curried QpfProd'
@@ -31,8 +31,8 @@ abbrev Prod' : TypeFun 2
 -/
 def mk (a : Γ 1) (b : Γ 0) : QpfProd' Γ
   := ⟨
-      (), 
-      fun 
+      (),
+      fun
       | 1, _ => a
       | 0, _ => b
   ⟩
@@ -55,7 +55,7 @@ instance : MvFunctor Prod' where
   map f x   := equiv.invFun <| P.map f <| equiv.toFun <| x
 
 instance : MvQPF.IsPolynomial Prod' := .ofEquiv _ equiv
-  
+
 
 end Prod
 

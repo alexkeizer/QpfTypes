@@ -14,12 +14,12 @@ import Qpf.Util
 
 universe u
 
-
 namespace MvQPF.Comp
-  open MvPFunctor MvFunctor
 
-variable {n m : ℕ} 
-         (F : TypeFun n) 
+open MvPFunctor MvFunctor
+
+variable {n m : ℕ}
+         (F : TypeFun n)
          (G : Vec (TypeFun m) n)
          [p : IsPolynomial F]
          [p' : ∀ i, IsPolynomial <| G i]
@@ -46,25 +46,25 @@ variable {n m : ℕ}
               snd := fun x a =>
                 (repr (abs { fst := f' x a, snd := fun j b => f j { fst := x, snd := { fst := a, snd := b } } })).fst }
             i =
-          B (P (Comp F G)) { fst := a', snd := f' } i := 
+          B (P (Comp F G)) { fst := a', snd := f' } i :=
           by simp only [IsPolynomial.repr_abs]; rfl
-        
+
         apply HEq.funext'
-        case type_eq_β => 
+        case type_eq_β =>
           intros; rfl
-        case type_eq_α => 
+        case type_eq_α =>
           exact type_eq_α
 
         rintro ⟨b, ⟨b', g'⟩⟩
         simp only [heq_eq_eq]
-        
-        have : repr (abs 
-                  ⟨ f' b b', 
-                    fun j b_1 => 
+
+        have : repr (abs
+                  ⟨ f' b b',
+                    fun j b_1 =>
                       f j ⟨b, ⟨b', b_1⟩⟩
                   ⟩)
-                = ⟨ f' b b', 
-                    fun j b_1 => 
+                = ⟨ f' b b',
+                    fun j b_1 =>
                       f j ⟨b, ⟨b', b_1⟩⟩
                   ⟩;
         {
@@ -77,10 +77,9 @@ variable {n m : ℕ}
         sorry
       }
 
-    
-    
-    
+
+
+
 
 
 end MvQPF.Comp
-
