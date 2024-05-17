@@ -5,7 +5,6 @@ Authors: Mario Carneiro
 -/
 
 import Mathlib.Data.Fin.Fin2
-import Mathlib.Data.Nat.Order.Basic
 import Mathlib.Init.Order.Defs
 
 /-!
