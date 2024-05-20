@@ -15,7 +15,6 @@ open PrettyPrinter (delab)
 private def Array.enum (as : Array α) : Array (Nat × α) :=
   (Array.range as.size).zip as
 
-
 /--
   Given a natural number `n`, produce a sequence of `n` calls of `.fs`, ending in `.fz`.
 
@@ -303,7 +302,8 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT P : Ide
         cases head
         <;> simp
         <;> apply congrArg
-        <;> fin_destr
+        <;> (funext i; fin_cases i)
+        <;> (funext (j : PFin2 _); fin_cases j)
         <;> rfl
 
     instance $functor:ident : MvFunctor (@TypeFun.ofCurried $(quote arity) $shape) where
