@@ -204,6 +204,15 @@ instance : Coe (Fin2 n) (Fin n) := ⟨fun i => toFin <| ofFin2.{0} i⟩
 
 instance : Fintype (PFin2 n) := Fintype.ofEquiv _ (equivFin2 n).symm
 
+@[simp] theorem ofFin2_eq (i : Fin2 n) : ofFin2 i = (equivFin2 _).symm i := rfl
+@[simp] theorem toFin2_eq (i : PFin2 n) : toFin2 i = (equivFin2 _) i := rfl
+
+@[simp] theorem toFin2_fz : (equivFin2 (n+1)) PFin2.fz = Fin2.fz                    := rfl
+@[simp] theorem toFin2_fs : (equivFin2 _) (PFin2.fs i) = Fin2.fs ((equivFin2 _) i)  := rfl
+
+@[simp] theorem ofFin2_fz : (equivFin2 (n+1)).symm Fin2.fz = PFin2.fz                         := rfl
+@[simp] theorem ofFin2_fs : (equivFin2 _).symm (Fin2.fs i) = PFin2.fs ((equivFin2 _).symm i)  := rfl
+
 end PFin2
 
 
