@@ -3,6 +3,8 @@
 -/
 
 import Mathlib.Data.QPF.Multivariate.Basic
+import Mathlib.Tactic.FinCases
+
 import Qpf.Util
 import Qpf.Macro.Tactic.FinDestr
 import Qpf.Qpf.Multivariate.Basic
@@ -46,9 +48,10 @@ def equiv {Γ} : Prod' Γ ≃ QpfProd' Γ := {
     rcases x with ⟨⟨⟩, f⟩;
     simp[mk];
     apply congrArg;
-    funext i j
-    fin_destr i j;
-    rfl
+    funext i (j : PFin2 _)
+    fin_cases j
+    fin_cases i
+    <;> rfl
 }
 
 instance : MvFunctor Prod' where

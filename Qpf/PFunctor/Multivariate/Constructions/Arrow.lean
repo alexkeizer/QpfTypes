@@ -1,11 +1,13 @@
 import Mathlib.Data.QPF.Multivariate.Basic
+import Mathlib.Tactic.FinCases
+
 import Qpf.Util
 import Qpf.Macro.Tactic.FinDestr
 import Qpf.PFunctor.Multivariate.Basic
 
-namespace MvQPF 
+namespace MvQPF
 
-namespace Arrow 
+namespace Arrow
 
   def ArrowPFunctor (x : Type u) : MvPFunctor.{u} 1
     := ⟨PUnit, fun _ => (![x] : TypeVec 1)⟩
@@ -34,7 +36,7 @@ namespace Arrow
   rfl
 
 
-  
+
   def box (f : Arrow' α Γ) : (QpfArrow' α Γ)
     := ⟨(), fun | 0 => f⟩
 
@@ -47,16 +49,16 @@ namespace Arrow
     simp[box, unbox]
     apply congrArg;
     funext i
-    fin_destr i;
+    fin_cases i
     rfl
-      
+
 
   theorem unbox_box_id (f : Arrow' α Γ) :
     unbox (box f) = f :=
   by
     rfl
 
-  instance : MvFunctor (Arrow' x) where 
+  instance : MvFunctor (Arrow' x) where
     map f a     := unbox <| (ArrowPFunctor x).map f <| box a
 
   instance : MvQPF (Arrow' x) where
