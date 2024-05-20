@@ -5,6 +5,7 @@
 import Qpf.Macro.Data
 import Qpf.Qpf.Multivariate.ofPolynomial
 import Qpf.Util
+import Mathlib.Tactic.FinCases
 
 namespace MvQPF
 namespace List
@@ -37,12 +38,12 @@ namespace List
   instance : MvQPF List' :=
     .ofIsomorphism _ box unbox (
       by
-        intros Γ x;
+        intros Γ x
         rcases x with ⟨⟨n⟩, v⟩
         dsimp[ListPFunctor] at v
-        simp [box, unbox];
+        simp only [box, Fin2.instOfNatFin2HAddNatInstHAddInstAddNatOfNat, unbox]
 
-        apply eq_of_heq;
+        apply eq_of_heq
         apply hcongr
         case H₁ =>
           apply hcongr
@@ -52,16 +53,21 @@ namespace List
           . trivial
 
         case H₂ =>
-          apply HEq.funext <;> fin_destr
-          . simp[ListPFunctor]
-          apply HEq.trans Vec.ofList_toList_iso'
-          simp only [Eq.ndrec, id_eq, eq_mpr_eq_cast, PFin2.toFin2_ofFin2_iso]
-          apply HEq.trans cast_fun_arg
-          rfl
+          apply HEq.funext
+          . funext i;
+            fin_cases i
+            simp[ListPFunctor]
+          · intro i
+            fin_cases i
+            apply HEq.trans Vec.ofList_toList_iso'
+            simp only [Eq.ndrec, id_eq, eq_mpr_eq_cast, PFin2.toFin2_ofFin2]
+            apply HEq.trans cast_fun_arg
+            rfl
 
         case H₃ =>
           apply typeext;
-          fin_destr;
+          funext i
+          fin_cases i
 
           simp only [ListPFunctor, TypeVec.Arrow, DVec];
           have : List.length (unbox { fst := { down := n }, snd := v }) = n := by simp
@@ -82,4 +88,5 @@ namespace List
 end List
 end MvQPF
 
-#check (inferInstance : MvQPF (@TypeFun.ofCurried 1 List))
+/-- info: MvQPF.List.instMvQPFOfNatNatInstOfNatNatList'InstMvFunctorOfNatNatInstOfNatNatList' -/
+#guard_msgs in #synth MvQPF (@TypeFun.ofCurried 1 List)

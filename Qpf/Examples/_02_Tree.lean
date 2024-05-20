@@ -7,15 +7,15 @@ open MvQPF
 /-
   # Rose trees
   Now let us look at Rose Trees, that is, trees where each node has a label of type `α` and an arbitrary
-  number of children. 
+  number of children.
 
   ```lean4
   inductive QpfTree (α : Type)
   | node : α → QpfList (QpfTree α) → QpfTree α
   ```
 
-  First, we extract the shape functor. That is, we replace each distinct expression (which is not 
-  already a type variable) with a new type variable. 
+  First, we extract the shape functor. That is, we replace each distinct expression (which is not
+  already a type variable) with a new type variable.
   In this case, that is only `QpfList (QpfTree α)`, which we represent with `β`
 
   ```lean4
@@ -44,7 +44,7 @@ namespace QpfTree
   end Shape
 
   /-
-    Before we can take the fixpoint, we need to compose this shape functor with QpfList in the second 
+    Before we can take the fixpoint, we need to compose this shape functor with QpfList in the second
     argument. Effectively, we want to define
     ```
       F α β := Shape.F α (QpfList β)
@@ -60,7 +60,7 @@ namespace QpfTree
       G₁ α β := α           -- (hence, G₁ := Prj 1)
     ```
     The second functor is a bit more involved. We want to invoke `QpfList`, which expects a single
-    argument, but `G₂` should be a binary functor. Additionally, the argument we want to apply 
+    argument, but `G₂` should be a binary functor. Additionally, the argument we want to apply
     `QpfList` to is `β`, the second argument, so we compose `QpfList` with a projection functor
     ```
       G₂ α β := QpfList β   -- (hence, G₂ := Comp QpfList' ![Prj 0])
@@ -89,19 +89,6 @@ namespace QpfTree
 
   abbrev F := F_curried.typefun
 
-    -- -- Unfold the definitions, to see both are applications of `Comp`
-    -- dsimp [F_manual, F_curried.typefun]
-    -- apply congrArg;
-
-    -- -- At this point, the goal is to show that two vectors, of known size are equal.
-    -- -- These vectors are not definitially equal, but their respective elements are.
-    -- funext i;
-    -- -- The following tactic takes a `i : Fin2 n`, where `n` is a known constant, and breaks the goal
-    -- -- into `n` subgoals, one for each concrete possible value of `i`
-    -- fin_destr i <;> rfl
-    
-
-
   /-
     Type class inference works as expected, it can reason about the vectors of functors involved
     in compositions
@@ -121,10 +108,10 @@ namespace QpfTree
 
 
   def node (a : α) (children : QpfList (QpfTree α)) : QpfTree α :=
-    Fix.mk ⟨Shape.HeadT.node, 
+    Fix.mk ⟨Shape.HeadT.node,
             fun i _ => match i with
             | 0 => children
-                    -- by  
+                    -- by
                     -- apply cast ?_ children;
                     -- unfold QpfList;
                     -- dsimp only [TypeFun.curried, TypeFun.curriedAux, TypeFun.reverseArgs]
@@ -139,7 +126,7 @@ namespace QpfTree
     on `sorryAx`
   -/
   #print axioms node
-  
+
 end QpfTree
 
 export QpfTree (QpfTree QpfTree')
