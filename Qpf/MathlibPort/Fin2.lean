@@ -179,21 +179,19 @@ def toFin2 : PFin2 n → Fin2 n
   | .fz   => .fz
   | .fs i => .fs <| toFin2 i
 
-@[simp]
-theorem ofFin2_toFin2_iso {i : Fin2 n} :
-  (toFin2 <| ofFin2 i) = i :=
-by
-  induction i
-  . rfl
-  . simp [ofFin2, toFin2, *]
+@[simp] theorem ofFin2_toFin2 (i : Fin2 n) :
+    (toFin2 <| ofFin2 i) = i := by
+  induction i <;> simp [ofFin2, toFin2, *]
 
-@[simp]
-theorem toFin2_ofFin2_iso {i : PFin2 n} :
-  (ofFin2 <| toFin2 i) = i :=
-by
-  induction i
-  . rfl
-  . simp [ofFin2, toFin2, *]
+@[simp] theorem toFin2_ofFin2 (i : PFin2 n) :
+    (ofFin2 <| toFin2 i) = i := by
+  induction i <;> simp [ofFin2, toFin2, *]
+
+def equivFin2 (n : Nat) : PFin2 n ≃ Fin2 n where
+  toFun     := toFin2
+  invFun    := ofFin2
+  left_inv  := toFin2_ofFin2
+  right_inv := ofFin2_toFin2
 
 instance : Coe (Fin2 n) (PFin2 n) := ⟨ofFin2⟩
 instance : Coe (PFin2 n) (Fin2 n) := ⟨toFin2⟩
@@ -203,6 +201,8 @@ instance : Coe (Fin n) (PFin2 n) := ⟨ofFin⟩
 
 instance : Coe (Fin n) (Fin2 n) := ⟨fun i => toFin2 <| ofFin.{0} i⟩
 instance : Coe (Fin2 n) (Fin n) := ⟨fun i => toFin <| ofFin2.{0} i⟩
+
+instance : Fintype (PFin2 n) := Fintype.ofEquiv _ (equivFin2 n).symm
 
 end PFin2
 

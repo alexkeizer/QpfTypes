@@ -104,7 +104,7 @@ namespace Vec
     funext i;
     dsimp only [reverse]
     apply congrArg;
-    simp only [Fin2.inv, PFin2.toFin2_ofFin2_iso, PFin2.inv_involution, PFin2.ofFin2_toFin2_iso]
+    simp only [Fin2.inv, PFin2.toFin2_ofFin2, PFin2.inv_involution, PFin2.ofFin2_toFin2]
 end Vec
 
 
