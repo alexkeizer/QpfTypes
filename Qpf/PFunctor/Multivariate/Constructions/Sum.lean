@@ -5,7 +5,6 @@
 import Mathlib.Data.QPF.Multivariate.Basic
 import Mathlib.Tactic.FinCases
 
-import Qpf.Macro.Tactic.FinDestr
 import Qpf.Util
 import Qpf.Qpf.Multivariate.Basic
 

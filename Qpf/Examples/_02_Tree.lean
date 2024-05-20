@@ -1,6 +1,5 @@
 import Qpf
 import Qpf.Examples._01_List
-import Qpf.Macro.Tactic.FinDestr
 
 open MvQPF
 

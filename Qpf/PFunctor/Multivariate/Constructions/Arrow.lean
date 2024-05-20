@@ -2,7 +2,6 @@ import Mathlib.Data.QPF.Multivariate.Basic
 import Mathlib.Tactic.FinCases
 
 import Qpf.Util
-import Qpf.Macro.Tactic.FinDestr
 import Qpf.PFunctor.Multivariate.Basic
 
 namespace MvQPF
