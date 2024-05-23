@@ -182,7 +182,13 @@ def DataView.doSanityChecks (view : DataView) : CommandElabM Unit := do
   --       and only throw an error if the user tries to define a family of types
 
   match view.type? with
-  | some t => throwErrorAt t "Unexpected type; type will be automatically inferred. Note that inductive families are not supported due to inherent limitations of QPFs"
+  | some t_stx =>
+    let t : Expr ← runTermElabM <| fun _ =>
+      elabTerm t_stx none
+    if t.isType then
+      pure ()
+    else
+      throwErrorAt t_stx "Unexpected type; type will be automatically inferred. Note that inductive families are not supported due to inherent limitations of QPFs"
   | none => pure ()
 
 
