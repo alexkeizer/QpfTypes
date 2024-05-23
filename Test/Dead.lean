@@ -9,7 +9,8 @@ import Qpf
 codata FinAlt {n : Nat} β
   | mk : PFin2 n → FinAlt β
 
-#print FinAlt.mk
+/-- info: FinAlt.mk : PFin2 ?n → FinAlt ?β -/
+#guard_msgs in #check @FinAlt.mk ?n ?β
 
 
 data QpfList₄ (dead : Type) β γ where
