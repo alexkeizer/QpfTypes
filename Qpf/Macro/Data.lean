@@ -332,7 +332,7 @@ structure MkShapeResult where
   (effects : CommandElabM Unit)
 
 open Parser in
-def mkShape (view: DataView) : TermElabM MkShapeResult := do
+def mkShape (view : DataView) : TermElabM MkShapeResult := do
   -- If the original declId was `MyType`, we want to register the shape type under `MyType.Shape`
   let (declName, declId, shortDeclName) ← addSuffixToDeclId view.declId "Shape"
 
