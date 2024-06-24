@@ -146,10 +146,11 @@ def Replace.run : ReplaceM m α → m (α × Replace) :=
 
 -- Have a look at how, e.g., def, deals with binders,
 -- this method might already exist look for BinderView
-def getBinderNamesAndType : Syntax → m (Array Syntax × Syntax)
+def getBinderView (ref : Syntax): m BinderView := match ref with
   | .node _ `Lean.Parser.Term.explicitBinder
-    #[_, (.node _ `null ids), (.node _ `null #[_, ty]), _, _] =>
-    pure (ids, ty)
+    #[_, id, (.node _ `null #[_, ty]), _, _] =>
+    return .mk ref id ty .default
+    /- pure (ids, ty) -/
   | _ => Elab.throwUnsupportedSyntax
 
 /-- This function takes in a DataView with possibly explicit binders.
@@ -158,9 +159,9 @@ def getBinderNamesAndType : Syntax → m (Array Syntax × Syntax)
     Finally it stiches all of this together to an output type-/
 def preProcessCtors (view : DataView) : m DataView := do
   let ctors ← view.ctors.mapM fun ctor => do
-    let namedArgs ← ctor.binders.getArgs.mapM getBinderNamesAndType
+    let namedArgs ← ctor.binders.getArgs.mapM getBinderView
     let flatArgs :=
-      (namedArgs.map (fun (ids, ty) => ids.map (fun _ => ⟨ty⟩)))
+      (namedArgs.map (fun b => b.id.getArgs.map (fun _ => ⟨b.type⟩)))
       |>.flatten.reverse
 
     let ty := if let some x := ctor.type? then x else view.getExpectedType
