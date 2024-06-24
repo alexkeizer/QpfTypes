@@ -161,12 +161,7 @@ def preProcessCtors (view : DataView) : m DataView := do
     let namedArgs ← ctor.binders.getArgs.mapM getBinderNamesAndType
     let flatArgs: Array (TSyntax `term) := (namedArgs.map (fun (ids, ty) => ids.map (fun _ => ⟨ty⟩))).flatten.reverse
 
-    /- let some ty := ctor.type? | throwErrorAt ctor.ref "Need explicit type" -/
-    let ty := if let some x := ctor.type? then x else
-      Syntax.mkApp
-        /- This line is hideous and should be refactored -/
-        (← `($(⟨Syntax.ident .none view.declName.toString.toSubstring view.declName []⟩)))
-        (view.binders.getArgs.map (⟨·⟩) )
+    let ty := if let some x := ctor.type? then x else view.getExpectedType
 
     let out_ty ← flatArgs.foldlM (fun acc curr => `($curr → $acc)) (⟨ty⟩)
 
@@ -176,7 +171,10 @@ def preProcessCtors (view : DataView) : m DataView := do
 
 /--
   Extract the constructors for a "shape" functor from the original constructors.
-  It replaces all constructor arguments with fresh variables, ensuring that repeated occurences of the same type map to a single variable, where "same" refers to a very simple notion of syntactic equality. E.g., it does not realize `Nat` and `ℕ` are the same. -/
+  It replaces all constructor arguments with fresh variables, ensuring that repeated occurences
+  of the same type map to a single variable, where "same" refers to a very simple notion of
+  syntactic equality. E.g., it does not realize `Nat` and `ℕ` are the same.
+-/
 def Replace.shapeOfCtors (view : DataView) 
                           (shapeIdent : Syntax) 
     : m ((Array CtorView × Array CtorArgs) × Replace) := 
