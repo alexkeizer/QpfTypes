@@ -17,6 +17,7 @@ structure CtorArgs where
   (args : Array Name)
   (per_type : Array (Array Name))
 
+/- TODO(@William): make these correspond by combining expr and vars into a product -/
 structure Replace where
   (expr: Array Term)
   (vars: Array Name)
@@ -59,7 +60,7 @@ def Replace.getBinders {m} [Monad m] [MonadQuotation m] (r : Replace) : m <| TSy
 
 
 
-
+/- TODO: Figure out how to break this up into section -/
 
 
 
@@ -117,13 +118,9 @@ private partial def setResultingType (res_type : Syntax) : Syntax → ReplaceM m
   | _ => 
       pure res_type
 
-
+-- TODO: this should be deprecated in favour of {v with ...} syntax
 def CtorView.withType? (ctor : CtorView) (type? : Option Syntax) : CtorView := {
-  ref       := ctor.ref
-  modifiers := ctor.modifiers
-  declName  := ctor.declName
-  binders   := ctor.binders
-  type?     := type?
+  ctor with type?
 }
 
 /-
@@ -147,12 +144,39 @@ def Replace.run : ReplaceM m α → m (α × Replace) :=
     let r ← Replace.new
     StateT.run x r
 
+-- Have a look at how, e.g., def, deals with binders,
+-- this method might already exist look for BinderView
+def getBinderNamesAndType : Syntax → m (Array Syntax × Syntax)
+  | .node _ `Lean.Parser.Term.explicitBinder
+    #[_, (.node _ `null ids), (.node _ `null #[_, ty]), _, _] =>
+    pure (ids, ty)
+  | _ => Elab.throwUnsupportedSyntax
+
+/-- This function takes in a DataView with possibly explicit binders.
+    It then runs a simple scheme to translate them into (non-dependent) lambdas.
+    Then it also tries to infer an output type to handle the case with no type.
+    Finally it stiches all of this together to an output type-/
+def preProcessCtors (view : DataView) : m DataView := do
+  let ctors ← view.ctors.mapM fun ctor => do
+    let namedArgs ← ctor.binders.getArgs.mapM getBinderNamesAndType
+    let flatArgs: Array (TSyntax `term) := (namedArgs.map (fun (ids, ty) => ids.map (fun _ => ⟨ty⟩))).flatten.reverse
+
+    /- let some ty := ctor.type? | throwErrorAt ctor.ref "Need explicit type" -/
+    let ty := if let some x := ctor.type? then x else
+      Syntax.mkApp
+        /- This line is hideous and should be refactored -/
+        (← `($(⟨Syntax.ident .none view.declName.toString.toSubstring view.declName []⟩)))
+        (view.binders.getArgs.map (⟨·⟩) )
+
+    let out_ty ← flatArgs.foldlM (fun acc curr => `($curr → $acc)) (⟨ty⟩)
+
+    pure { ctor with binders := .missing, type? := some out_ty }
+
+  pure { view with ctors }
+
 /--
   Extract the constructors for a "shape" functor from the original constructors.
-  It replaces all constructor arguments with fresh variables, ensuring that repeated occurences
-  of the same type map to a single variable, where "same" refers to a very simple notion of
-  syntactic equality. E.g., it does not realize `Nat` and `ℕ` are the same.
--/
+  It replaces all constructor arguments with fresh variables, ensuring that repeated occurences of the same type map to a single variable, where "same" refers to a very simple notion of syntactic equality. E.g., it does not realize `Nat` and `ℕ` are the same. -/
 def Replace.shapeOfCtors (view : DataView) 
                           (shapeIdent : Syntax) 
     : m ((Array CtorView × Array CtorArgs) × Replace) := 
@@ -169,8 +193,7 @@ Replace.run <| do
   let ctors := view.ctors
 
   let pairs ← ctors.mapM fun ctor => do
-    if !ctor.binders.isNone then
-      throwErrorAt ctor.binders "Constructor binders are not supported yet, please provide all arguments in the type"
+    /- We do not need to check for binders as the preprocessort fixes this-/
 
     trace[Qpf.Data] "{ctor.declName}: {ctor.type?}"
 
@@ -184,7 +207,7 @@ Replace.run <| do
   let ctors := pairs.map Prod.fst;
   let ctorArgs := pairs.map fun ⟨_, ctorArgs⟩ =>
       let per_type := ctorArgs.per_type
-      
+
       let diff := r.vars.size - ctorArgs.per_type.size
 
       -- HACK: It seems that `Array.append` causes a stack overflow, so we go through `List` for now
