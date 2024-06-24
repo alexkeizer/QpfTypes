@@ -159,7 +159,9 @@ def getBinderNamesAndType : Syntax → m (Array Syntax × Syntax)
 def preProcessCtors (view : DataView) : m DataView := do
   let ctors ← view.ctors.mapM fun ctor => do
     let namedArgs ← ctor.binders.getArgs.mapM getBinderNamesAndType
-    let flatArgs: Array (TSyntax `term) := (namedArgs.map (fun (ids, ty) => ids.map (fun _ => ⟨ty⟩))).flatten.reverse
+    let flatArgs :=
+      (namedArgs.map (fun (ids, ty) => ids.map (fun _ => ⟨ty⟩)))
+      |>.flatten.reverse
 
     let ty := if let some x := ctor.type? then x else view.getExpectedType
 
@@ -191,7 +193,10 @@ Replace.run <| do
   let ctors := view.ctors
 
   let pairs ← ctors.mapM fun ctor => do
-    /- We do not need to check for binders as the preprocessort fixes this-/
+    /- We do not need to check for binders as the preprocessort fixes this.
+       We keep the test in case it goes wrong. -/
+    if !ctor.binders.isNone then
+      throwErrorAt ctor.binders "Constructor binders are not supported yet, please provide all arguments in the type"
 
     trace[Qpf.Data] "{ctor.declName}: {ctor.type?}"
 

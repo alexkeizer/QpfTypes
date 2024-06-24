@@ -541,7 +541,8 @@ def elabData : CommandElab := fun stx => do
   let modifiers ← elabModifiers stx[0]
   let decl := stx[1]
   /- Transforms binders into simple lambda types. -/
-  let view ← dataSyntaxToView modifiers decl >>= preProcessCtors
+  let view ← dataSyntaxToView modifiers decl 
+  let view ← preProcessCtors view /- same as >>= -/
 
   let (nonRecView, ⟨r, shape, _P, eff⟩) ← runTermElabM fun _ => do
     let (nonRecView, _rho) ← makeNonRecursive view;

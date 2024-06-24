@@ -7,5 +7,5 @@ import Test.List
 import Test.Misc
 import Test.Tree
 -- import Test.Variable
--- import Test.WithBindersInCtor
+import Test.WithBindersInCtor
 import Test.Wrap
