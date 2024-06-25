@@ -19,9 +19,13 @@ structure CtorArgs where
 
 /- TODO(@William): make these correspond by combining expr and vars into a product -/
 structure Replace where
-  (expr: Array Term)
-  (vars: Array Name)
+  (vals: Array (Name × Term))
+  /- (expr: Array Term) -/
+  /- (vars: Array Name) -/
   (ctor: CtorArgs)
+
+def Replace.vars (r : Replace): Array Name := r.vals.map Prod.fst
+def Replace.expr (r : Replace): Array Term := r.vals.map Prod.snd
 
 
 variable (m) [Monad m] [MonadQuotation m] [MonadError m] [MonadTrace m] [MonadOptions m]
@@ -32,13 +36,13 @@ private abbrev ReplaceM := StateT Replace m
 variable {m}
 
 private def Replace.new : m Replace := 
-  do pure ⟨#[], #[], ⟨#[], #[]⟩⟩
+  do pure ⟨#[], ⟨#[], #[]⟩⟩
 
 private def CtorArgs.reset : ReplaceM m Unit := do
   let r ← StateT.get
   let n := r.vars.size
   let ctor: CtorArgs := ⟨#[], (Array.range n).map fun _ => #[]⟩
-  StateT.set ⟨r.expr, r.vars, ctor⟩
+  StateT.set { r with ctor }
 
 private def CtorArgs.get : ReplaceM m CtorArgs := do
   pure (←StateT.get).ctor
@@ -46,11 +50,9 @@ private def CtorArgs.get : ReplaceM m CtorArgs := do
 /--
   The arity of the shape type created *after* replacing, i.e., the size of `r.expr`
 -/
-def Replace.arity (r : Replace) : Nat :=
-  r.expr.size
+def Replace.arity (r : Replace) : Nat := r.vals.size
 
-def Replace.getBinderIdents (r : Replace) : Array Ident :=
-  r.vars.map mkIdent
+def Replace.getBinderIdents (r : Replace) : Array Ident := r.vars.map mkIdent
 
 open Parser.Term in
 def Replace.getBinders {m} [Monad m] [MonadQuotation m] (r : Replace) : m <| TSyntax ``bracketedBinder := do
@@ -75,17 +77,15 @@ private def ReplaceM.identFor (stx : Term) : ReplaceM m Ident := do
   | some id => do      
       let ctor_per_type := ctor.per_type.set! id $ (ctor.per_type.get! id).push argName
       let ctor := ⟨ctor_args, ctor_per_type⟩
-      StateT.set ⟨r.expr, r.vars, ctor⟩
+      StateT.set { r with ctor }
       pure $ r.vars.get! id
   | none       => do
       let ctor_per_type := ctor.per_type.push #[argName]
       let name ← mkFreshBinderName
-      StateT.set ⟨r.expr.push stx, r.vars.push name, ⟨ctor_args, ctor_per_type⟩⟩
+      StateT.set { vals := r.vals.push (name, stx), ctor := ⟨ctor_args, ctor_per_type⟩ }
       pure name
 
   return mkIdent name
-  
-
 
 
 open Lean.Parser in
@@ -99,11 +99,9 @@ private partial def shapeOf' : Syntax → ReplaceM m Syntax
     let ctor_arg ← ReplaceM.identFor ⟨arg⟩ 
     let ctor_tail ← shapeOf' tail
 
-    -- dbg_trace ">> {arg} ==> {ctor_arg}"    
     pure $ mkNode ``Term.arrow #[ctor_arg, arrow, ctor_tail]
 
-  | ctor_type => 
-      pure ctor_type
+  | ctor_type => pure ctor_type
 
 
 
@@ -117,12 +115,6 @@ private partial def setResultingType (res_type : Syntax) : Syntax → ReplaceM m
     pure $ mkNode ``Term.arrow #[arg, arrow, tail]
   | _ => 
       pure res_type
-
--- TODO: this should be deprecated in favour of {v with ...} syntax
-def CtorView.withType? (ctor : CtorView) (type? : Option Syntax) : CtorView := {
-  ctor with type?
-}
-
 /-
   TODO: currently these functions ignore dead variables, everything is replaced.
   This is OK, we can supply a "dead" value to a live variable, but we lose the ability to have
@@ -203,9 +195,9 @@ Replace.run <| do
 
     CtorArgs.reset
 
-    let type? ← ctor.type?.mapM $ shapeOf'
+    let type? ← ctor.type?.mapM shapeOf'
 
-    pure $ (CtorView.withType? ctor type?, ←CtorArgs.get)
+    pure ({ ctor with type? }, ←CtorArgs.get)
 
   let r ← StateT.get
   let ctors := pairs.map Prod.fst;
@@ -216,8 +208,8 @@ Replace.run <| do
 
       -- HACK: It seems that `Array.append` causes a stack overflow, so we go through `List` for now
       -- TODO: fix this after updating to newer Lean version
-      let per_type := per_type.appendList $ (List.range diff).map (fun _ => (#[] : Array Name));
-      ⟨ctorArgs.args, per_type⟩
+      let per_type := per_type.appendList $ List.replicate diff (#[] : Array Name)
+      { ctorArgs with per_type }
 
   -- Now that we know how many free variables were introduced, we can fix up the resulting type
   -- of each constructor to be `Shape α_0 α_1 ... α_n`
@@ -226,7 +218,7 @@ Replace.run <| do
 
   let ctors ← ctors.mapM fun ctor => do
     let type? ← ctor.type?.mapM (setResultingType res) 
-    pure $ CtorView.withType? ctor type?
+    pure { ctor with type? }
 
   pure (ctors, ctorArgs)
 
@@ -234,16 +226,16 @@ Replace.run <| do
 
 
 /-- Replace syntax in *all* subexpressions -/
-partial def Replace.replaceAllStx (find replace : Syntax) : Syntax → Syntax := 
-  fun stx =>
-    if stx == find then
-      replace
-    else
-      stx.setArgs (stx.getArgs.map (replaceAllStx find replace))
+partial def Replace.replaceAllStx (find replace stx : Syntax) : Syntax :=
+  if stx == find then
+    replace
+  else
+    stx.setArgs (stx.getArgs.map (replaceAllStx find replace))
 
 
 
 open Parser in
+-- TODO: In this occasion is it with pulling stx out, it makes this a lot less noisy
 /--
   Given a sequence of arrows e₁ → e₂ → ... → eₙ, check that `eₙ == recType`, and replace all
   *other* occurences (i.e., in e₁ ... eₖ₋₁) of `recType` with `newParam`.
@@ -292,7 +284,7 @@ def makeNonRecursive (view : DataView) : MetaM (DataView × Name) := do
 
   let ctors ← view.ctors.mapM fun ctor => do
     let type? ← ctor.type?.mapM (Replace.replaceStx expected recId <| TSyntax.mk ·)
-    return CtorView.withType? ctor type?
+    pure { ctor with type? }
 
   let view := view.setCtors ctors
   pure (view, rec)
