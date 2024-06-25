@@ -144,8 +144,8 @@ def Replace.run : ReplaceM m α → m (α × Replace) :=
     let r ← Replace.new
     StateT.run x r
 
--- Have a look at how, e.g., def, deals with binders,
--- this method might already exist look for BinderView
+/-- Parse `Syntax` for an explicit binder into a `BinderView`.
+    This duplicates parts of `Lean.Elab.Term.toBinderViews; this is required because the latter is private -/
 def getBinderView (ref : Syntax): m BinderView := match ref with
   | .node _ `Lean.Parser.Term.explicitBinder
     #[_, id, (.node _ `null #[_, ty]), _, _] =>
