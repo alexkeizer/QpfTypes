@@ -30,7 +30,7 @@ namespace QpfStream
 
 
   abbrev QpfStream' := Cofix F
-  abbrev QpfStream  := QpfStream'.curried
+  abbrev QpfStream  := TypeFun.curried QpfStream'
 
   def F.cons (a : α) (b : β) : F ![α, β] :=
     ⟨HeadT.cons, fun
@@ -38,25 +38,22 @@ namespace QpfStream
       | 1, _ => a
     ⟩
 
-  def corec {α β} (f : β → α × β) (b : β) : QpfStream α :=    
-    Cofix.corec f' b 
+  def corec {α β} (f : β → α × β) (b : β) : QpfStream α :=
+    Cofix.corec f' b
     where
       f' b :=
         let (a', b') := f b
         let stream := F.cons a' b'
-        cast (congrArg _ $ by 
-          funext i;
-          cases i;
-          swap; 
+        cast (congrArg _ $ by {
+          funext i
+          cases i
+          swap
           rename_i i; cases i
 
           case fs.fs => contradiction
 
-          all_goals
-            rfl
-        ) stream
-
-
+          all_goals rfl
+        }) stream
 
   def head (stream : QpfStream α) : α :=
     let ⟨_, children⟩ := Cofix.dest stream
@@ -83,9 +80,8 @@ namespace QpfStream
 
         simp [MvFunctor.map, MvPFunctor.map]
         apply congrArg
-        simp [TypeVec.comp]
         funext i x;
-        cases x;
+        cases x
         cases i
         case fs i => 
           cases i
@@ -96,9 +92,6 @@ namespace QpfStream
           apply Quot.sound;
           exact h₂
         }
-        
-        
-
   /-
     We can construct and deconstruct streams without `sorryAx`
   -/

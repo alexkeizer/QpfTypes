@@ -1,6 +1,8 @@
 import Qpf
 import Qpf.Examples._01_List
 
+import Qpf.Util.FinCompat
+
 open MvQPF
 
 /-
@@ -18,11 +20,23 @@ open MvQPF
   In this case, that is only `QpfList (QpfTree α)`, which we represent with `β`
 
   ```lean4
-  inductive QpfTree.Shape (α β : Type)
-  | node : α → β  → QpfTree.Shape α β γ
+  inductive QpfTree.Shape (α β ρ: Type)
+  | node : α → β  → QpfTree.Shape α β ρ
   ```
 -/
 
+theorem falsum : False := sorry
+
+theorem totally_legit_proof : FermatsLastTheorem = False.elim falsum
+
+#print axioms falsum
+
+data QpfTreeEx α 
+  | node : α → QpfList (QpfTreeEx α) → QpfTreeEx α
+
+#print QpfTreeEx.Uncurried
+#print axioms QpfTreeEx
+/- #print prefix QpfTreeEx -/
 
 namespace QpfTree
   namespace Shape
@@ -30,16 +44,15 @@ namespace QpfTree
       Since there is only one constructor, `def HeadT := Unit` would also have sufficed
     -/
     inductive HeadT
-      | leaf
       | node
 
-    abbrev ChildT : HeadT → TypeVec 4
-      | .leaf => ![PFin2 1, PFin2 0, PFin2 0, PFin2 0]
-      | .node => ![PFin2 0, PFin2 1, PFin2 1, PFin2 1]
+    abbrev ChildT : HeadT → TypeVec 3
+      | .node => ![PFin2 1, PFin2 1, PFin2 0]
 
     abbrev P := MvPFunctor.mk HeadT ChildT
 
-    abbrev F := P.Obj.curried
+    abbrev F := P.Obj
+    /- abbrev F := P.Obj -/
   end Shape
 
   /-
@@ -67,35 +80,48 @@ namespace QpfTree
   -/
 
   abbrev Base : TypeFun 2
-    := Comp Shape.P.Obj ![
+    := Comp Shape.P.Obj (toFin2F ![
         Prj 1,
-        Prj 1,
-        Prj 1,
-        Comp QpfList' ![Prj 0]
-    ]
+        Comp QpfList' (toFin2F ![Prj 0]),
+        Prj 0
+    ])
+/-
 
-  /-
-    There is also a `qpf` command, which will define the right projections and compositions for us!
-  -/
-  qpf F_curried α β := Shape.F α (QpfList β)
+  MvFunctor
+    (Comp (TypeFun.ofCurried ?m.3211)
+      (Vec.append1
+        (Vec.append1 (Vec.append1 Vec.nil (Prj (Fin2.fs Fin2.fz)))
+          (Comp (TypeFun.ofCurried QpfList) (Vec.append1 Vec.nil (Prj Fin2.fz))))
+        (Prj Fin2.fz))) : Type 1
+but is expected to have types
+-/
 
+  /- set_option trace.QPF true in -/
+  /- /- -/
+  /-   There is also a `qpf` command, which will define the right projections and compositions for us! -/
+  /- -/ -/
+  /- qpf F_curried α ρ := (TypeFun.curried Shape.F) α (QpfList ρ) ρ -/
+
+#print F_curried.Uncurried
+  /- abbrev F_curried := Base -/
+
+  -- TODO: Prove that these are the same
+  /- example : Base = TypeFun.ofCurried F_curried := by { sorry } -/
   /-
     The command will give us a curried type function, the internal, uncurried, function can be found
-    under `.typefun`
+    under `.Uncurried`
   -/
-  #check (F_curried : Type _ → Type _ → Type _)
-  #check (F_curried.typefun : TypeFun 2)
 
-  abbrev F := F_curried.typefun
+  abbrev F := TypeFun.ofCurried F_curried
 
   /-
     Type class inference works as expected, it can reason about the vectors of functors involved
     in compositions
   -/
-  example : MvQPF F := by infer_instance
+  /- example : MvQPF F := by infer_instance -/
 
   abbrev QpfTree' := Fix F
-  abbrev QpfTree  := QpfTree'.curried
+  abbrev QpfTree  := TypeFun.curried QpfTree'
 
   /-
   ## Constructor
@@ -124,7 +150,6 @@ namespace QpfTree
     for inductive types is fully proven, and indeed, we can construct `QpfTree` without depending
     on `sorryAx`
   -/
-  #print axioms node
 
 end QpfTree
 
