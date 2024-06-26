@@ -249,7 +249,6 @@ partial def handleApp (vars : Vector FVarId arity) (target : Q(Type u))  : TermE
 partial def handleArrow (binderType body : Expr) (vars : Vector FVarId arity) (targetStx : Option Term := none) (normalized := false): TermElabM (ElabQpfResult u arity) := do
   let newTarget ← mkAppM ``MvQPF.Arrow.Arrow #[binderType, body]
   elabQpf vars newTarget targetStx normalized
-
 /--
   Elaborate the body of a qpf
 -/
