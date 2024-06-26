@@ -194,14 +194,7 @@ partial def handleApp (vars : Vector FVarId arity) (target : Q(Type u))  : TermE
     In such cases, we can directly return `G`, rather than generate a composition of projections.
   -/
 
-  -- O(n²), equivalent to a zipping and would be O(n) and much more readable
-  let is_trivial :=
-    args.length == arity
-    && args.toList.enum.all fun ⟨i, arg⟩ =>
-        arg.isFVar && isLiveVar vars arg.fvarId! && vars'.indexOf arg.fvarId! == i
-  -- Equivalent (?), O(n), and more readable
-  -- TODO: is this really equivalent
-  /- let is_trivial := (args.toList.mapM Expr.fvarId?).any (· == vars') -/
+  let is_trivial := args.toList.mapM Expr.fvarId? == some vars'
 
   if is_trivial then
     trace[QPF] "The application is trivial"
