@@ -201,7 +201,7 @@ Replace.run <| do
 
     let type? ← ctor.type?.mapM $ shapeOf'
 
-    pure $ (CtorView.withType? ctor type?, ←CtorArgs.get)
+    pure ({ ctor with type? }, ←CtorArgs.get)
 
   let r ← StateT.get
   let ctors := pairs.map Prod.fst;
