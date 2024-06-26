@@ -1,5 +1,13 @@
-import Qpf
+import Qpf.Macro.Data
 
-data QpfListWithBinder α 
+data QpfListWithBinder α
+  | cons (h : α) (tl : QpfListWithBinder α)
   | nil
-  | cons (hd : α) (tl : QpfListWithBinder α)
+
+data Wrap α
+  | mk : α → Wrap α
+data Wrap₂ α
+  | mk (a : α) : Wrap₂ α
+data Wrap₃ α
+  | mk (a : α)
+
