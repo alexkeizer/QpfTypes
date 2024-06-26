@@ -17,13 +17,12 @@ structure CtorArgs where
   (args : Array Name)
   (per_type : Array (Array Name))
 
-/- TODO(@William): make these correspond by combining expr and vars into a product -/
 structure Replace where
-  (vals: Array (Name × Term))
+  (newParameters : Array (Name × Term))
   (ctor: CtorArgs)
 
-def Replace.vars (r : Replace): Array Name := r.vals.map Prod.fst
-def Replace.expr (r : Replace): Array Term := r.vals.map Prod.snd
+def Replace.vars (r : Replace) : Array Name := r.newParameters.map Prod.fst
+def Replace.expr (r : Replace) : Array Term := r.newParameters.map Prod.snd
 
 variable (m) [Monad m] [MonadQuotation m] [MonadError m] [MonadTrace m] [MonadOptions m]
               [AddMessageContext m] [MonadLiftT IO m]
@@ -32,7 +31,7 @@ private abbrev ReplaceM := StateT Replace m
 
 variable {m}
 
-private def Replace.new : m Replace := 
+private def Replace.new : m Replace :=
   do pure ⟨#[], ⟨#[], #[]⟩⟩
 
 private def CtorArgs.reset : ReplaceM m Unit := do
@@ -44,11 +43,9 @@ private def CtorArgs.reset : ReplaceM m Unit := do
 private def CtorArgs.get : ReplaceM m CtorArgs := do
   pure (←StateT.get).ctor
 
-/--
-  The arity of the shape type created *after* replacing, i.e., the size of `r.expr`
--/
+/-- The arity of the shape type created *after* replacing, i.e., the size of `r.newParameters` -/
 def Replace.arity (r : Replace) : Nat :=
-  r.vals.size
+  r.newParameters.size
 
 def Replace.getBinderIdents (r : Replace) : Array Ident :=
   r.vars.map mkIdent
@@ -81,11 +78,11 @@ private def ReplaceM.identFor (stx : Term) : ReplaceM m Ident := do
   | none       => do
       let per_type := ctor.per_type.push #[argName]
       let name ← mkFreshBinderName
-      StateT.set { vals := r.vals.push (name, stx), ctor := { args, per_type } }
+      StateT.set { newParameters := r.newParameters.push (name, stx), ctor := { args, per_type } }
       pure name
 
   return mkIdent name
-  
+
 
 
 
@@ -97,13 +94,13 @@ open Lean.Parser in
 -/
 private partial def shapeOf' : Syntax → ReplaceM m Syntax
   | Syntax.node _ ``Term.arrow #[arg, arrow, tail] => do
-    let ctor_arg ← ReplaceM.identFor ⟨arg⟩ 
+    let ctor_arg ← ReplaceM.identFor ⟨arg⟩
     let ctor_tail ← shapeOf' tail
 
-    -- dbg_trace ">> {arg} ==> {ctor_arg}"    
+    -- dbg_trace ">> {arg} ==> {ctor_arg}"
     pure $ mkNode ``Term.arrow #[ctor_arg, arrow, ctor_tail]
 
-  | ctor_type => 
+  | ctor_type =>
       pure ctor_type
 
 
@@ -116,7 +113,7 @@ private partial def setResultingType (res_type : Syntax) : Syntax → ReplaceM m
   | Syntax.node _ ``Term.arrow #[arg, arrow, tail] => do
     let tail ← setResultingType res_type tail
     pure $ mkNode ``Term.arrow #[arg, arrow, tail]
-  | _ => 
+  | _ =>
       pure res_type
 
 /-
@@ -127,7 +124,7 @@ private partial def setResultingType (res_type : Syntax) : Syntax → ReplaceM m
 
   We should instead detect which expressions are dead, and NOT introduce fresh variables for them.
   Instead, have the shape functor also take the same dead binders as the original.
-  This does mean that we should check for collisions between the original dead binders, and the 
+  This does mean that we should check for collisions between the original dead binders, and the
   fresh variables.
 -/
 
@@ -135,8 +132,8 @@ private partial def setResultingType (res_type : Syntax) : Syntax → ReplaceM m
 
 
 /-- Runs the given action with a fresh instance of `Replace` -/
-def Replace.run : ReplaceM m α → m (α × Replace) := 
-  fun x => do 
+def Replace.run : ReplaceM m α → m (α × Replace) :=
+  fun x => do
     let r ← Replace.new
     StateT.run x r
 
@@ -174,9 +171,9 @@ def preProcessCtors (view : DataView) : m DataView := do
   of the same type map to a single variable, where "same" refers to a very simple notion of
   syntactic equality. E.g., it does not realize `Nat` and `ℕ` are the same.
 -/
-def Replace.shapeOfCtors (view : DataView) 
-                          (shapeIdent : Syntax) 
-    : m ((Array CtorView × Array CtorArgs) × Replace) := 
+def Replace.shapeOfCtors (view : DataView)
+                          (shapeIdent : Syntax)
+    : m ((Array CtorView × Array CtorArgs) × Replace) :=
 Replace.run <| do
   for var in view.liveBinders do
     let varIdent : Ident := ⟨if var.raw.getKind == ``Parser.Term.binderIdent then
@@ -221,7 +218,7 @@ Replace.run <| do
   let res := Syntax.mkApp (TSyntax.mk shapeIdent) r.getBinderIdents
 
   let ctors ← ctors.mapM fun ctor => do
-    let type? ← ctor.type?.mapM (setResultingType res) 
+    let type? ← ctor.type?.mapM (setResultingType res)
     pure { ctor with type? }
 
   pure (ctors, ctorArgs)
@@ -230,7 +227,7 @@ Replace.run <| do
 
 
 /-- Replace syntax in *all* subexpressions -/
-partial def Replace.replaceAllStx (find replace stx : Syntax) : Syntax := 
+partial def Replace.replaceAllStx (find replace stx : Syntax) : Syntax :=
   if stx == find then
     replace
   else
@@ -250,7 +247,7 @@ partial def Replace.replaceStx (recType newParam : Term) : Term → MetaM Term
         pure <| TSyntax.mk <| stx.setArgs #[
           replaceAllStx recType newParam arg,
           arrow,
-          ←replaceStx recType newParam ⟨tail⟩ 
+          ←replaceStx recType newParam ⟨tail⟩
         ]
 
     | stx@(Syntax.node _ ``Term.arrow _) =>
@@ -259,11 +256,11 @@ partial def Replace.replaceStx (recType newParam : Term) : Term → MetaM Term
     | stx@(Syntax.node _ ``Term.depArrow _) =>
         throwErrorAt stx "Dependent arrows are not supported, please only use plain arrow types"
 
-    | ctor_type => 
+    | ctor_type =>
         if ctor_type != recType then
           throwErrorAt ctor_type m!"Unexpected constructor resulting type; expected {recType}, found {ctor_type}"
         else
-          pure ⟨ctor_type⟩ 
+          pure ⟨ctor_type⟩
 
 
 
