@@ -540,7 +540,9 @@ open Macro Comp in
 def elabData : CommandElab := fun stx => do
   let modifiers ← elabModifiers stx[0]
   let decl := stx[1]
+
   let view ← dataSyntaxToView modifiers decl
+  let view ← preProcessCtors view -- Transforms binders into simple lambda types
 
   let (nonRecView, ⟨r, shape, _P, eff⟩) ← runTermElabM fun _ => do
     let (nonRecView, _rho) ← makeNonRecursive view;
