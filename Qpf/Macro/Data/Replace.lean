@@ -38,7 +38,7 @@ private def CtorArgs.reset : ReplaceM m Unit := do
   let r ← StateT.get
   let n := r.vars.size
   let ctor: CtorArgs := ⟨#[], (Array.range n).map fun _ => #[]⟩
-  StateT.set ⟨r.expr, r.vars, ctor⟩
+  StateT.set { r with ctor }
 
 private def CtorArgs.get : ReplaceM m CtorArgs := do
   pure (←StateT.get).ctor
@@ -66,17 +66,17 @@ private def ReplaceM.identFor (stx : Term) : ReplaceM m Ident := do
   let r ← StateT.get
   let ctor := r.ctor
   let argName ← mkFreshBinderName
-  let ctor_args := ctor.args.push argName
+  let args := ctor.args.push argName
   -- dbg_trace "\nstx := {stx}\nr.expr := {r.expr}"
 
   let name ← match r.expr.indexOf? stx with
   | some id => do
-      let ctor_per_type := ctor.per_type.set! id $ (ctor.per_type.get! id).push argName
-      let ctor := ⟨ctor_args, ctor_per_type⟩
-      StateT.set ⟨r.expr, r.vars, ctor⟩
+      let per_type := ctor.per_type.set! id $ (ctor.per_type.get! id).push argName
+      let ctor := { args, per_type }
+      StateT.set { r with ctor }
       pure $ r.vars.get! id
   | none       => do
-      let ctor_per_type := ctor.per_type.push #[argName]
+      let per_type := ctor.per_type.push #[argName]
       let name ← mkFreshBinderName
       StateT.set { newParameters := r.newParameters.push (name, stx), ctor := { args, per_type } }
       pure name
