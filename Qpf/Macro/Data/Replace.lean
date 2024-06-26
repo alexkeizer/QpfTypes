@@ -38,7 +38,7 @@ private def CtorArgs.reset : ReplaceM m Unit := do
   let r ← StateT.get
   let n := r.vars.size
   let ctor: CtorArgs := ⟨#[], (Array.range n).map fun _ => #[]⟩
-  StateT.set { r with ctor }
+  StateT.set ⟨r.expr, r.vars, ctor⟩
 
 private def CtorArgs.get : ReplaceM m CtorArgs := do
   pure (←StateT.get).ctor
@@ -66,17 +66,17 @@ private def ReplaceM.identFor (stx : Term) : ReplaceM m Ident := do
   let r ← StateT.get
   let ctor := r.ctor
   let argName ← mkFreshBinderName
-  let args := ctor.args.push argName
+  let ctor_args := ctor.args.push argName
   -- dbg_trace "\nstx := {stx}\nr.expr := {r.expr}"
 
   let name ← match r.expr.indexOf? stx with
   | some id => do
-      let per_type := ctor.per_type.set! id $ (ctor.per_type.get! id).push argName
-      let ctor := { args, per_type }
-      StateT.set { r with ctor }
+      let ctor_per_type := ctor.per_type.set! id $ (ctor.per_type.get! id).push argName
+      let ctor := ⟨ctor_args, ctor_per_type⟩
+      StateT.set ⟨r.expr, r.vars, ctor⟩
       pure $ r.vars.get! id
   | none       => do
-      let per_type := ctor.per_type.push #[argName]
+      let ctor_per_type := ctor.per_type.push #[argName]
       let name ← mkFreshBinderName
       StateT.set { newParameters := r.newParameters.push (name, stx), ctor := { args, per_type } }
       pure name
@@ -115,6 +115,11 @@ private partial def setResultingType (res_type : Syntax) : Syntax → ReplaceM m
     pure $ mkNode ``Term.arrow #[arg, arrow, tail]
   | _ =>
       pure res_type
+
+-- TODO: this should be deprecated in favour of {v with ...} syntax
+def CtorView.withType? (ctor : CtorView) (type? : Option Syntax) : CtorView := {
+  ctor with type?
+}
 
 /-
   TODO: currently these functions ignore dead variables, everything is replaced.
@@ -198,7 +203,7 @@ Replace.run <| do
 
     let type? ← ctor.type?.mapM $ shapeOf'
 
-    pure ({ ctor with type? }, ←CtorArgs.get)
+    pure $ (CtorView.withType? ctor type?, ←CtorArgs.get)
 
   let r ← StateT.get
   let ctors := pairs.map Prod.fst;
@@ -209,8 +214,8 @@ Replace.run <| do
 
       -- HACK: It seems that `Array.append` causes a stack overflow, so we go through `List` for now
       -- TODO: fix this after updating to newer Lean version
-      let per_type := per_type.appendList $ List.replicate diff (#[] : Array Name)
-      { ctorArgs with per_type }
+      let per_type := per_type.appendList $ (List.range diff).map (fun _ => (#[] : Array Name));
+      ⟨ctorArgs.args, per_type⟩
 
   -- Now that we know how many free variables were introduced, we can fix up the resulting type
   -- of each constructor to be `Shape α_0 α_1 ... α_n`
@@ -284,7 +289,7 @@ def makeNonRecursive (view : DataView) : MetaM (DataView × Name) := do
 
   let ctors ← view.ctors.mapM fun ctor => do
     let type? ← ctor.type?.mapM (Replace.replaceStx expected recId <| TSyntax.mk ·)
-    pure { ctor with type? }
+    return CtorView.withType? ctor type?
 
   let view := view.setCtors ctors
   pure (view, rec)
