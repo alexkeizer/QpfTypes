@@ -154,21 +154,10 @@ def DVec.toExpr {n : Nat} {αs : Q(Fin2 $n → Type u)} (xs : DVec (fun (i : Fin
 
 
 structure ElabQpfResult (u : Level) (arity : Nat) where
-  F : Q(TypeFun.{u,u} $arity)
-  functor : Q(MvFunctor $F)
-  qpf     : Q(@MvQPF _ $F $functor)
+  F : Q(TypeFun.{u,u} $arity)       := by exact q(by infer_instance)
+  functor : Q(MvFunctor $F)         := by exact q(by infer_instance)
+  qpf     : Q(@MvQPF _ $F $functor) := by exact q(by infer_instance)
 deriving Inhabited
-
--- TODO: Move to Vector.mmap
-def Vector.mapM {m : Type u → Type v}
-    {α : Type w} {β : Type u} [Monad m]
-    (l : Vector α n) (f : α → m β) : m $ Vector β n :=
-  match l with
-  | ⟨.cons hd tl, b⟩ => do
-    let v ← f hd
-    let x ← Vector.mapM ⟨tl, rfl⟩ f
-    pure ⟨v :: x.val, by simpa [List.length_cons, x.property] using b⟩
-  | ⟨.nil, h⟩ => pure ⟨[], by exact h⟩
 
 def isLiveVar (varIds : Vector FVarId n) (id : FVarId) := varIds.toList.contains id
 
@@ -193,6 +182,7 @@ partial def handleConst (target : Q(Type u))  : TermElabM (ElabQpfResult u arity
 
   pure { F := const, functor := q(Const.MvFunctor), qpf := q(Const.mvqpf)}
 
+
 partial def handleApp (vars : Vector FVarId arity) (target : Q(Type u))  : TermElabM (ElabQpfResult u arity) := do
   let vars' := vars.toList
 
@@ -205,13 +195,13 @@ partial def handleApp (vars : Vector FVarId arity) (target : Q(Type u))  : TermE
   -/
 
   -- O(n²), equivalent to a zipping and would be O(n) and much more readable
-  /- let is_trivial := -/
-  /-   args.length == arity -/
-  /-   && args.toList.enum.all fun ⟨i, arg⟩ => -/
+  let is_trivial :=
+    args.length == arity
+    && args.toList.enum.all fun ⟨i, arg⟩ =>
+        arg.isFVar && isLiveVar vars arg.fvarId! && vars'.indexOf arg.fvarId! == i
   -- Equivalent (?), O(n), and more readable
   -- TODO: is this really equivalent
-  let is_trivial := (args.toList.mapM Expr.fvarId?).any (· == vars')
-  /- let is_trivial := (args.toList.mapM Expr.fvarId?).any (BEq.beq vars') -/
+  /- let is_trivial := (args.toList.mapM Expr.fvarId?).any (· == vars') -/
 
   if is_trivial then
     trace[QPF] "The application is trivial"
@@ -220,7 +210,7 @@ partial def handleApp (vars : Vector FVarId arity) (target : Q(Type u))  : TermE
 
     return { F, functor, qpf }
   else
-    let G ← Vector.mapM args (elabQpf vars · none false)
+    let G ← args.mmap (elabQpf vars · none false)
 
     let Ffunctor ← synthInstanceQ q(MvFunctor $F)
     let Fqpf ← synthInstanceQ q(@MvQPF _ $F $Ffunctor)
@@ -314,8 +304,8 @@ def elabQpfCompositionBody (view: QpfCompositionBodyView) :
             let arity := vars.toList.length
             let vars : Vector _ arity := ⟨vars.toList, rfl⟩
 
-            let some vars := Vector.mapM vars Expr.fvarId? |
-              throwError "Expected all args to be fvars"
+            let some vars := vars.mmap Expr.fvarId? |
+              throwError "Expected all args to be fvars" -- TODO: throwErrorAt
 
             let res ← elabQpf vars target_expr view.target
 
