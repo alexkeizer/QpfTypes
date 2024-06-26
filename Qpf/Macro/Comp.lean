@@ -42,13 +42,13 @@ open Qq
   open TSyntax.Compat
 
 def synthMvFunctor {n : Nat} (F : Q(TypeFun.{u,u} $n)) : MetaM Q(MvFunctor $F) := do
-  let inst_type : Q(Type (u+1))
-    := q(MvFunctor $F)
+  let inst_type : Q(Type (u+1)) :=
+    q(MvFunctor $F)
   synthInstanceQ inst_type
 
 def synthQPF {n : Nat} (F : Q(TypeFun.{u,u} $n)) (_ : Q(MvFunctor $F)) : MetaM Q(MvQPF $F) := do
-  let inst_type : Q(Type (u+1))
-    := q(MvQPF $F)
+  let inst_type : Q(Type (u+1)) :=
+    q(MvQPF $F)
   synthInstanceQ inst_type
 
 
@@ -242,7 +242,7 @@ partial def handleApp (vars : Vector Q(Type u) arity) (target : Q(Type u))  : Te
       pure ⟨comp, functor, qpf⟩
 
 
-partial def handleArrow (vars : Vector Q(Type u) arity) (target : Q(Type u)) (targetStx : Option Term := none) (normalized := false) : TermElabM (ElabQpfResult u arity) := do 
+partial def handleArrow (vars : Vector Q(Type u) arity) (target : Q(Type u)) (targetStx : Option Term := none) (normalized := false) : TermElabM (ElabQpfResult u arity) := do
   match target with
   | Expr.forallE _ e₁ e₂ .. =>
     let newTarget ← mkAppM ``MvQPF.Arrow.Arrow #[e₁, e₂]
