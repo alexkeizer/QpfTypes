@@ -42,13 +42,13 @@ open Qq
   open TSyntax.Compat
 
 def synthMvFunctor {n : Nat} (F : Q(TypeFun.{u,u} $n)) : MetaM Q(MvFunctor $F) := do
-  let inst_type : Q(Type (u+1))
-    := q(MvFunctor $F)
+  let inst_type : Q(Type (u+1)) :=
+    q(MvFunctor $F)
   synthInstanceQ inst_type
 
 def synthQPF {n : Nat} (F : Q(TypeFun.{u,u} $n)) (_ : Q(MvFunctor $F)) : MetaM Q(MvQPF $F) := do
-  let inst_type : Q(Type (u+1))
-    := q(MvQPF $F)
+  let inst_type : Q(Type (u+1)) :=
+    q(MvQPF $F)
   synthInstanceQ inst_type
 
 
@@ -154,7 +154,7 @@ def DVec.toExpr {n : Nat} {αs : Q(Fin2 $n → Type u)} (xs : DVec (fun (i : Fin
 
 
 structure ElabQpfResult (u : Level) (arity : Nat) where
-  F : Q(TypeFun.{u,u} $arity)       := by exact q(by infer_instance)
+  F : Q(TypeFun.{u,u} $arity)
   functor : Q(MvFunctor $F)         := by exact q(by infer_instance)
   qpf     : Q(@MvQPF _ $F $functor) := by exact q(by infer_instance)
 deriving Inhabited
@@ -183,7 +183,7 @@ partial def handleConst (target : Q(Type u))  : TermElabM (ElabQpfResult u arity
   pure { F := const, functor := q(Const.MvFunctor), qpf := q(Const.mvqpf)}
 
 
-partial def handleApp (vars : Vector FVarId arity) (target : Q(Type u))  : TermElabM (ElabQpfResult u arity) := do
+partial def handleApp (vars : Vector FVarId arity) (target : Q(Type u)) : TermElabM (ElabQpfResult u arity) := do
   let vars' := vars.toList
 
   let ⟨numArgs, F, args⟩ ← (Comp.parseApp (isLiveVar vars) target)
@@ -226,10 +226,10 @@ partial def handleApp (vars : Vector FVarId arity) (target : Q(Type u))  : TermE
     let qpf := q(Comp.instMvQPFCompInstMvFunctorCompFin2
       (fF := $Ffunctor) (q := $Fqpf) (fG := _) (q' := $GQpf)
     )
-
     return { F := comp, functor, qpf }
 
-partial def handleArrow (binderType body : Expr) (vars : Vector FVarId arity) (targetStx : Option Term := none) (normalized := false): TermElabM (ElabQpfResult u arity) := do
+
+partial def handleArrow (binderType body : Expr) (vars : Vector FVarId arity) (targetStx : Option Term := none) (normalized := false) : TermElabM (ElabQpfResult u arity) := do
   let newTarget ← mkAppM ``MvQPF.Arrow.Arrow #[binderType, body]
   elabQpf vars newTarget targetStx normalized
 /--
