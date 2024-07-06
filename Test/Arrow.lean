@@ -19,17 +19,24 @@ data Arrow (α : Type) β : Type u
 /-- info: Arrow.Base : Type → TypeFun 2 -/
 #guard_msgs in #check (Arrow.Base : Type → TypeFun.{u, u} 2)
 
-#synth MvQPF (Arrow.Base _ : TypeFun.{0} 2)
--- ^^^ We know that the `Base` is a QPF for universe 0
+#synth MvFunctor (Arrow.Base.{0} _)
+-- ^^^ This works
+#synth MvFunctor (Arrow.Base.{1} _)
+-- ^^^ but this already does not, which explains the issues below
+-- If we add instance foo : MvFunctor.{1,1} ($baseApplied) := $functor to Qpf/Macro/Data.lean explicitely, 
+-- it seems to work but it produces a weird type error.
 
-#synth MvQPF (Arrow.Base _ : TypeFun.{1} 2)
--- ^^^ But, somehow we can't synthesize this fact for higher universes
-
-#check (Arrow.Uncurried : Type → TypeFun.{1} 1)
--- ^^^ Which, presumably, is why `Uncurried` is *not* polymorphic
-
-
-
-/-- info: Arrow : Type → CurriedTypeFun 1 -/
-#guard_msgs in
-  #check (Arrow : Type → Type u → Type u)
+-- #synth MvQPF (Arrow.Base _ : TypeFun.{0} 2)
+-- -- ^^^ We know that the `Base` is a QPF for universe 0
+--
+-- #synth MvQPF (Arrow.Base _ : TypeFun.{1} 2)
+-- -- ^^^ But, somehow we can't synthesize this fact for higher universes
+--
+-- #check (Arrow.Uncurried : Type → TypeFun.{1} 1)
+-- -- ^^^ Which, presumably, is why `Uncurried` is *not* polymorphic
+--
+--
+--
+-- /-- info: Arrow : Type → CurriedTypeFun 1 -/
+-- #guard_msgs in
+--   #check (Arrow : Type → Type u → Type u)
