@@ -2,7 +2,7 @@ import Lean
 import Qpf.Macro.Common
 
 open Lean
-open Meta Elab Elab.Command 
+open Meta Elab Elab.Command
 
 open Parser.Term (bracketedBinder)
 open Parser.Command (declId)
@@ -14,7 +14,7 @@ inductive DataCommand where
   | Codata
   deriving BEq, Inhabited
 
-namespace DataCommand 
+namespace DataCommand
 
 def fromSyntax : Syntax → CommandElabM DataCommand
   | Syntax.atom _ "data"   => pure .Data
@@ -62,13 +62,13 @@ def DataView.asInductive (view : DataView) : InductiveView
   := {
     ref             := view.ref
     declId          := view.declId
-    modifiers       := view.modifiers      
-    shortDeclName   := view.shortDeclName  
-    declName        := view.declName       
-    levelNames      := view.levelNames     
-    binders         := view.binders        
-    type?           := view.type?          
-    ctors           := view.ctors          
+    modifiers       := view.modifiers
+    shortDeclName   := view.shortDeclName
+    declName        := view.declName
+    levelNames      := view.levelNames
+    binders         := view.binders
+    type?           := view.type?
+    ctors           := view.ctors
     derivingClasses := view.derivingClasses
     -- TODO: find out what these computed fields are, add support for them in `data`/`codata`
     computedFields  := #[]
@@ -108,7 +108,7 @@ def DataView.addDeclNameSuffix (view : DataView) (suffix : String) : DataView
 def DataView.getExpectedType (view : DataView) : Term
   := Syntax.mkApp (mkIdent view.shortDeclName) (
     (Macro.getBinderIdents view.binders.getArgs false)
-  )  
+  )
 
 /-- Returns the fully applied, explicit (`@`) form of the type to be defined -/
 def DataView.getExplicitExpectedType (view : DataView) : CommandElabM Term
@@ -158,16 +158,17 @@ instance : ToString (DataView) := ⟨
 -/
 
 
+open Elab Term
 /--
   Raises (hopefully) more informative errors when `data` or `codata` are used with unsupported
   specifications
 -/
-def DataView.doSanityChecks (view : DataView) : CommandElabM Unit := do  
-  if view.liveBinders.isEmpty then    
+def DataView.doSanityChecks (view : DataView) : CommandElabM Unit := do
+  if view.liveBinders.isEmpty then
     if view.deadBinders.isEmpty then
       if view.command == .Codata then
         throwError "Due to a bug, codatatype without any parameters don't quite work yet. Please try adding parameters to your type"
-      else 
+      else
         throwError "Trying to define a datatype without variables, you probably want an `inductive` type instead"
     else
       throwErrorAt view.binders "You should mark some variables as live by removing the type ascription (they will be automatically inferred as `Type _`), or if you don't have variables of type `Type _`, you probably want an `inductive` type"
@@ -179,8 +180,15 @@ def DataView.doSanityChecks (view : DataView) : CommandElabM Unit := do
 
   -- TODO: make this more intelligent. In particular, allow types like `Type`, `Type 3`, or `Type u`
   --       and only throw an error if the user tries to define a family of types
+
   match view.type? with
-  | some t => throwErrorAt t "Unexpected type; type will be automatically inferred. Note that inductive families are not supported due to inherent limitations of QPFs"
+  | some t_stx =>
+    let t : Expr ← runTermElabM <| fun _ =>
+      elabTerm t_stx none
+    if t.isType then
+      pure ()
+    else
+      throwErrorAt t_stx "Unexpected type; type will be automatically inferred. Note that inductive families are not supported due to inherent limitations of QPFs"
   | none => pure ()
 
 
@@ -193,7 +201,7 @@ def dataSyntaxToView (modifiers : Modifiers) (decl : Syntax) : CommandElabM Data
 
   let (binders, type?) := expandOptDeclSig decl[2]
 
-  let declId  : TSyntax ``declId := ⟨decl[1]⟩ 
+  let declId  : TSyntax ``declId := ⟨decl[1]⟩
   let ⟨name, declName, levelNames⟩ ← expandDeclId declId modifiers
   addDeclarationRanges declName decl
   let ctors      ← decl[4].getArgs.mapM fun ctor => withRef ctor do

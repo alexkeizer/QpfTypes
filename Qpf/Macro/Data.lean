@@ -332,7 +332,7 @@ structure MkShapeResult where
   (effects : CommandElabM Unit)
 
 open Parser in
-def mkShape (view: DataView) : TermElabM MkShapeResult := do
+def mkShape (view : DataView) : TermElabM MkShapeResult := do
   -- If the original declId was `MyType`, we want to register the shape type under `MyType.Shape`
   let (declName, declId, shortDeclName) ← addSuffixToDeclId view.declId "Shape"
 
@@ -459,6 +459,8 @@ def mkType (view : DataView) (base : Term × Term × Term) : CommandElabM Unit :
     abbrev $baseIdent:ident $view.deadBinders:bracketedBinder* : TypeFun $(quote <| arity + 1) :=
       $base
 
+    -- instance foo : MvFunctor.{0,0} ($baseApplied) := $functor
+    instance foo : MvFunctor.{1,1} ($baseApplied) := $functor
     instance $baseFunctorIdent:ident : MvFunctor ($baseApplied) := $functor
     instance $baseQPFIdent:ident : MvQPF ($baseApplied) := $q
 
