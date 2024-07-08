@@ -399,7 +399,7 @@ open Elab.Term Parser.Term in
   `IsPolynomial F`, and return that instance (if it exists).
 -/
 def isPolynomial (view : DataView) (F: Term) : CommandElabM (Option Term) := do
-  runTermElabM fun _ => do
+  runTermElabM fun _ => withRef view.ref do
     elabBinders view.deadBinders fun _deadVars => do
       let inst_func ← `(MvFunctor $F:term)
       let inst_func ← elabTerm inst_func none
@@ -464,14 +464,15 @@ def mkType (view : DataView) (base : Term × Term × Term) : CommandElabM Unit :
     instance $baseFunctorIdent:ident : MvFunctor ($baseApplied) := $functor
     instance $baseQPFIdent:ident : MvQPF ($baseApplied) := $q
 
-    abbrev $uncurriedIdent:ident $view.deadBinders:bracketedBinder* : TypeFun $(quote arity) := $fix_or_cofix $base
+    abbrev $uncurriedIdent:ident $view.deadBinders:bracketedBinder* : TypeFun $(quote arity) :=
+      $fix_or_cofix $base
 
-    abbrev $(view.declId) $view.deadBinders:bracketedBinder*
-      := TypeFun.curried $uncurriedApplied
+    abbrev $(view.declId) $view.deadBinders:bracketedBinder* :=
+      TypeFun.curried $uncurriedApplied
   )
 
-  trace[QPF] "elabData.cmd = {cmd}"
-  elabCommand cmd
+  withRef view.ref <|
+    cmd.raw.getArgs.forM elabDeclaration
 
 
 
@@ -543,28 +544,29 @@ def elabData : CommandElab := fun stx => do
   let modifiers ← elabModifiers stx[0]
   let decl := stx[1]
   let view ← dataSyntaxToView modifiers decl
+  withRef view.ref do
+    let (nonRecView, ⟨r, shape, _P, eff⟩) ← runTermElabM fun _ => withRef view.ref do
+      let (nonRecView, _rho) ← makeNonRecursive view;
+      trace[QPF] "nonRecView: {nonRecView}"
+      pure (nonRecView, ←mkShape nonRecView)
 
-  let (nonRecView, ⟨r, shape, _P, eff⟩) ← runTermElabM fun _ => do
-    let (nonRecView, _rho) ← makeNonRecursive view;
-    trace[QPF] "nonRecView: {nonRecView}"
-    pure (nonRecView, ←mkShape nonRecView)
+    /- Execute the `ComandElabM` side-effects prescribed by `mkShape` -/
+    let _ ← eff
 
-  /- Execute the `ComandElabM` side-effects prescribed by `mkShape` -/
-  let _ ← eff
+    /- Composition pipeline -/
+    let base ← elabQpfCompositionBody {
+      liveBinders := nonRecView.liveBinders,
+      deadBinders := nonRecView.deadBinders,
+      ref     := view.ref,
+      type?   := none,
+      target  := ←`(
+        $(mkIdent shape):ident $r.expr:term*
+      )
+    }
+    trace[QPF] "base = {base}"
 
-  /- Composition pipeline -/
-  let base ← elabQpfCompositionBody {
-    liveBinders := nonRecView.liveBinders,
-    deadBinders := nonRecView.deadBinders,
-    type?   := none,
-    target  := ←`(
-      $(mkIdent shape):ident $r.expr:term*
-    )
-  }
-  trace[QPF] "base = {base}"
-
-  mkType view base
-  mkConstructors view shape
+    mkType view base
+    mkConstructors view shape
 
 
 end Data.Command

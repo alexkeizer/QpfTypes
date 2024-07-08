@@ -267,6 +267,7 @@ partial def elabQpf {arity : Nat} (vars : Vector Q(Type u) arity) (target : Q(Ty
 
 
 structure QpfCompositionBodyView where
+  (ref : Syntax := .missing)
   (type?  : Option Syntax := none)
   (target : Term)
   (liveBinders deadBinders : Array Syntax)
@@ -288,7 +289,7 @@ def elabQpfCompositionBody (view: QpfCompositionBodyView) :
     liveBinders := {view.liveBinders}
     deadBinders := {view.deadBinders}
   "
-  runTermElabM fun _ => do
+  runTermElabM fun _ => withRef view.ref do
     let u : Level ←
       if let some typeStx := view.type? then
         let type ← elabTerm typeStx (some <| .sort <|<- mkFreshLevelMVar)
