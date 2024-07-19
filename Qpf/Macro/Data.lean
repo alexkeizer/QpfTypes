@@ -4,6 +4,7 @@ import Mathlib.Data.QPF.Multivariate.Constructions.Fix
 import Qpf.Macro.Data.Replace
 import Qpf.Macro.Data.Count
 import Qpf.Macro.Data.View
+import Qpf.Macro.Data.Ind
 import Qpf.Macro.Common
 import Qpf.Macro.Comp
 
@@ -565,6 +566,10 @@ def elabData : CommandElab := fun stx => do
 
   mkType view base
   mkConstructors view shape
+
+  if let .Data := view.command then
+    try genRecursors view
+    catch e => trace[QPF] (← e.toMessageData.toString)
 
 
 end Data.Command
