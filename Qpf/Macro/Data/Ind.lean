@@ -94,6 +94,8 @@ def mkRecursorBinder
 def toEqLenNames     (x : Array α) : m $ Array Ident := x.mapM (fun _ => mkIdent <$> mkFreshBinderName)
 def listToEqLenNames (x : List α)  : m $ Array Ident := toEqLenNames x.toArray
 
+/-- If the array is a singleton then this can be yielded by the proof,
+otherwise it will be a n-ary product  -/
 def wrapIfNotSingle (arr : TSyntaxArray `term) : m Term :=
   if let #[s] := arr then `($s)
   else `(⟨$arr,*⟩)
