@@ -2,7 +2,7 @@ import Qpf.Macro.Data.Replace
 import Qpf.Macro.Data.View
 import Qpf.Macro.NameUtils
 
-open Lean Meta Elab.Command
+open Lean Meta Elab Elab.Command 
 open PrettyPrinter (delab)
 
 namespace Data.Command
@@ -15,11 +15,7 @@ partial def countConstructorArgs : Syntax → Nat
   | _                                         => 0
 
 
-open Elab
-/--
-  Add convenient constructor functions to the environment
--/
-def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
+def mkConstructorsWithNameAndType (view : DataView) (shape : Name) (nameGen : CtorView → Ident) (ty : Term) := do
   for ctor in view.ctors do
     trace[QPF] "mkConstructors\n{ctor.declName} : {ctor.type?}"
     let n_args := (ctor.type?.map countConstructorArgs).getD 0
@@ -40,18 +36,15 @@ def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
         `(fun $args:ident* => $mk ($shapeCtor $args:ident*))
     let body ← body
 
-    let explicit ← view.getExplicitExpectedType
     let type : Term := TSyntax.mk <|
-      (ctor.type?.map fun type =>
-        Replace.replaceAllStx view.getExpectedType explicit type
-      ).getD explicit
+      (ctor.type?.map fun type => Replace.replaceAllStx view.getExpectedType ty type).getD ty
     let modifiers : Modifiers := {
       isNoncomputable := view.modifiers.isNoncomputable
       attrs := #[{
         name := `matchPattern
       }]
     }
-    let declId := mkIdent <| Name.stripPrefix2 (←getCurrNamespace) ctor.declName
+    let declId := nameGen ctor
 
     let cmd ← `(
       $(quote modifiers):declModifiers
@@ -61,5 +54,15 @@ def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
     trace[QPF] "mkConstructor.cmd = {cmd}"
     elabCommand cmd
   return ()
+
+/--
+  Add convenient constructor functions to the environment
+-/
+def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
+  let explicit ← view.getExplicitExpectedType
+  let nameGen := (mkIdent <| Name.stripPrefix2 (←getCurrNamespace) ·.declName)
+
+  mkConstructorsWithNameAndType view shape nameGen explicit
+
 
 end Data.Command

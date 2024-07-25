@@ -122,10 +122,14 @@ def DataView.addDeclNameSuffix (view : DataView) (suffix : String) : DataView
 
 
 /-- Returns the fully applied form of the type to be defined -/
-def DataView.getExpectedType (view : DataView) : Term
-  := Syntax.mkApp (mkIdent view.shortDeclName) (
+def DataView.getExpectedTypeWithId (view : DataView) (id : Ident) : Term
+  := Syntax.mkApp id (
     (Macro.getBinderIdents view.binders.getArgs false)
   )  
+
+/-- Returns the fully applied form of the type to be defined -/
+def DataView.getExpectedType (view : DataView) : Term
+  := view.getExpectedTypeWithId (mkIdent view.shortDeclName)
 
 /-- Returns the fully applied, explicit (`@`) form of the type to be defined -/
 def DataView.getExplicitExpectedType (view : DataView) : CommandElabM Term
