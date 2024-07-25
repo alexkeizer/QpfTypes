@@ -419,10 +419,11 @@ def isPolynomial (view : DataView) (F: Term) : CommandElabM (Option Term) := do
 -/
 def mkType (view : DataView) (base : Term × Term × Term) : CommandElabM Unit := do
   trace[QPF] "mkType"
-  let uncurriedIdent ← addSuffixToDeclIdent view.declId "Uncurried"
-  let baseIdent ← addSuffixToDeclIdent view.declId "Base"
+  let uncurriedIdent   ← addSuffixToDeclIdent view.declId "Uncurried"
+  let baseIdExt        ← addSuffixToDeclIdent view.declId "Base"
+  let baseIdent        ← addSuffixToDeclIdent baseIdExt "Uncurried"
   let baseFunctorIdent ← addSuffixToDeclIdent baseIdent "instMvFunctor"
-  let baseQPFIdent ← addSuffixToDeclIdent baseIdent "instQPF"
+  let baseQPFIdent     ← addSuffixToDeclIdent baseIdent "instQPF"
 
   let deadBinderNamedArgs ← view.deadBinderNames.mapM fun n =>
         `(namedArgument| ($n:ident := $n:term))
@@ -437,6 +438,9 @@ def mkType (view : DataView) (base : Term × Term × Term) : CommandElabM Unit :
   let cmd ← `(
     abbrev $baseIdent:ident $view.deadBinders:bracketedBinder* : TypeFun $(quote <| arity + 1) :=
       $base
+
+    abbrev $baseIdExt $view.deadBinders:bracketedBinder*
+      := TypeFun.curried $baseApplied
 
     instance $baseFunctorIdent:ident : MvFunctor ($baseApplied) := $functor
     instance $baseQPFIdent:ident : MvQPF ($baseApplied) := $q
@@ -484,9 +488,8 @@ def elabData : CommandElab := fun stx => do
   mkType view base
   mkConstructors view shape
 
-  if let .Data := view.command then
-    try genRecursors view
-    catch e => trace[QPF] (← e.toMessageData.toString)
+  try genRecursors view shape
+  catch e => trace[QPF] (← e.toMessageData.toString)
 
 
 end Data.Command

@@ -1,4 +1,5 @@
 import Qpf.Macro.Data.Replace
+import Qpf.Macro.Data.RecForm
 import Qpf.Macro.Data.View
 import Qpf.Macro.NameUtils
 
@@ -15,7 +16,12 @@ partial def countConstructorArgs : Syntax → Nat
   | _                                         => 0
 
 
-def mkConstructorsWithNameAndType (view : DataView) (shape : Name) (nameGen : CtorView → Ident) (ty : Term) := do
+def mkConstructorsWithNameAndType
+    (view : DataView) (shape : Name)
+    (nameGen : CtorView → Ident) (argTy retTy : Term)
+    (binders : TSyntaxArray ``Parser.Term.bracketedBinder)
+
+  := do
   for ctor in view.ctors do
     trace[QPF] "mkConstructors\n{ctor.declName} : {ctor.type?}"
     let n_args := (ctor.type?.map countConstructorArgs).getD 0
@@ -36,8 +42,12 @@ def mkConstructorsWithNameAndType (view : DataView) (shape : Name) (nameGen : Ct
         `(fun $args:ident* => $mk ($shapeCtor $args:ident*))
     let body ← body
 
-    let type : Term := TSyntax.mk <|
-      (ctor.type?.map fun type => Replace.replaceAllStx view.getExpectedType ty type).getD ty
+    let recType := view.getExpectedType
+    let forms := RecursionForm.extract ctor recType
+
+    let x := forms.map $ RecursionForm.replaceRec view.getExpectedType argTy
+    let type ← RecursionForm.toType retTy x
+
     let modifiers : Modifiers := {
       isNoncomputable := view.modifiers.isNoncomputable
       attrs := #[{
@@ -48,7 +58,7 @@ def mkConstructorsWithNameAndType (view : DataView) (shape : Name) (nameGen : Ct
 
     let cmd ← `(
       $(quote modifiers):declModifiers
-      def $declId:ident : $type := $body:term
+      def $declId:ident $binders*: $type := $body:term
     )
 
     trace[QPF] "mkConstructor.cmd = {cmd}"
@@ -62,7 +72,6 @@ def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
   let explicit ← view.getExplicitExpectedType
   let nameGen := (mkIdent <| Name.stripPrefix2 (←getCurrNamespace) ·.declName)
 
-  mkConstructorsWithNameAndType view shape nameGen explicit
-
+  mkConstructorsWithNameAndType view shape nameGen explicit explicit #[]
 
 end Data.Command
