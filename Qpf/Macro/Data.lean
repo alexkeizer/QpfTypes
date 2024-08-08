@@ -6,7 +6,6 @@ import Qpf.Macro.Data.Replace
 import Qpf.Macro.Data.Count
 import Qpf.Macro.Data.View
 import Qpf.Macro.Data.Ind
-import Qpf.Macro.NameUtils
 import Qpf.Macro.Common
 import Qpf.Macro.Comp
 
@@ -66,7 +65,7 @@ open Elab.Term (TermElabM)
 
 
 def CtorView.declReplacePrefix (pref new_pref : Name) (ctor: CtorView) : CtorView :=
-  let declName := Name.replacePrefix2 pref new_pref ctor.declName
+  let declName := Name.replacePrefix ctor.declName pref new_pref 
   {
     declName,
     ref := ctor.ref
@@ -113,7 +112,7 @@ def mkHeadT (view : InductiveView) : CommandElabM Name := do
   }
   -- The head type is the same as the original type, but with all constructor arguments removed
   let ctors ← view.ctors.mapM fun ctor => do
-    let declName := Name.replacePrefix2 view.declName declName ctor.declName
+    let declName := ctor.declName.replacePrefix view.declName declName 
     pure {
       modifiers, declName,
       ref := ctor.ref
@@ -157,7 +156,7 @@ def mkChildT (view : InductiveView) (r : Replace) (headTName : Name) : CommandEl
   let target_type := Syntax.mkApp (mkIdent ``TypeVec) #[quote r.arity]
 
   let matchAlts ← view.ctors.mapM fun ctor => do
-    let head := mkIdent $ Name.replacePrefix2 view.declName headTName ctor.declName
+    let head := Lean.mkIdent (ctor.declName.replacePrefix view.declName headTName)
 
     let counts := countVarOccurences r ctor.type?
     let counts := counts.map fun n =>
@@ -221,7 +220,7 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT P : Ide
   let boxBody ← ctors.mapM fun (ctor, args) => do
     let argsId  := args.args.map mkIdent
     let alt     := mkIdent ctor.declName
-    let headAlt := mkIdent $ Name.replacePrefix2 shapeView.declName headT.getId ctor.declName
+    let headAlt := mkIdent $ ctor.declName.replacePrefix shapeView.declName headT.getId 
 
     `(matchAltExpr| | $alt:ident $argsId:ident* => ⟨$headAlt:ident, fun i => match i with
         $(
@@ -258,7 +257,7 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT P : Ide
   let unbox_child := mkIdent <|<- Elab.Term.mkFreshBinderName;
   let unboxBody ← ctors.mapM fun (ctor, args) => do
     let alt     := mkIdent ctor.declName
-    let headAlt := mkIdent $ Name.replacePrefix2 shapeView.declName headT.getId ctor.declName
+    let headAlt := mkIdent $ ctor.declName.replacePrefix shapeView.declName headT.getId
 
     let args : Array Term ← args.args.mapM fun arg => do
       -- find the pair `(i, j)` such that the argument is the `j`-th occurence of the `i`-th type
