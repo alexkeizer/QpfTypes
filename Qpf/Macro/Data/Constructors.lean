@@ -1,7 +1,6 @@
 import Qpf.Macro.Data.Replace
 import Qpf.Macro.Data.RecForm
 import Qpf.Macro.Data.View
-import Qpf.Macro.NameUtils
 
 open Lean Meta Elab Elab.Command 
 open PrettyPrinter (delab)
@@ -26,21 +25,19 @@ def mkConstructorsWithNameAndType
     trace[QPF] "mkConstructors\n{ctor.declName} : {ctor.type?}"
     let n_args := (ctor.type?.map countConstructorArgs).getD 0
 
-    let args ← (List.range n_args).mapM fun _ =>
-      do pure <| mkIdent <|← Elab.Term.mkFreshBinderName
-    let args := args.toArray
+    let args := (← (List.range n_args).mapM
+      fun _ => do pure <| mkIdent <|← Elab.Term.mkFreshBinderName).toArray
 
-    let mk := mkIdent ((DataCommand.fixOrCofix view.command).getId ++ `mk)
-    let shapeCtor := mkIdent <| Name.replacePrefix2 view.declName shape ctor.declName
+    let pointConstructor := mkIdent ((DataCommand.fixOrCofix view.command).getId ++ `mk)
+    let shapeCtor := mkIdent <| Name.replacePrefix ctor.declName view.declName shape
     trace[QPF] "shapeCtor = {shapeCtor}"
 
 
 
-    let body := if n_args = 0 then
-        `($mk $shapeCtor)
+    let body ← if n_args = 0 then
+        `($pointConstructor $shapeCtor)
       else
-        `(fun $args:ident* => $mk ($shapeCtor $args:ident*))
-    let body ← body
+        `(fun $args:ident* => $pointConstructor ($shapeCtor $args:ident*))
 
     let recType := view.getExpectedType
     let forms := RecursionForm.extract ctor recType
@@ -70,7 +67,7 @@ def mkConstructorsWithNameAndType
 -/
 def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
   let explicit ← view.getExplicitExpectedType
-  let nameGen := (mkIdent <| Name.stripPrefix2 (←getCurrNamespace) ·.declName)
+  let nameGen := (mkIdent <| ·.declName.replacePrefix (←getCurrNamespace) .anonymous)
 
   mkConstructorsWithNameAndType view shape nameGen explicit explicit #[]
 

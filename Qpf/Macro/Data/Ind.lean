@@ -363,8 +363,9 @@ def genForCoData : CommandElabM Unit := do
 
   elabCommand dtCorec
 
+
   Data.Command.mkConstructorsWithNameAndType view shape (fun ctor =>
-    (view.shortDeclName ++ `DeepThunk ++ (Name.stripPrefix2 view.declName ctor.declName) |> mkIdent))
+    (view.shortDeclName ++ `DeepThunk ++ (ctor.declName.replacePrefix view.declName .anonymous) |> mkIdent))
     (← `($(mkIdent ``MvQPF.DTSum) ζ ($dtCurr)))
     dtCurr
     (#[(← `(bb|{ ζ : Type }) : TSyntax ``bracketedBinder)])
