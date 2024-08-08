@@ -362,7 +362,7 @@ def genForCoData : CommandElabM Unit := do
 
   dbg_trace shape
   Data.Command.mkConstructorsWithNameAndType view shape (fun ctor =>
-    (view.declName ++ `DeepThunk ++ (Name.stripPrefix2 view.declName ctor.declName) |> mkIdent))
+    (view.declName ++ `DeepThunk ++ (ctor.declName.replacePrefix view.declName .anonymous) |> mkIdent))
     (← `(ζ ⊕ ($dtCurr)))
     dtCurr
     (#[(← `(bb|{ ζ : Type }) : TSyntax ``bracketedBinder)])
