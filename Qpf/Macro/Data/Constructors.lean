@@ -1,6 +1,5 @@
 import Qpf.Macro.Data.Replace
 import Qpf.Macro.Data.View
-import Qpf.Macro.NameUtils
 
 open Lean Meta Elab.Command
 open PrettyPrinter (delab)
@@ -29,7 +28,7 @@ def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
     let args := args.toArray
 
     let mk := mkIdent ((DataCommand.fixOrCofix view.command).getId ++ `mk)
-    let shapeCtor := mkIdent <| Name.replacePrefix2 view.declName shape ctor.declName
+    let shapeCtor := mkIdent <| Name.replacePrefix ctor.declName view.declName shape
     trace[QPF] "shapeCtor = {shapeCtor}"
 
 
@@ -51,7 +50,7 @@ def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
         name := `matchPattern
       }]
     }
-    let declId := mkIdent <| Name.stripPrefix2 (←getCurrNamespace) ctor.declName
+    let declId := mkIdent <| ctor.declName.replacePrefix (←getCurrNamespace) .anonymous
 
     let cmd ← `(
       $(quote modifiers):declModifiers
