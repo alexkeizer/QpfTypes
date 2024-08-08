@@ -1,6 +1,7 @@
 import Mathlib.Data.QPF.Multivariate.Constructions.Cofix
 import Mathlib.Data.QPF.Multivariate.Constructions.Fix
 
+import Qpf.Macro.Data.Constructors
 import Qpf.Macro.Data.Replace
 import Qpf.Macro.Data.Count
 import Qpf.Macro.Data.View
@@ -58,23 +59,13 @@ end
 -/
 open Elab.Term (TermElabM)
 
-def Name.replacePrefix (old_pref new_pref : Name) : Name → Name
-  | Name.anonymous => Name.anonymous
-  | Name.str p s   => let p' := if p == old_pref then new_pref
-                                else replacePrefix old_pref new_pref p
-                      Name.mkStr p' s
-  | Name.num p v   => let p' := if p == old_pref then new_pref
-                                else replacePrefix old_pref new_pref p
-                      Name.mkNum p' v
 
 
-def Name.stripPrefix (old_pref : Name) : Name → Name
-  := Name.replacePrefix old_pref .anonymous
 
 
 
 def CtorView.declReplacePrefix (pref new_pref : Name) (ctor: CtorView) : CtorView :=
-  let declName := Name.replacePrefix pref new_pref ctor.declName
+  let declName := ctor.declName.replacePrefix pref new_pref
   {
     declName,
     ref := ctor.ref
@@ -121,7 +112,7 @@ def mkHeadT (view : InductiveView) : CommandElabM Name := do
   }
   -- The head type is the same as the original type, but with all constructor arguments removed
   let ctors ← view.ctors.mapM fun ctor => do
-    let declName := Name.replacePrefix view.declName declName ctor.declName
+    let declName := ctor.declName.replacePrefix view.declName declName 
     pure {
       modifiers, declName,
       ref := ctor.ref
@@ -165,7 +156,7 @@ def mkChildT (view : InductiveView) (r : Replace) (headTName : Name) : CommandEl
   let target_type := Syntax.mkApp (mkIdent ``TypeVec) #[quote r.arity]
 
   let matchAlts ← view.ctors.mapM fun ctor => do
-    let head := mkIdent $ Name.replacePrefix view.declName headTName ctor.declName
+    let head := Lean.mkIdent (ctor.declName.replacePrefix view.declName headTName)
 
     let counts := countVarOccurences r ctor.type?
     let counts := counts.map fun n =>
@@ -229,7 +220,7 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT P : Ide
   let boxBody ← ctors.mapM fun (ctor, args) => do
     let argsId  := args.args.map mkIdent
     let alt     := mkIdent ctor.declName
-    let headAlt := mkIdent $ Name.replacePrefix shapeView.declName headT.getId ctor.declName
+    let headAlt := mkIdent $ ctor.declName.replacePrefix shapeView.declName headT.getId 
 
     `(matchAltExpr| | $alt:ident $argsId:ident* => ⟨$headAlt:ident, fun i => match i with
         $(
@@ -266,7 +257,7 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT P : Ide
   let unbox_child := mkIdent <|<- Elab.Term.mkFreshBinderName;
   let unboxBody ← ctors.mapM fun (ctor, args) => do
     let alt     := mkIdent ctor.declName
-    let headAlt := mkIdent $ Name.replacePrefix shapeView.declName headT.getId ctor.declName
+    let headAlt := mkIdent $ ctor.declName.replacePrefix shapeView.declName headT.getId
 
     let args : Array Term ← args.args.mapM fun arg => do
       -- find the pair `(i, j)` such that the argument is the `j`-th occurence of the `i`-th type
@@ -422,20 +413,6 @@ def isPolynomial (view : DataView) (F: Term) : CommandElabM (Option Term) := do
 
 
 /--
-  Return a syntax tree for `MvQPF.Fix` or `MvQPF.Cofix` when self is `Data`, resp. `Codata`.
--/
-def DataCommand.fixOrCofix : DataCommand → Ident
-  | .Data   => mkIdent ``_root_.MvQPF.Fix
-  | .Codata => mkIdent ``_root_.MvQPF.Cofix
-
-/--
-  Return a syntax tree for `MvPFunctor.W` or `MvPFunctor.M` when self is `Data`, resp. `Codata`.
--/
-def DataCommand.fixOrCofixPolynomial : DataCommand → Ident
-  | .Data   => mkIdent ``_root_.MvPFunctor.W
-  | .Codata => mkIdent ``_root_.MvPFunctor.M
-
-/--
   Take either the fixpoint or cofixpoint of `base` to produce an `Internal` uncurried QPF,
   and define the desired type as the curried version of `Internal`
 -/
@@ -471,67 +448,6 @@ def mkType (view : DataView) (base : Term × Term × Term) : CommandElabM Unit :
 
   trace[QPF] "elabData.cmd = {cmd}"
   elabCommand cmd
-
-
-
-open Parser in
-/--
-  Count the number of arguments to a constructor
--/
-partial def countConstructorArgs : Syntax → Nat
-  | Syntax.node _ ``Term.arrow #[_, _, tail]  =>  1 + (countConstructorArgs tail)
-  | _                                         => 0
-
-
-open Elab
-/--
-  Add convenient constructor functions to the environment
--/
-def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
-  for ctor in view.ctors do
-    trace[QPF] "mkConstructors\n{ctor.declName} : {ctor.type?}"
-    let n_args := (ctor.type?.map countConstructorArgs).getD 0
-
-    let args ← (List.range n_args).mapM fun _ =>
-      do pure <| mkIdent <|← Elab.Term.mkFreshBinderName
-    let args := args.toArray
-
-    let mk := mkIdent ((DataCommand.fixOrCofix view.command).getId ++ `mk)
-    let shapeCtor := mkIdent <| Name.replacePrefix view.declName shape ctor.declName
-    trace[QPF] "shapeCtor = {shapeCtor}"
-
-
-
-    let body := if n_args = 0 then
-        `($mk $shapeCtor)
-      else
-        `(fun $args:ident* => $mk ($shapeCtor $args:ident*))
-    let body ← body
-
-    let explicit ← view.getExplicitExpectedType
-    let type : Term := TSyntax.mk <|
-      (ctor.type?.map fun type =>
-        Replace.replaceAllStx view.getExpectedType explicit type
-      ).getD explicit
-    let modifiers : Modifiers := {
-      isNoncomputable := view.modifiers.isNoncomputable
-      attrs := #[{
-        name := `matchPattern
-      }]
-    }
-    let declId := mkIdent <| Name.stripPrefix (←getCurrNamespace) ctor.declName
-
-    let cmd ← `(
-      $(quote modifiers):declModifiers
-      def $declId:ident : $type := $body:term
-    )
-
-    trace[QPF] "mkConstructor.cmd = {cmd}"
-    elabCommand cmd
-  return ()
-
-
-
 
 open Macro Comp in
 /--
