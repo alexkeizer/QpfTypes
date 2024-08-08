@@ -65,7 +65,7 @@ open Elab.Term (TermElabM)
 
 
 def CtorView.declReplacePrefix (pref new_pref : Name) (ctor: CtorView) : CtorView :=
-  let declName := Name.replacePrefix ctor.declName pref new_pref 
+  let declName := ctor.declName.replacePrefix pref new_pref
   {
     declName,
     ref := ctor.ref
