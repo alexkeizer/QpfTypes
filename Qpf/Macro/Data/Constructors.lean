@@ -19,21 +19,19 @@ def mkConstructorsWithNameAndType (view : DataView) (shape : Name) (nameGen : Ct
     trace[QPF] "mkConstructors\n{ctor.declName} : {ctor.type?}"
     let n_args := (ctor.type?.map countConstructorArgs).getD 0
 
-    let args ← (List.range n_args).mapM fun _ =>
-      do pure <| mkIdent <|← Elab.Term.mkFreshBinderName
-    let args := args.toArray
+    let args := (← (List.range n_args).mapM
+      fun _ => do pure <| mkIdent <|← Elab.Term.mkFreshBinderName).toArray
 
-    let mk := mkIdent ((DataCommand.fixOrCofix view.command).getId ++ `mk)
+    let pointConstructor := mkIdent ((DataCommand.fixOrCofix view.command).getId ++ `mk)
     let shapeCtor := mkIdent <| Name.replacePrefix ctor.declName view.declName shape
     trace[QPF] "shapeCtor = {shapeCtor}"
 
 
 
-    let body := if n_args = 0 then
-        `($mk $shapeCtor)
+    let body ← if n_args = 0 then
+        `($pointConstructor $shapeCtor)
       else
-        `(fun $args:ident* => $mk ($shapeCtor $args:ident*))
-    let body ← body
+        `(fun $args:ident* => $pointConstructor ($shapeCtor $args:ident*))
 
     let type : Term := TSyntax.mk <|
       (ctor.type?.map fun type => Replace.replaceAllStx view.getExpectedType ty type).getD ty
