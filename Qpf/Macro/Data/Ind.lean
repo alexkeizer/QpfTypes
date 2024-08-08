@@ -269,6 +269,7 @@ def genForCoData : CommandElabM Unit := do
 
   let uncA := view.shortDeclName ++ `Unc |> mkIdent
   let uncDtA := view.shortDeclName ++ `DeepThunk.Unc |> mkIdent
+  let injName := view.shortDeclName ++ `DeepThunk.inj |> mkIdent
 
   let curryUncurryEq ← `(command|
     theorem $uncA :
@@ -319,13 +320,14 @@ def genForCoData : CommandElabM Unit := do
     instance {ζ}: $Coe ($dtUncurr) ($dtCurr) :=
       ⟨fun x => by rw [$uncDtA:ident]; exact x⟩
   )
-  let inj : Lean.Syntax.Command ← `(
-    instance {ζ}: $Coe ($tCurr) ($dtCurr) :=
-      ⟨fun x =>
+  let injDef : Lean.Syntax.Command ← `(
+    def $injName {ζ} (x : $tCurr) : $dtCurr :=
         let x : $tUncurr := x
         let x : $dtUncurr := $(mkIdent ``MvQPF.DeepThunk.inject) x
         x
-      ⟩
+  )
+  let inj : Lean.Syntax.Command ← `(
+    instance {ζ}: $Coe ($tCurr) ($dtCurr) := ⟨$injName⟩
   )
   let dtCorec : Lean.Syntax.Command ← `(
     def $(view.shortDeclName ++ `DeepThunk.corec |> mkIdent) { ζ } (f : ζ → $dtCurr) (v : ζ) : $tCurr :=
@@ -356,14 +358,14 @@ def genForCoData : CommandElabM Unit := do
   elabCommand ru
   elabCommand lud
   elabCommand rud
+  elabCommand injDef
   elabCommand inj
 
   elabCommand dtCorec
 
-  dbg_trace shape
   Data.Command.mkConstructorsWithNameAndType view shape (fun ctor =>
-    (view.declName ++ `DeepThunk ++ (Name.stripPrefix2 view.declName ctor.declName) |> mkIdent))
-    (← `(ζ ⊕ ($dtCurr)))
+    (view.shortDeclName ++ `DeepThunk ++ (Name.stripPrefix2 view.declName ctor.declName) |> mkIdent))
+    (← `($(mkIdent ``MvQPF.DTSum) ζ ($dtCurr)))
     dtCurr
     (#[(← `(bb|{ ζ : Type }) : TSyntax ``bracketedBinder)])
 
