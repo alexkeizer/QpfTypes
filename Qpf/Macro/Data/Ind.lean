@@ -1,35 +1,20 @@
+import Mathlib.Data.QPF.Multivariate.Constructions.Fix
+import Mathlib.Data.QPF.Multivariate.Constructions.Cofix
+
+import Qpf.Qpf.Multivariate.Constructions.DeepThunk
+import Qpf.Macro.Data.Constructors
+import Qpf.Macro.Data.RecForm
 import Qpf.Macro.Data.View
 import Qpf.Macro.Common
-import Mathlib.Data.QPF.Multivariate.Constructions.Fix
-import Mathlib.Tactic.ExtractGoal
+import Qpf.Util.Vec
 
 open Lean.Parser (Parser)
 open Lean Meta Elab.Command Elab.Term Parser.Term
 open Lean.Parser.Tactic (inductionAlt)
 
-/--
-  The recursive form encodes how a function argument is recursive.
 
-  Examples ty R α:
-
-   α      → R α       → List (R α) → R α
-  [nonRec,  directRec,  composed        ]
--/
-inductive RecursionForm :=
-  | nonRec (stx: Term)
-  | directRec
-  -- | composed -- Not supported yet
-deriving Repr, BEq
-
-partial def getArgTypes (v : Term) : List Term := match v.raw with
-  | .node _ ``arrow #[arg, _, deeper] =>
-     ⟨arg⟩ :: getArgTypes ⟨deeper⟩
-  | rest => [⟨rest⟩]
 
 def flattenForArg (n : Name) := Name.str .anonymous $ n.toStringWithSep "_" true
-
-def containsStx (top : Term) (search : Term) : Bool :=
-  (top.raw.find? (· == search)).isSome
 
 /-- Both `bracketedBinder` and `matchAlts` have optional arguments,
 which cause them to not by recognized as parsers in quotation syntax
@@ -44,31 +29,8 @@ we can safely coerce syntax of these categories  -/
 instance : Coe (TSyntax ``bb) (TSyntax ``bracketedBinder)      where coe x := ⟨x.raw⟩
 instance : Coe (TSyntax ``matchAltExprs) (TSyntax ``matchAlts) where coe x := ⟨x.raw⟩
 
-/-- When we want to operate on patterns the names we need must start with shape.
-This is done as if theres a constructor called `mk` dot notation breaks. -/
-def addShapeToName : Name → Name
-  | .anonymous => .str .anonymous "Shape"
-  | .str a b => .str (addShapeToName a) b
-  | .num a b => .num (addShapeToName a) b
-
 section
 variable {m} [Monad m] [MonadQuotation m] [MonadError m] [MonadTrace m] [AddMessageContext m]
-
-/-- Extract takes a constructor and extracts its recursive forms.
-
-This function assumes the pre-processor has run
-It also assumes you don't have polymorphic recursive types such as
-data Ql α | nil | l : α → Ql Bool → Ql α -/
-def extract (topName : Name) (view : CtorView) (rec_type : Term) : m $ Name × List RecursionForm :=
-  (view.declName.replacePrefix topName .anonymous , ·) <$> (do
-  let some type := view.type? | pure []
-  let type_ls := (getArgTypes ⟨type⟩).dropLast
-
-  type_ls.mapM fun v =>
-    if v == rec_type then pure .directRec
-    else if containsStx v rec_type then
-        throwErrorAt v.raw "Cannot handle composed recursive types"
-    else pure $ .nonRec v)
 
 /-- Generate the binders for the different recursors -/
 def mkRecursorBinder
@@ -87,6 +49,7 @@ def mkRecursorBinder
   let ty ← form.foldlM (fun acc => (match · with
     | ⟨.nonRec x, name⟩ => `(($name : $x) → $acc)
     | ⟨.directRec, name⟩ => `(($name : $rec_type) → $acc)
+    | ⟨.composed x, _⟩ => throwErrorAt x "Cannot handle recursive forms"
   )) out
 
   `(bb | ($(mkIdent $ flattenForArg name) : $ty))
@@ -111,7 +74,7 @@ def seq (f : TSyntax kx → TSyntax kx → m (TSyntax kx)) : List (TSyntax kx) �
 def generateIndBody (ctors : Array (Name × List RecursionForm)) (includeMotive : Bool) : m $ TSyntax ``matchAlts := do
   let deeper: (TSyntaxArray ``matchAlt) ← ctors.mapM fun ⟨outerCase, form⟩ => do
     let callName := mkIdent $ flattenForArg outerCase
-    let outerCaseId := mkIdent $ addShapeToName outerCase
+    let outerCaseId := mkIdent $ `Shape ++ outerCase
     let rec_count := form.count .directRec
 
     let names ← listToEqLenNames form
@@ -165,7 +128,7 @@ def generateIndBody (ctors : Array (Name × List RecursionForm)) (includeMotive 
 def generateRecBody (ctors : Array (Name × List RecursionForm)) (includeMotive : Bool) : m $ TSyntax ``matchAlts := do
   let deeper: (TSyntaxArray ``matchAlt) ← ctors.mapM fun ⟨outerCase, form⟩ => do
     let callName := mkIdent $ flattenForArg outerCase
-    let outerCaseId := mkIdent $ addShapeToName outerCase
+    let outerCaseId := mkIdent $ `Shape ++ outerCase
 
     let names ← listToEqLenNames form
     let names := names.zip form.toArray
@@ -174,6 +137,7 @@ def generateRecBody (ctors : Array (Name × List RecursionForm)) (includeMotive 
       match f with
       | .directRec => `(⟨_, $nm⟩)
       | .nonRec _  => `(_)
+      | .composed _ => throwError "Cannot handle composed"
 
     let nonMotiveArgs ← names.mapM fun _ => `(_)
     let motiveArgs    ← if includeMotive then
@@ -181,6 +145,7 @@ def generateRecBody (ctors : Array (Name × List RecursionForm)) (includeMotive 
         match f with
         | .directRec => some <$> `($nm)
         | .nonRec _  => pure none
+        | .composed _ => throwError "Cannot handle composed"
       else pure #[]
 
 
@@ -191,17 +156,25 @@ def generateRecBody (ctors : Array (Name × List RecursionForm)) (includeMotive 
 
   `(matchAltExprs| $deeper:matchAlt*)
 
-def genRecursors (view : DataView) : CommandElabM Unit := do
+def createVecForArgs : Array Ident → m Term 
+  | ⟨.nil⟩ => `($(mkIdent ``Vec.nil))
+  | ⟨.cons hd tl⟩ => do `( ($(mkIdent ``TypeVec.append1) $(←createVecForArgs ⟨tl⟩) $hd) )
+
+section
+
+variable (view : DataView) (shape : Name)
+
+def genForData : CommandElabM Unit := do
   let rec_type := view.getExpectedType
 
-  let mapped ← view.ctors.mapM (extract view.declName · rec_type)
+  let mapped := view.ctors.map (RecursionForm.extractWithName view.declName · rec_type)
 
   let ih_types ← mapped.mapM fun ⟨name, base⟩ =>
     mkRecursorBinder (rec_type) (name) base true
 
   let indDef : Command ← `(
     @[elab_as_elim, eliminator]
-    def $(.str view.shortDeclName "ind" |> mkIdent):ident
+    def $(view.shortDeclName ++ `ind |> mkIdent):ident
       { motive : $rec_type → Prop}
       $ih_types*
       : (val : $rec_type) → motive val
@@ -212,7 +185,7 @@ def genRecursors (view : DataView) : CommandElabM Unit := do
 
   let recDef : Command ← `(
     @[elab_as_elim]
-    def $(.str view.shortDeclName "rec" |> mkIdent):ident
+    def $(view.shortDeclName ++ `rec |> mkIdent):ident
       { motive : $rec_type → Type _}
       $ih_types*
       : (val : $rec_type) → motive val
@@ -224,7 +197,7 @@ def genRecursors (view : DataView) : CommandElabM Unit := do
 
   let casesDef : Command ← `(
     @[elab_as_elim]
-    def $(.str view.shortDeclName "cases" |> mkIdent):ident
+    def $(view.shortDeclName ++ `cases |> mkIdent):ident
       { motive : $rec_type → Prop}
       $casesOnTypes*
       : (val : $rec_type) → motive val
@@ -234,7 +207,7 @@ def genRecursors (view : DataView) : CommandElabM Unit := do
 
   let casesTypeDef : Command ← `(
     @[elab_as_elim]
-    def $(.str view.shortDeclName "casesType" |> mkIdent):ident
+    def $(view.shortDeclName ++ `casesType |> mkIdent):ident
       { motive : $rec_type → Type}
       $casesOnTypes*
       : (val : $rec_type) → motive val
@@ -253,3 +226,151 @@ def genRecursors (view : DataView) : CommandElabM Unit := do
   Elab.Command.elabCommand casesTypeDef
 
   pure ()
+
+def genForCoData : CommandElabM Unit := do
+  if view.deadBinders.size != 0 then
+    throwError "dead corecursion not supported"
+
+  let corecType := view.getExpectedType
+
+  let base := view.shortDeclName ++ `Base |> mkIdent
+
+  let corecDef : Command ← `(
+    def $(view.shortDeclName ++ `corec |> mkIdent):ident
+        { β }
+        (f : β → $(view.getExpectedTypeWithId base) β)
+        : β → $corecType
+      := $(mkIdent ``MvQPF.Cofix.corec) f)
+
+  let binders : Array Ident := (← view.liveBinders.mapM fun
+      | `(_) => mkIdent <$> mkFreshBinderName
+      | v => pure ⟨v⟩).reverse
+
+
+  let vec ← createVecForArgs binders
+
+  let idTyFunCurried := mkIdent ``TypeFun.curried
+  let idDeepThunk := mkIdent ``MvQPF.DeepThunk
+  let idTyFunCurriedAux := mkIdent ``TypeFun.curriedAux
+  let idRevArgs := mkIdent ``TypeFun.reverseArgs
+
+  let dtId := view.shortDeclName ++ `DeepThunk |> mkIdent
+
+  let deepThunk ← `(command|
+    abbrev $dtId:ident :=
+      $idDeepThunk $(view.shortDeclName ++ `Base.Uncurried |> mkIdent))
+
+  let tCurr := view.getExpectedType
+  let tUncurr ← `($(view.shortDeclName ++ `Uncurried |> mkIdent) $vec)
+  let dtCurr ← `($(view.getExpectedTypeWithId dtId) ζ)
+  let dtUncurr ← `( $(``MvQPF.DeepThunk.Uncurried |> mkIdent)
+    $(view.shortDeclName ++ `Base.Uncurried |> mkIdent)
+    ($(mkIdent ``TypeVec.append1) $vec ζ))
+
+  let uncA := view.shortDeclName ++ `Unc |> mkIdent
+  let uncDtA := view.shortDeclName ++ `DeepThunk.Unc |> mkIdent
+
+  let curryUncurryEq ← `(command|
+    theorem $uncA :
+        $tCurr = $tUncurr := by
+        simp only [
+          $(view.shortDeclName |> mkIdent):ident,
+          $idTyFunCurried:ident,
+          $idTyFunCurriedAux:ident,
+          $idRevArgs:ident
+        ]
+        congr
+        funext x
+        congr
+        fin_cases x <;> rfl
+      )
+  let curryUncurryDeepThunkEq ← `(command|
+    theorem $uncDtA {ζ} :
+         $dtCurr = $dtUncurr
+          := by
+        simp only [
+          $dtId:ident,
+          $idDeepThunk:ident,
+          $idTyFunCurried:ident,
+          $idTyFunCurriedAux:ident,
+          $idRevArgs:ident
+        ]
+        congr
+        funext x
+        congr
+        fin_cases x <;> rfl
+      )
+
+  let Coe := mkIdent ``Coe
+  let lu : Lean.Syntax.Command ← `(
+    instance : $Coe ($tCurr) ($tUncurr) :=
+      ⟨fun x => by rw [←$uncA]; exact x⟩
+  )
+  let ru : Lean.Syntax.Command ← `(
+    instance : $Coe ($tUncurr) ($tCurr) :=
+      ⟨fun x => by rw [$uncA:ident]; exact x⟩
+  )
+  let lud : Lean.Syntax.Command ← `(
+    instance {ζ}: $Coe ($dtCurr) ($dtUncurr) :=
+      ⟨fun x => by rw [←$uncDtA]; exact x⟩
+
+  )
+  let rud : Lean.Syntax.Command ← `(
+    instance {ζ}: $Coe ($dtUncurr) ($dtCurr) :=
+      ⟨fun x => by rw [$uncDtA:ident]; exact x⟩
+  )
+  let inj : Lean.Syntax.Command ← `(
+    instance {ζ}: $Coe ($tCurr) ($dtCurr) :=
+      ⟨fun x =>
+        let x : $tUncurr := x
+        let x : $dtUncurr := $(mkIdent ``MvQPF.DeepThunk.inject) x
+        x
+      ⟩
+  )
+  let dtCorec : Lean.Syntax.Command ← `(
+    def $(view.shortDeclName ++ `DeepThunk.corec |> mkIdent) { ζ } (f : ζ → $dtCurr) (v : ζ) : $tCurr :=
+      let v : $tUncurr := $(mkIdent ``MvQPF.DeepThunk.corec) (fun v => f v) v
+      v
+  )
+
+  trace[QPF] "Corec definitions:"
+  trace[QPF] corecDef
+  trace[QPF] deepThunk
+  trace[QPF] curryUncurryEq
+  trace[QPF] curryUncurryDeepThunkEq
+
+  trace[QPF] lu
+  trace[QPF] ru
+  trace[QPF] lud
+  trace[QPF] rud
+  trace[QPF] inj
+
+  trace[QPF] dtCorec
+
+  elabCommand corecDef
+  elabCommand deepThunk
+  elabCommand curryUncurryEq
+  elabCommand curryUncurryDeepThunkEq
+
+  elabCommand lu
+  elabCommand ru
+  elabCommand lud
+  elabCommand rud
+  elabCommand inj
+
+  elabCommand dtCorec
+
+  dbg_trace shape
+  Data.Command.mkConstructorsWithNameAndType view shape (fun ctor =>
+    (view.declName ++ `DeepThunk ++ (ctor.declName.replacePrefix view.declName .anonymous) |> mkIdent))
+    (← `(ζ ⊕ ($dtCurr)))
+    dtCurr
+    (#[(← `(bb|{ ζ : Type }) : TSyntax ``bracketedBinder)])
+
+def genRecursors : CommandElabM Unit := match view.command with
+  | .Data => genForData view
+  | .Codata => genForCoData view shape
+
+end
+end
+

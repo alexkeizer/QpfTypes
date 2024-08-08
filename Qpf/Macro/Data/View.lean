@@ -1,3 +1,6 @@
+import Mathlib.Data.QPF.Multivariate.Constructions.Cofix
+import Mathlib.Data.QPF.Multivariate.Constructions.Fix
+
 import Lean
 import Qpf.Macro.Common
 
@@ -25,6 +28,20 @@ instance : ToString DataCommand where
   toString := fun
     | .Data => "data"
     | .Codata => "codata"
+
+/--
+  Return a syntax tree for `MvQPF.Fix` or `MvQPF.Cofix` when self is `Data`, resp. `Codata`.
+-/
+def fixOrCofix : DataCommand → Ident
+  | .Data   => mkIdent ``_root_.MvQPF.Fix
+  | .Codata => mkIdent ``_root_.MvQPF.Cofix
+
+/--
+  Return a syntax tree for `MvPFunctor.W` or `MvPFunctor.M` when self is `Data`, resp. `Codata`.
+-/
+def fixOrCofixPolynomial : DataCommand → Ident
+  | .Data   => mkIdent ``_root_.MvPFunctor.W
+  | .Codata => mkIdent ``_root_.MvPFunctor.M
 
 end DataCommand
 
@@ -105,10 +122,14 @@ def DataView.addDeclNameSuffix (view : DataView) (suffix : String) : DataView
 
 
 /-- Returns the fully applied form of the type to be defined -/
-def DataView.getExpectedType (view : DataView) : Term
-  := Syntax.mkApp (mkIdent view.shortDeclName) (
+def DataView.getExpectedTypeWithId (view : DataView) (id : Ident) : Term
+  := Syntax.mkApp id (
     (Macro.getBinderIdents view.binders.getArgs false)
   )  
+
+/-- Returns the fully applied form of the type to be defined -/
+def DataView.getExpectedType (view : DataView) : Term
+  := view.getExpectedTypeWithId (mkIdent view.shortDeclName)
 
 /-- Returns the fully applied, explicit (`@`) form of the type to be defined -/
 def DataView.getExplicitExpectedType (view : DataView) : CommandElabM Term
