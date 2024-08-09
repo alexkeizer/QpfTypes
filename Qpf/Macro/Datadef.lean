@@ -128,7 +128,10 @@ example : (x : ℕ) × (y : ℕ) × Fin x := Sigma.mk 10 (Sigma.mk 0 1)
 #check Sigma.mk
 #elab (⟨10, ()⟩ : (a : ℕ) × Unit)
 
--- TODO: make unification guard
+def unify (a b : TermElabM Expr) (msg : String) : TermElabM Unit := do
+  let a ← a
+  let b ← b
+  let .true ← isDefEq a b | throwError s!"Error in unification: {msg}\nUnification targets was {←ppExpr a} ∩ {←ppExpr b}"
 
 def recallConstructor (conf : TransCfg) (id : MVarId) : Expr → TermElabM Unit
   | x@(.app a b) => do
@@ -149,11 +152,11 @@ def recallConstructor (conf : TransCfg) (id : MVarId) : Expr → TermElabM Unit
       /- let .true ← isDefEq (.app rhs deeper) (←safeInfer conf b) | throwError "Failed to unify arg ty {←ppExpr (←safeInfer conf b)} with {←ppExpr (.app rhs deeper)}" -/
       let expr := mkApp4 (.const ``Sigma.mk [u0, u1]) lhs rhs deeper b
 
-      let .true ← isDefEq (←id.getType) (←safeInfer conf expr) | throwError "Failed to unify exprs"
+      unify id.getType (safeInfer conf expr) "non-final arg unification failed"
 
       id.assign expr
     | .false =>
-      let .true ← isDefEq (←id.getType) (←safeInfer conf b) | throwError "Failed to unify final arg with ty"
+      unify id.getType (safeInfer conf b) "final arg unification failed"
       id.assign b
   | _ => unreachable! -- See the precondition for when this function is called
 
@@ -177,7 +180,7 @@ partial def muncher (conf : TransCfg) (id : MVarId) (simpleArgs : List Expr) (ex
 
       let expr := mkApp3 (.const ``MvQPF.DTSum.cont [0]) recallTyMVar deeperTyMVar contMVar
 
-      let .true ← isDefEq (←inferType expr) (←id.getType) | throwError "Failed to decend deeper into expression"
+      unify (inferType expr) id.getType "Failed to decend deeper into expression"
 
       muncher conf contMVarId [] e
       id.assign expr
@@ -194,7 +197,7 @@ partial def muncher (conf : TransCfg) (id : MVarId) (simpleArgs : List Expr) (ex
         recallConstructor conf extractionPointId x
 
         let expr := mkApp3 (.const ``MvQPF.DTSum.recall [0]) recallTyMVar deeperTyMVar extractionPoint
-        let .true ← isDefEq (←inferType expr) (←id.getType) | throwError "Failed to decend deeper into expression"
+        unify (inferType expr) id.getType "Failed to decend deeper into expression"
 
         trace[QPF] s!"assigned constructor {←ppExpr extractionPoint}"
         id.assign expr
@@ -204,7 +207,7 @@ partial def muncher (conf : TransCfg) (id : MVarId) (simpleArgs : List Expr) (ex
         trace[QPF] s!"|- bvar    {←ppExpr $ ←id.getType}\n               {←ppExpr x}"
         let expr := mkApp3 (.const ``MvQPF.DTSum.recall [0]) (.const ``Unit []) deeperTyMVar (.const ``Unit.unit [])
 
-        let .true ← isDefEq (←inferType expr) (←id.getType) | throwError "Used recursive call like unit recall but correct type is non unit"
+        unify (inferType expr) id.getType "Used recursive call like unit recall but correct type is non unit"
         trace[QPF] "Inserted unit recall point"
 
         id.assign expr
@@ -213,12 +216,12 @@ partial def muncher (conf : TransCfg) (id : MVarId) (simpleArgs : List Expr) (ex
   else
     let tryInjExit exprTy expr := do
       trace[QPF] "Attempting injection"
-      let .true ← isDefEq exprTy conf.srcTy       | throwError "Failed to unify {←ppExpr exprTy} with {←ppExpr conf.srcTy} in {←ppExpr expr}"
-      let .true ← isDefEq (←id.getType) conf.dtTy | throwError "Goal type {←ppExpr (←id.getType)} failed to unify with {←ppExpr conf.dtTy} when trying injection"
+      unify (pure exprTy) (pure conf.srcTy) "Failed to unify {←ppExpr exprTy} with {←ppExpr conf.srcTy} in {←ppExpr expr}"
+      unify id.getType (pure conf.dtTy) "Goal type {←ppExpr (←id.getType)} failed to unify with {←ppExpr conf.dtTy} when trying injection"
 
-      let e : Expr ← conf.typeArity.repeatM (return .app · (←mkFreshExprMVar none)) (.const (conf.ns ++ `DeepThunk.inj) [])
+      let e ← conf.typeArity.repeatM (return .app · (←mkFreshExprMVar none)) (.const (conf.ns ++ `DeepThunk.inj) [])
       let e := mkApp2 e (←mkFreshExprMVar none) expr
-      let .true ← isDefEq (←id.getType) (←inferType e) | throwError "Failed to unify injection"
+      unify id.getType (inferType e) "Failed to unify injection"
       id.assign e
 
       trace[QPF] "Injection successful {←ppExpr e} with type {←ppExpr $ ←inferType e}"
@@ -241,12 +244,11 @@ partial def muncher (conf : TransCfg) (id : MVarId) (simpleArgs : List Expr) (ex
         let bMVarId := bMVar.mvarId!
 
         let expr := .app aMVar bMVar
-        let .true ← isDefEq (← inferType expr) (←id.getType) | unreachable! -- Most generic choice
+        unify (inferType expr) id.getType "unreachable"
         id.assign expr
 
         muncher conf aMVarId [] a
-        let .true ← isDefEq (← inferType expr) (←id.getType) | throwError "failed to unify lhs with full application"
-        /- let .true ← isDefEq (← inferType b) (←b.getType) | throwError "failed to unify" -/
+        unify (inferType expr) id.getType "Failed to unify lhs with full application"
         muncher conf bMVarId [] b
 
     | .proj nm id s => throwError "unimplemented prj"
@@ -263,7 +265,7 @@ partial def muncher (conf : TransCfg) (id : MVarId) (simpleArgs : List Expr) (ex
       let expr := .lam name tyMVar mVar info
 
       id.assign expr
-      let .true ← isDefEq (← inferType expr) (←id.getType) | unreachable!
+      unify (inferType expr) id.getType "unreachable"
 
       muncher ({ conf with bvarTypes := tyMVar :: conf.bvarTypes }) mVarId [] body
 
@@ -283,7 +285,7 @@ partial def muncher (conf : TransCfg) (id : MVarId) (simpleArgs : List Expr) (ex
         let some newCtor := conf.constructors.find? name | tryInjExit (←inferType x) x
         let expr := .app (mkApp (Expr.const newCtor [])) (← (mkFreshExprMVar none))
 
-        let .true ← isDefEq (←id.getType) (←inferType expr) | throwError "Failed to unify new DeepThunk constructor with target"
+        unify id.getType (inferType expr) "Failed to unify new DeepThunk constructor with target"
 
         id.assign expr
         trace[QPF] s!"Selected const: {newCtor}"
@@ -297,7 +299,7 @@ partial def muncher (conf : TransCfg) (id : MVarId) (simpleArgs : List Expr) (ex
         /- else throwError "Should have been handled in app" -/
       else
         let some ty := conf.bvarTypes[n]? | unreachable!
-        let .true ← isDefEq ty (←id.getType) | throwError "Failed to unify bound variable with expected type"
+        unify (pure ty) id.getType "Failed to unify bound variable with expected type"
         id.assign $ .bvar n
         trace[QPF] "bvar unified"
     | x@(.sort _) | x@(.mvar (MVarId.mk _)) | x@(.fvar (FVarId.mk _)) | x@(.lit _) =>
