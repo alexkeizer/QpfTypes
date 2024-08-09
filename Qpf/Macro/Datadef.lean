@@ -12,6 +12,25 @@ open Elab (Modifiers elabModifiers)
 open Parser.Term (namedArgument)
 open PrettyPrinter (delab)
 
+
+-- Little helper function to inspect how things are elab'd
+elab "#elab" t:term : command =>
+  open Parser.Term in
+  liftTermElabM do
+    withoutPostponing do
+    withSynthesize do
+    withoutErrToSorry do
+    withDeclName `lol do
+
+    let x ← Elab.Term.elabTerm t none
+    let xType ← inferType x
+    let x ← Elab.Term.ensureHasType xType x
+    let x ← instantiateMVars x
+
+    IO.println s!"({repr x}) : ({repr xType})"
+
+    IO.println s!"({←ppExpr x}) : ({←ppExpr xType})"
+
 def Nat.repeatM [Monad m] (f : α → m α) (n : ℕ) : α → m α := n.repeat (· >>= f) ∘ pure
 
 namespace Datadef.Command
@@ -38,7 +57,6 @@ partial def findCalls : Term → List Term
   | ⟨.missing⟩ => []
   | ⟨.atom _ _ ⟩ => []
   | ⟨.ident _ _ _ _⟩ => []
-
 
 partial def getArgTypes (v : Term) : List Term := match v.raw with
   | .node _ ``Lean.Parser.Term.arrow #[arg, _, deeper] =>
@@ -79,62 +97,76 @@ structure TransCfg where
 
   (bvarTypes : List Expr)
 
-/- def handleNonRec (config : TransCfg) (e : Expr) : TermElabM (Expr × TransCfg) := do -/
-/-   let ty ← inferType e -/
-
-/-   if config.active ∧ (← isDefEqGuarded ty config.targetType) then -/
-/-     pure ⟨.app (.const ``Sum.inl []) e, config⟩ -/
-/-   else pure ⟨e, config⟩ -/
-
-/- def transformer (config : TransCfg) : Expr → TermElabM (Expr × TransCfg) -/
-/-   | x@(.app a b) => do -/
-/-     /- let rec getLeftMostVal : Expr → Expr -/ -/
-/-     /-   | .app l _ => getLeftMostVal l -/ -/
-/-     /-   | x => x -/ -/
-/-     /- let v := getLeftMostVal a -/ -/
-
-/-     trace[QPF] (repr x) -/
-
-/-     let ⟨a, config⟩ ← transformer config a -/
-/-     let ⟨b, config⟩ ← transformer config b -/
-
-/-     pure ⟨.app a b, config⟩ -/
-/-   | .proj nm id s => throwError "unimplemented prj" -/
-/-   | .mdata data a => (fun x => ⟨.mdata data x.fst, x.snd⟩) <$> transformer config a -/
-/-   | .letE declName type value body nonDep => throwError "unimplemented letE" -/
-/-   | .forallE name type body info => throwError "unimplemented faE" -/
-/-   | .lam name type body info => -/
-/-     (fun x => ⟨.lam name type x.fst info, x.snd⟩) <$> transformer config body -/
-/-   | x@(.const name uls) => -/
-/-     if config.returnSide then -/
-/-       match config.constructors.find? name with -/
-/-       | .some v => pure ⟨.const v uls, { config with active := true }⟩ -- TODO: are ULevels correct -/
-/-       | .none => pure ⟨x, config⟩ -/
-/-     else pure ⟨x, config⟩ -/
-/-   | .bvar n => do -/
-/-     if n = config.recIdx then -/
-/-       /- throwError "un" -/ -/
-/-       if config.recIdx = 0 then pure ⟨.app (.const ``Sum.inr []) (.const ``Unit []), config⟩ -/
-/-       else throwError "Should have been handled in app" -/
-/-     else pure ⟨.bvar n, config⟩ -/
-/-   | x@(.sort _) | x@(.mvar (MVarId.mk _)) | x@(.fvar (FVarId.mk _)) | x@(.lit _) => do -/
-/-     handleNonRec config x -/
-
 -- TODO: Wont work for 1) Dead vars 2) higher universe types
 def typeIsType : Expr → Bool := Expr.isType0
 
--- Can be made terminating using gas but not really that necacerry now
-partial def muncher (config : TransCfg) (id : MVarId) (simpleArgs : List Expr) (expr : Expr) : TermElabM Unit := do
-  -- TODO: If the type of the id and the expr are the same we can use this
-  try
-    if let .true ← isDefEq (←inferType expr) (←id.getType) then
-      trace[QPF] s!"|- escape  {←ppExpr $ ←id.getType}\n               {←ppExpr expr}"
+section
+/- variable () -/
+
+def transformForInfer (bvars : List Expr) (skip : ℕ) : Expr → TermElabM Expr
+  | .app a b => return .app (←transformForInfer bvars skip a) (←transformForInfer bvars skip b)
+  | .proj nm id s => return .proj nm id (←transformForInfer bvars skip s)
+  | .mdata data a => return .mdata data (←transformForInfer bvars skip a)
+  | .letE declName type value body nonDep =>
+    return .letE declName (←transformForInfer bvars skip type) (←transformForInfer bvars skip value) (←transformForInfer bvars skip.succ body) nonDep
+  | .forallE name type body info =>
+    return .forallE name (←transformForInfer bvars skip type) (←transformForInfer bvars skip.succ body) info
+  | .lam name type body info =>
+    return .lam name (←transformForInfer bvars skip type) (←transformForInfer bvars skip.succ body) info
+  | x@(.bvar n) => do
+    if n < skip then pure x else
+      let some ty := bvars.get? (n - skip) | throwError "bvar not found in safe expr extraction"
+      mkFreshExprMVar (some ty)
+  | x@(.const _ _) | x@(.sort _) | x@(.mvar (MVarId.mk _)) | x@(.fvar (FVarId.mk _)) | x@(.lit _) => pure x
+
+-- Does this exist somewhere?
+def safeInfer (conf : TransCfg) (e : Expr) : TermElabM Expr := do inferType (←transformForInfer conf.bvarTypes 0 e)
+
+example : (x : ℕ) × (y : ℕ) × Fin x := ⟨10, 0, 1⟩
+example : (x : ℕ) × (y : ℕ) × Fin x := Sigma.mk 10 (Sigma.mk 0 1)
+
+#check Sigma.mk
+#elab (⟨10, ()⟩ : (a : ℕ) × Unit)
+
+-- TODO: make unification guard
+
+def recallConstructor (conf : TransCfg) (id : MVarId) : Expr → TermElabM Unit
+  | x@(.app a b) => do
+    trace[QPF] s!"|- arg     {←ppExpr $ ←id.getType}\n               {←ppExpr x}"
+    let lhs ← mkFreshExprMVar none
+    let rhs ← mkFreshExprMVar none
+
+    let deeper ← mkFreshExprMVar (some lhs)
+    let deeperId := deeper.mvarId!
+
+    let u0 ← mkFreshLevelMVar
+    let u1 ← mkFreshLevelMVar
+
+    let ty := mkApp2 (.const ``Sigma [u0, u1]) lhs rhs
+    match ← isDefEq (←id.getType) ty with
+    | .true =>
+      recallConstructor conf deeperId a
+      /- let .true ← isDefEq (.app rhs deeper) (←safeInfer conf b) | throwError "Failed to unify arg ty {←ppExpr (←safeInfer conf b)} with {←ppExpr (.app rhs deeper)}" -/
+      let expr := mkApp4 (.const ``Sigma.mk [u0, u1]) lhs rhs deeper b
+
+      let .true ← isDefEq (←id.getType) (←safeInfer conf expr) | throwError "Failed to unify exprs"
+
       id.assign expr
-      return
-  catch | _ => pure ()
+    | .false =>
+      let .true ← isDefEq (←id.getType) (←safeInfer conf b) | throwError "Failed to unify final arg with ty"
+      id.assign b
+  | _ => unreachable! -- See the precondition for when this function is called
+
+-- Can be made terminating using gas but not really that necacerry now
+partial def muncher (conf : TransCfg) (id : MVarId) (simpleArgs : List Expr) (expr : Expr) : TermElabM Unit := do
+  if let .true ← isDefEq (←safeInfer conf expr) (←id.getType) then
+    trace[QPF] s!"|- escape  {←ppExpr $ ←id.getType}\n               {←ppExpr expr}"
+    id.assign expr
+    return
 
   let deeperTyMVar ← mkFreshExprMVar none
-  let e := (mkApp2 (.const ``MvQPF.DTSum [0]) (←mkFreshExprMVar none) deeperTyMVar)
+  let recallTyMVar ← mkFreshExprMVar none
+  let e := (mkApp2 (.const ``MvQPF.DTSum [0]) recallTyMVar deeperTyMVar)
 
   if ←isDefEq e (←id.getType) then
     let cont e := do
@@ -143,24 +175,34 @@ partial def muncher (config : TransCfg) (id : MVarId) (simpleArgs : List Expr) (
       let contMVar ← mkFreshExprMVar $ some deeperTyMVar
       let contMVarId := contMVar.mvarId!
 
-      let expr := mkApp3 (.const ``MvQPF.DTSum.cont [0]) (←mkFreshExprMVar none) deeperTyMVar contMVar
+      let expr := mkApp3 (.const ``MvQPF.DTSum.cont [0]) recallTyMVar deeperTyMVar contMVar
 
       let .true ← isDefEq (←inferType expr) (←id.getType) | throwError "Failed to decend deeper into expression"
 
-      muncher config contMVarId [] e
+      muncher conf contMVarId [] e
       id.assign expr
 
     match expr with
-    | x@(.app a b) =>
+    | x@(.app a _) =>
       let rec nm | .app v _ => nm v | x => x
       let nm := nm a
-      if nm == .bvar config.recIdx then
-        throwError "app"
+      if nm == .bvar conf.recIdx then
+        -- precondition: If this is the case then we know the structure is a series of apps then a bvar
+        let extractionPoint ← mkFreshExprMVar $ some recallTyMVar
+        let extractionPointId := extractionPoint.mvarId!
+
+        recallConstructor conf extractionPointId x
+
+        let expr := mkApp3 (.const ``MvQPF.DTSum.recall [0]) recallTyMVar deeperTyMVar extractionPoint
+        let .true ← isDefEq (←inferType expr) (←id.getType) | throwError "Failed to decend deeper into expression"
+
+        trace[QPF] s!"assigned constructor {←ppExpr extractionPoint}"
+        id.assign expr
       else cont x
     | x@(.bvar n) =>
-      if n = config.recIdx then
+      if n = conf.recIdx then
         trace[QPF] s!"|- bvar    {←ppExpr $ ←id.getType}\n               {←ppExpr x}"
-        let expr := mkApp3 (.const ``MvQPF.DTSum.recall [0]) (.const ``Unit []) (←mkFreshExprMVar none) (.const ``Unit.unit [])
+        let expr := mkApp3 (.const ``MvQPF.DTSum.recall [0]) (.const ``Unit []) deeperTyMVar (.const ``Unit.unit [])
 
         let .true ← isDefEq (←inferType expr) (←id.getType) | throwError "Used recursive call like unit recall but correct type is non unit"
         trace[QPF] "Inserted unit recall point"
@@ -171,10 +213,10 @@ partial def muncher (config : TransCfg) (id : MVarId) (simpleArgs : List Expr) (
   else
     let tryInjExit exprTy expr := do
       trace[QPF] "Attempting injection"
-      let .true ← isDefEq exprTy config.srcTy       | throwError "Failed to unify {←ppExpr exprTy} with {←ppExpr config.srcTy} in {←ppExpr expr}"
-      let .true ← isDefEq (←id.getType) config.dtTy | throwError "Goal type {←ppExpr (←id.getType)} failed to unify with {←ppExpr config.dtTy} when trying injection"
+      let .true ← isDefEq exprTy conf.srcTy       | throwError "Failed to unify {←ppExpr exprTy} with {←ppExpr conf.srcTy} in {←ppExpr expr}"
+      let .true ← isDefEq (←id.getType) conf.dtTy | throwError "Goal type {←ppExpr (←id.getType)} failed to unify with {←ppExpr conf.dtTy} when trying injection"
 
-      let e : Expr ← config.typeArity.repeatM (return .app · (←mkFreshExprMVar none)) (.const (config.ns ++ `DeepThunk.inj) [])
+      let e : Expr ← conf.typeArity.repeatM (return .app · (←mkFreshExprMVar none)) (.const (conf.ns ++ `DeepThunk.inj) [])
       let e := mkApp2 e (←mkFreshExprMVar none) expr
       let .true ← isDefEq (←id.getType) (←inferType e) | throwError "Failed to unify injection"
       id.assign e
@@ -188,7 +230,7 @@ partial def muncher (config : TransCfg) (id : MVarId) (simpleArgs : List Expr) (
       try x := typeIsType (←inferType b) catch _ => pure ()
 
       if x then
-        muncher config id (b :: simpleArgs) a
+        muncher conf id (b :: simpleArgs) a
       else
         let bname    ← mkFreshBinderName
         let  fnAMVar ← mkFreshExprMVar none
@@ -202,10 +244,10 @@ partial def muncher (config : TransCfg) (id : MVarId) (simpleArgs : List Expr) (
         let .true ← isDefEq (← inferType expr) (←id.getType) | unreachable! -- Most generic choice
         id.assign expr
 
-        muncher config aMVarId [] a
+        muncher conf aMVarId [] a
         let .true ← isDefEq (← inferType expr) (←id.getType) | throwError "failed to unify lhs with full application"
         /- let .true ← isDefEq (← inferType b) (←b.getType) | throwError "failed to unify" -/
-        muncher config bMVarId [] b
+        muncher conf bMVarId [] b
 
     | .proj nm id s => throwError "unimplemented prj"
     | .mdata data a => throwError "todo"
@@ -223,7 +265,7 @@ partial def muncher (config : TransCfg) (id : MVarId) (simpleArgs : List Expr) (
       id.assign expr
       let .true ← isDefEq (← inferType expr) (←id.getType) | unreachable!
 
-      muncher ({ config with bvarTypes := tyMVar :: config.bvarTypes }) mVarId [] body
+      muncher ({ conf with bvarTypes := tyMVar :: conf.bvarTypes }) mVarId [] body
 
     | x@(.const name uls) =>
       trace[QPF] s!">- const   {←ppExpr $ ←id.getType}\n               {←ppExpr x}"
@@ -238,7 +280,7 @@ partial def muncher (config : TransCfg) (id : MVarId) (simpleArgs : List Expr) (
         trace[QPF] s!"Selected base const: {name}"
         id.assign consWithApps
       | .false =>
-        let some newCtor := config.constructors.find? name | tryInjExit (←inferType x) x
+        let some newCtor := conf.constructors.find? name | tryInjExit (←inferType x) x
         let expr := .app (mkApp (Expr.const newCtor [])) (← (mkFreshExprMVar none))
 
         let .true ← isDefEq (←id.getType) (←inferType expr) | throwError "Failed to unify new DeepThunk constructor with target"
@@ -248,13 +290,13 @@ partial def muncher (config : TransCfg) (id : MVarId) (simpleArgs : List Expr) (
 
     | x@(.bvar n) =>
       trace[QPF] s!">- bvar    {←ppExpr $ ←id.getType}\n               {←ppExpr x}"
-      if n = config.recIdx then
+      if n = conf.recIdx then
         throwError "TODO: make this handle unguarded corec points correctly"
         /- /- throwError "un" -/ -/
         /- if config.recIdx = 0 then pure ⟨.app (.const ``Sum.inr []) (.const ``Unit []), config⟩ -/
         /- else throwError "Should have been handled in app" -/
       else
-        let some ty := config.bvarTypes[n]? | unreachable!
+        let some ty := conf.bvarTypes[n]? | unreachable!
         let .true ← isDefEq ty (←id.getType) | throwError "Failed to unify bound variable with expected type"
         id.assign $ .bvar n
         trace[QPF] "bvar unified"
@@ -262,13 +304,13 @@ partial def muncher (config : TransCfg) (id : MVarId) (simpleArgs : List Expr) (
       throwError "sorry"
       /- handleNonRec config x -/
 
+end
 
 partial def addDeepThunkToConstructorName : Syntax → TermElabM Syntax
   | .ident info  rawVal  val  preresolved => return .ident info rawVal (val ++ `DeepThunk) preresolved
   /- | .node nm => sorry -/
   | .node info ``Lean.Parser.Term.app #[a, b] => return .node info ``Lean.Parser.Term.app #[←addDeepThunkToConstructorName a, b]
-  | x =>
-    throwError "Unexpected type form"
+  | _ => throwError "Unexpected type form"
 
 def mkRecTypes (type : Term) (view : DataDefView) : TermElabM (Term) := do
   let recTy ← view.binders.reverse.foldlM (fun accum curr => do
@@ -278,6 +320,17 @@ def mkRecTypes (type : Term) (view : DataDefView) : TermElabM (Term) := do
   let ty ← `(($recTy) → $recTy)
 
   return ty
+
+#check Sigma.mk
+#elab (n : ℕ) × Fin n
+
+def mkRecCallTy (binders : Array BView) : TermElabM Term := do
+  match binders.reverse.data with
+  | .nil =>
+    let out ← `(Unit)
+    return out
+  | .cons hd tl =>
+    tl.foldlM (fun acc curr => `(($(curr.id):ident : $(curr.type)) × $acc)) hd.type
 
 open Parser.Term in
 @[command_elab declaration]
@@ -319,7 +372,8 @@ def elabData : CommandElab := fun stx => do
 
     let recIdx := view.binders.size
 
-    let dtType ← `($(⟨← addDeepThunkToConstructorName type⟩):term $(mkIdent `Unit))
+    let recallTy ← mkRecCallTy view.binders
+    let dtType ← `($(⟨← addDeepThunkToConstructorName type⟩):term $recallTy)
 
     let srcTy ← elabTerm type none
     let dtTy ← elabTerm dtType none
@@ -329,29 +383,18 @@ def elabData : CommandElab := fun stx => do
 
     let binders ← view.binders.mapM fun x => `(funBinder| $(⟨x.id⟩):ident)
 
-    let stx ← `(fun ($recId:ident) $binders* => $(⟨body⟩))
+    let stx  ← `(fun ($recId:ident) $binders* => $(⟨body⟩))
     let type ← Elab.Term.elabTerm fullTy none
-
-    let body ← Elab.Term.elabTerm stx (some type)
 
     let mVar    ← mkFreshExprMVar none
     let mVarId := mVar.mvarId!
 
     let dtTypeE ← elabTerm fullDtTy none
 
-    /- let recTy ← view.binders.reverse.foldlM (fun accum curr => do -/
-    /-   let v ← bvToFb curr -/
-    /-   `($v:bracketedBinder → $accum) -/
-    /-   ) type -/
-    /- let ty ← `(($recTy) → $recTy) -/
-
     let .true ← isDefEq (← mVarId.getType) dtTypeE | throwError "Failed to unify"
 
+    let body ← Elab.Term.elabTerm stx (some type)
 
-    /- let opTy  ← view.binders.foldlM (fun body curr => (.lam curr.name · body curr.bi) <$> elabTerm curr.type none) (Expr.mvar mVarId) -/
-    /- let opTy := .lam recName (←elabTerm recTy none) opTy .default -/
-
-    /- trace[QPF] ←ppExpr $ muncher config opTy -/
     muncher ({
       constructors
       view
@@ -367,6 +410,8 @@ def elabData : CommandElab := fun stx => do
       bvarTypes := []
     }) mVarId [] body
 
+    trace[QPF] "Result: {←ppExpr mVar}"
+
     pure ()
 
   liftTermElabM $ withoutPostponing $ withSynthesize $ withoutErrToSorry $ withDeclName view.declName main
@@ -374,26 +419,4 @@ def elabData : CommandElab := fun stx => do
 
 end Datadef.Command
 
-/- open Parser.Term -/
-/- elab "#test" t:term : command => -/
-/-   liftTermElabM do -/
-/-     withoutPostponing do -/
-/-     withSynthesize do -/
-/-     withoutErrToSorry do -/
-/-     withDeclName `lol do -/
 
-/-     let x ← Elab.Term.elabTerm t none -/
-/-     let xType ← inferType x -/
-/-     let xChecked ← Elab.Term.ensureHasType xType x -/
-/-     let xFinal ← instantiateMVars xChecked -/
-
-/-     let env ← getEnv -/
-
-/-     trace[QPF] (← ppExpr xFinal) -/
-/-     trace[QPF] (repr xFinal) -/
-
-/-     let some x := env.find? `lol.match_1 | pure () -/
-/-     trace[QPF] x.type -/
-/-     trace[QPF] (← ppExpr x.type) -/
-
-/- #test (0).succ -/
