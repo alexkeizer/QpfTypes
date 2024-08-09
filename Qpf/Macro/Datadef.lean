@@ -100,9 +100,6 @@ structure TransCfg where
 -- TODO: Wont work for 1) Dead vars 2) higher universe types
 def typeIsType : Expr → Bool := Expr.isType0
 
-section
-/- variable () -/
-
 def transformForInfer (bvars : List Expr) (skip : ℕ) : Expr → TermElabM Expr
   | .app a b => return .app (←transformForInfer bvars skip a) (←transformForInfer bvars skip b)
   | .proj nm id s => return .proj nm id (←transformForInfer bvars skip s)
@@ -160,10 +157,20 @@ def recallConstructor (conf : TransCfg) (id : MVarId) : Expr → TermElabM Unit
       id.assign b
   | _ => unreachable! -- See the precondition for when this function is called
 
+inductive TraceTy
+  | standard
+  | corecPt
+
+instance : ToString TraceTy := ⟨fun | .standard => ">-" | .corecPt => "|-"⟩
+
+def tr (ty : TraceTy) (lbl : String) (id : MVarId) (expr : Expr) : TermElabM Unit := do
+  trace[QPF] s!"{ty} {lbl.leftpad 9 ' '} {←ppExpr $ ←id.getType}\n               {←ppExpr expr}"
+
 -- Can be made terminating using gas but not really that necacerry now
+mutual
 partial def muncher (conf : TransCfg) (id : MVarId) (simpleArgs : List Expr) (expr : Expr) : TermElabM Unit := do
   if let .true ← isDefEq (←safeInfer conf expr) (←id.getType) then
-    trace[QPF] s!"|- escape  {←ppExpr $ ←id.getType}\n               {←ppExpr expr}"
+    tr .corecPt "escape" id expr
     id.assign expr
     return
 
@@ -173,7 +180,7 @@ partial def muncher (conf : TransCfg) (id : MVarId) (simpleArgs : List Expr) (ex
 
   if ←isDefEq e (←id.getType) then
     let cont e := do
-      trace[QPF] s!"|- deeper  {←ppExpr $ ←id.getType}\n               {←ppExpr e}"
+      tr .corecPt "deeper" id expr
 
       let contMVar ← mkFreshExprMVar $ some deeperTyMVar
       let contMVarId := contMVar.mvarId!
@@ -204,7 +211,7 @@ partial def muncher (conf : TransCfg) (id : MVarId) (simpleArgs : List Expr) (ex
       else cont x
     | x@(.bvar n) =>
       if n = conf.recIdx then
-        trace[QPF] s!"|- bvar    {←ppExpr $ ←id.getType}\n               {←ppExpr x}"
+        tr .corecPt "bvar" id expr
         let expr := mkApp3 (.const ``MvQPF.DTSum.recall [0]) (.const ``Unit []) deeperTyMVar (.const ``Unit.unit [])
 
         unify (inferType expr) id.getType "Used recursive call like unit recall but correct type is non unit"
@@ -227,8 +234,8 @@ partial def muncher (conf : TransCfg) (id : MVarId) (simpleArgs : List Expr) (ex
       trace[QPF] "Injection successful {←ppExpr e} with type {←ppExpr $ ←inferType e}"
 
     match expr with
-    | x@(.app a b) => 
-      trace[QPF] s!">- app     {←ppExpr $ ←id.getType}\n               {←ppExpr x}"
+    | .app a b => 
+      tr .standard "app" id expr
       let mut x := .false
       try x := typeIsType (←inferType b) catch _ => pure ()
 
@@ -255,8 +262,8 @@ partial def muncher (conf : TransCfg) (id : MVarId) (simpleArgs : List Expr) (ex
     | .mdata data a => throwError "todo"
     | .letE declName type value body nonDep => throwError "unimplemented letE"
     | .forallE name type body info => throwError "unimplemented forallE"
-    | x@(.lam name _ body info) =>
-      trace[QPF] s!">- lam     {←ppExpr $ ←id.getType}\n               {←ppExpr x}"
+    | .lam name _ body info =>
+      tr .standard "lam" id expr
       let mVar    ← mkFreshExprMVar none
       let mVarId := mVar.mvarId!
 
@@ -269,20 +276,20 @@ partial def muncher (conf : TransCfg) (id : MVarId) (simpleArgs : List Expr) (ex
 
       muncher ({ conf with bvarTypes := tyMVar :: conf.bvarTypes }) mVarId [] body
 
-    | x@(.const name uls) =>
-      trace[QPF] s!">- const   {←ppExpr $ ←id.getType}\n               {←ppExpr x}"
+    | .const name uls =>
+      tr .standard "const" id expr
       let env ← getEnv
       let some v := env.find? name | throwError "Failed to gather constant info"
 
       let mkApp  := (simpleArgs.foldl (Expr.app · ·) ·)
-      let consWithApps := mkApp x
+      let consWithApps := mkApp expr
 
       match ← isDefEq v.type (← id.getType) with
       | .true =>
         trace[QPF] s!"Selected base const: {name}"
         id.assign consWithApps
       | .false =>
-        let some newCtor := conf.constructors.find? name | tryInjExit (←inferType x) x
+        let some newCtor := conf.constructors.find? name | tryInjExit (←inferType expr) expr
         let expr := .app (mkApp (Expr.const newCtor [])) (← (mkFreshExprMVar none))
 
         unify id.getType (inferType expr) "Failed to unify new DeepThunk constructor with target"
@@ -290,8 +297,8 @@ partial def muncher (conf : TransCfg) (id : MVarId) (simpleArgs : List Expr) (ex
         id.assign expr
         trace[QPF] s!"Selected const: {newCtor}"
 
-    | x@(.bvar n) =>
-      trace[QPF] s!">- bvar    {←ppExpr $ ←id.getType}\n               {←ppExpr x}"
+    | .bvar n =>
+      tr .standard "bvar" id expr
       if n = conf.recIdx then
         throwError "TODO: make this handle unguarded corec points correctly"
         /- /- throwError "un" -/ -/
@@ -305,7 +312,6 @@ partial def muncher (conf : TransCfg) (id : MVarId) (simpleArgs : List Expr) (ex
     | x@(.sort _) | x@(.mvar (MVarId.mk _)) | x@(.fvar (FVarId.mk _)) | x@(.lit _) =>
       throwError "sorry"
       /- handleNonRec config x -/
-
 end
 
 partial def addDeepThunkToConstructorName : Syntax → TermElabM Syntax
