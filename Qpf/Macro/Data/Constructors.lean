@@ -13,7 +13,6 @@ partial def countConstructorArgs : Syntax → Nat
   | Syntax.node _ ``Term.arrow #[_, _, tail]  =>  1 + (countConstructorArgs tail)
   | _                                         => 0
 
-
 open Elab
 /--
   Add convenient constructor functions to the environment
@@ -29,8 +28,6 @@ def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
     let pointConstructor := mkIdent ((DataCommand.fixOrCofix view.command).getId ++ `mk)
     let shapeCtor := mkIdent <| Name.replacePrefix ctor.declName view.declName shape
     trace[QPF] "shapeCtor = {shapeCtor}"
-
-
 
     let body ← if n_args = 0 then
         `($pointConstructor $shapeCtor)
