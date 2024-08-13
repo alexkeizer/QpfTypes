@@ -13,7 +13,6 @@ partial def countConstructorArgs : Syntax → Nat
   | Syntax.node _ ``Term.arrow #[_, _, tail]  =>  1 + (countConstructorArgs tail)
   | _                                         => 0
 
-
 def mkConstructorsWithNameAndType (view : DataView) (shape : Name) (nameGen : CtorView → Ident) (ty : Term) := do
   for ctor in view.ctors do
     trace[QPF] "mkConstructors\n{ctor.declName} : {ctor.type?}"
@@ -25,8 +24,6 @@ def mkConstructorsWithNameAndType (view : DataView) (shape : Name) (nameGen : Ct
     let pointConstructor := mkIdent ((DataCommand.fixOrCofix view.command).getId ++ `mk)
     let shapeCtor := mkIdent <| Name.replacePrefix ctor.declName view.declName shape
     trace[QPF] "shapeCtor = {shapeCtor}"
-
-
 
     let body ← if n_args = 0 then
         `($pointConstructor $shapeCtor)
@@ -60,6 +57,5 @@ def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
   let nameGen := (mkIdent <| ·.declName.replacePrefix (←getCurrNamespace) .anonymous)
 
   mkConstructorsWithNameAndType view shape nameGen explicit
-
 
 end Data.Command
