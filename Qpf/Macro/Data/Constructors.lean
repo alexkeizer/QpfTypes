@@ -1,7 +1,7 @@
 import Qpf.Macro.Data.Replace
 import Qpf.Macro.Data.View
 
-open Lean Meta Elab Elab.Command 
+open Lean Meta Elab Elab.Command
 open PrettyPrinter (delab)
 
 namespace Data.Command
