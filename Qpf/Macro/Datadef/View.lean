@@ -1,6 +1,7 @@
 
 import Lean
 import Qpf.Macro.Common
+import Qpf.Macro.ParserUtils
 
 open Lean
 open Meta Elab Elab.Command 
@@ -38,7 +39,7 @@ deriving instance Repr for Term.BinderView
 structure BView where
   name : Lean.Name
 
-  ref  : TSyntax ``Parser.Term.bracketedBinder
+  ref  : TSyntax ``Parser.Term.bracketedBinder -- TODO: This is incorrect and should be corrected
   id   : Ident
   type : Term
   bi   : BinderInfo
@@ -61,6 +62,12 @@ def BView.fromStx (stx : Syntax) : TermElabM (Array BView) :=
       bi
     }
   ) <$> toBinderViews stx
+
+def BView.toStx [Monad m] [MonadQuotation m] (bview : BView) : m $ TSyntax ``Parser.Term.bracketedBinder := do match bview.bi with
+  | .default        => `(bb|($(bview.id) : $(bview.type)))
+  | .implicit       => `(bb|{$(bview.id) : $(bview.type)})
+  | .strictImplicit => `(bb|⦃$(bview.id) : $(bview.type)⦄)
+  | .instImplicit   => `(bb|[$(bview.id) : $(bview.type)])
 
 structure DataDefView where
   kind          : DataDefCommand

@@ -85,6 +85,8 @@ instance {i : Fin2 n} : MvQPF (innerMapper i) := by cases i <;> infer_instance
 
 abbrev Uncurried (F : TypeFun n) [MvFunctor F] [MvQPF F] := Cofix (hoFunctor F)
 
+
+
 /--
   Between the original functor and the ⊕-composed functor there is an injection,
   it occurs by taking the right step at every point co-recursively.
