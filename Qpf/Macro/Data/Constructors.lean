@@ -13,7 +13,13 @@ partial def countConstructorArgs : Syntax → Nat
   | Syntax.node _ ``Term.arrow #[_, _, tail]  =>  1 + (countConstructorArgs tail)
   | _                                         => 0
 
-def mkConstructorsWithNameAndType (view : DataView) (shape : Name) (nameGen : CtorView → Ident) (ty : Term) := do
+/--
+  Add definitions for constructors
+  that are generic across two input types shape and name.
+  Additionally we allow the user to control how names are generated.
+-/
+def mkConstructorsWithNameAndType (view : DataView) (shape : Name)
+    (nameGen : CtorView → Name) (ty : Term) : CommandElabM Unit := do
   for ctor in view.ctors do
     trace[QPF] "mkConstructors\n{ctor.declName} : {ctor.type?}"
     let n_args := (ctor.type?.map countConstructorArgs).getD 0
@@ -38,7 +44,7 @@ def mkConstructorsWithNameAndType (view : DataView) (shape : Name) (nameGen : Ct
         name := `matchPattern
       }]
     }
-    let declId := nameGen ctor
+    let declId := mkIdent $ nameGen ctor
 
     let cmd ← `(
       $(quote modifiers):declModifiers
@@ -54,7 +60,7 @@ def mkConstructorsWithNameAndType (view : DataView) (shape : Name) (nameGen : Ct
 -/
 def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
   let explicit ← view.getExplicitExpectedType
-  let nameGen := (mkIdent <| ·.declName.replacePrefix (←getCurrNamespace) .anonymous)
+  let nameGen := (·.declName.replacePrefix (←getCurrNamespace) .anonymous)
 
   mkConstructorsWithNameAndType view shape nameGen explicit
 
