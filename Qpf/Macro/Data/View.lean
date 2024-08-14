@@ -121,11 +121,17 @@ def DataView.addDeclNameSuffix (view : DataView) (suffix : String) : DataView
       { view with declName, declId, shortDeclName }
 
 
+/--
+  Returns the fully applied form of the type to be defined.
+  The `name` parameter allows the user to control what the const at the bottom of the type is.
+  This lets the user get types that have the same parameters such as the DeepThunk types.
+-/
+def DataView.getExpectedTypeWithName (view : DataView) (name : Name) : Term :=
+  Macro.getBinderIdents view.binders.getArgs false |> Syntax.mkApp (mkIdent name)
+
 /-- Returns the fully applied form of the type to be defined -/
-def DataView.getExpectedType (view : DataView) : Term
-  := Syntax.mkApp (mkIdent view.shortDeclName) (
-    (Macro.getBinderIdents view.binders.getArgs false)
-  )  
+def DataView.getExpectedType (view : DataView) : Term :=
+  view.getExpectedTypeWithName view.shortDeclName
 
 /-- Returns the fully applied, explicit (`@`) form of the type to be defined -/
 def DataView.getExplicitExpectedType (view : DataView) : CommandElabM Term
