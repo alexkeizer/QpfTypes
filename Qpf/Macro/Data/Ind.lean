@@ -5,6 +5,7 @@ import Qpf.Qpf.Multivariate.Constructions.DeepThunk
 import Qpf.Macro.Data.Constructors
 import Qpf.Macro.Data.RecForm
 import Qpf.Macro.Data.View
+import Qpf.Macro.ParserUtils
 import Qpf.Macro.Common
 import Qpf.Util.Vec
 
@@ -12,22 +13,7 @@ open Lean.Parser (Parser)
 open Lean Meta Elab.Command Elab.Term Parser.Term
 open Lean.Parser.Tactic (inductionAlt)
 
-
-
 def flattenForArg (n : Name) := Name.str .anonymous $ n.toStringWithSep "_" true
-
-/-- Both `bracketedBinder` and `matchAlts` have optional arguments,
-which cause them to not by recognized as parsers in quotation syntax
-(that is, ``` `(bracketedBinder| ...) ``` does not work).
-To work around this, we define aliases that force the optional argument to it's default value, 
-so that we can write ``` `(bb| ...) ```instead. -/
-abbrev bb            : Parser := bracketedBinder
-abbrev matchAltExprs : Parser := matchAlts
-
-/- Since `bb` and `matchAltExprs` are aliases for `bracketedBinder`, resp. `matchAlts`,
-we can safely coerce syntax of these categories  -/
-instance : Coe (TSyntax ``bb) (TSyntax ``bracketedBinder)      where coe x := ⟨x.raw⟩
-instance : Coe (TSyntax ``matchAltExprs) (TSyntax ``matchAlts) where coe x := ⟨x.raw⟩
 
 section
 variable {m} [Monad m] [MonadQuotation m] [MonadError m] [MonadTrace m] [AddMessageContext m]
@@ -269,6 +255,7 @@ def genForCoData : CommandElabM Unit := do
 
   let uncA := view.shortDeclName ++ `Unc |> mkIdent
   let uncDtA := view.shortDeclName ++ `DeepThunk.Unc |> mkIdent
+  let injName := view.shortDeclName ++ `DeepThunk.inj |> mkIdent
 
   let curryUncurryEq ← `(command|
     theorem $uncA :
@@ -319,13 +306,14 @@ def genForCoData : CommandElabM Unit := do
     instance {ζ}: $Coe ($dtUncurr) ($dtCurr) :=
       ⟨fun x => by rw [$uncDtA:ident]; exact x⟩
   )
-  let inj : Lean.Syntax.Command ← `(
-    instance {ζ}: $Coe ($tCurr) ($dtCurr) :=
-      ⟨fun x =>
+  let injDef : Lean.Syntax.Command ← `(
+    def $injName {ζ} (x : $tCurr) : $dtCurr :=
         let x : $tUncurr := x
         let x : $dtUncurr := $(mkIdent ``MvQPF.DeepThunk.inject) x
         x
-      ⟩
+  )
+  let inj : Lean.Syntax.Command ← `(
+    instance {ζ}: $Coe ($tCurr) ($dtCurr) := ⟨$injName⟩
   )
   let dtCorec : Lean.Syntax.Command ← `(
     def $(view.shortDeclName ++ `DeepThunk.corec |> mkIdent) { ζ } (f : ζ → $dtCurr) (v : ζ) : $tCurr :=
@@ -356,14 +344,15 @@ def genForCoData : CommandElabM Unit := do
   elabCommand ru
   elabCommand lud
   elabCommand rud
+  elabCommand injDef
   elabCommand inj
 
   elabCommand dtCorec
 
-  dbg_trace shape
+
   Data.Command.mkConstructorsWithNameAndType view shape (fun ctor =>
-    (view.declName ++ `DeepThunk ++ (ctor.declName.replacePrefix view.declName .anonymous) |> mkIdent))
-    (← `(ζ ⊕ ($dtCurr)))
+    (view.shortDeclName ++ `DeepThunk ++ (ctor.declName.replacePrefix view.declName .anonymous) |> mkIdent))
+    (← `($(mkIdent ``MvQPF.DTSum) ζ ($dtCurr)))
     dtCurr
     (#[(← `(bb|{ ζ : Type }) : TSyntax ``bracketedBinder)])
 
