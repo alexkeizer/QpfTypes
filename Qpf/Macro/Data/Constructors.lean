@@ -1,4 +1,5 @@
 import Qpf.Macro.Data.Replace
+import Qpf.Macro.Data.RecForm
 import Qpf.Macro.Data.View
 
 open Lean Meta Elab Elab.Command
@@ -17,9 +18,13 @@ partial def countConstructorArgs : Syntax → Nat
   Add definitions for constructors
   that are generic across two input types shape and name.
   Additionally we allow the user to control how names are generated.
+  The binders param allows for adding constant binders to an expression.
 -/
-def mkConstructorsWithNameAndType (view : DataView) (shape : Name)
-    (nameGen : CtorView → Name) (ty : Term) : CommandElabM Unit := do
+def mkConstructorsWithNameAndType
+    (view : DataView) (shape : Name)
+    (nameGen : CtorView → Name) (argTy retTy : Term)
+    (binders : TSyntaxArray ``Parser.Term.bracketedBinder)
+    : CommandElabM Unit := do
   for ctor in view.ctors do
     trace[QPF] "mkConstructors\n{ctor.declName} : {ctor.type?}"
     let n_args := (ctor.type?.map countConstructorArgs).getD 0
@@ -36,8 +41,12 @@ def mkConstructorsWithNameAndType (view : DataView) (shape : Name)
       else
         `(fun $args:ident* => $pointConstructor ($shapeCtor $args:ident*))
 
-    let type : Term := TSyntax.mk <|
-      (ctor.type?.map fun type => Replace.replaceAllStx view.getExpectedType ty type).getD ty
+    let recType := view.getExpectedType
+    let forms := RecursionForm.extract ctor recType
+
+    let x := forms.map $ RecursionForm.replaceRec view.getExpectedType argTy
+    let type ← RecursionForm.toType retTy x
+
     let modifiers : Modifiers := {
       isNoncomputable := view.modifiers.isNoncomputable
       attrs := #[{
@@ -48,7 +57,7 @@ def mkConstructorsWithNameAndType (view : DataView) (shape : Name)
 
     let cmd ← `(
       $(quote modifiers):declModifiers
-      def $declId:ident : $type := $body:term
+      def $declId:ident $binders*: $type := $body:term
     )
 
     trace[QPF] "mkConstructor.cmd = {cmd}"
@@ -62,6 +71,6 @@ def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
   let explicit ← view.getExplicitExpectedType
   let nameGen := (·.declName.replacePrefix (←getCurrNamespace) .anonymous)
 
-  mkConstructorsWithNameAndType view shape nameGen explicit
+  mkConstructorsWithNameAndType view shape nameGen explicit explicit #[]
 
 end Data.Command
