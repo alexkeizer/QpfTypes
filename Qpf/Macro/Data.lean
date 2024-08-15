@@ -59,11 +59,6 @@ end
 -/
 open Elab.Term (TermElabM)
 
-
-
-
-
-
 def CtorView.declReplacePrefix (pref new_pref : Name) (ctor: CtorView) : CtorView :=
   let declName := ctor.declName.replacePrefix pref new_pref
   {
@@ -409,8 +404,6 @@ def isPolynomial (view : DataView) (F: Term) : CommandElabM (Option Term) := do
       catch e =>
         trace[QPF] "{e.toMessageData}"
         return none
-
-
 
 /--
   Take either the fixpoint or cofixpoint of `base` to produce an `Internal` uncurried QPF,

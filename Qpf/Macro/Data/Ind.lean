@@ -233,12 +233,12 @@ def genForCoData : CommandElabM Unit := do
 
   let corecType := view.getExpectedType
 
-  let base := view.shortDeclName ++ `Base |> mkIdent
+  let base := view.shortDeclName ++ `Base
 
   let corecDef : Command ← `(
     def $(view.shortDeclName ++ `corec |> mkIdent):ident
         { β }
-        (f : β → $(view.getExpectedTypeWithId base) β)
+        (f : β → $(view.getExpectedTypeWithName base) β)
         : β → $corecType
       := $(mkIdent ``MvQPF.Cofix.corec) f)
 
@@ -254,7 +254,9 @@ def genForCoData : CommandElabM Unit := do
   let idTyFunCurriedAux := mkIdent ``TypeFun.curriedAux
   let idRevArgs := mkIdent ``TypeFun.reverseArgs
 
-  let dtId := view.shortDeclName ++ `DeepThunk |> mkIdent
+  let dtName := view.shortDeclName ++ `DeepThunk
+  let dtId := mkIdent dtName
+
 
   let deepThunk ← `(command|
     abbrev $dtId:ident :=
@@ -262,7 +264,7 @@ def genForCoData : CommandElabM Unit := do
 
   let tCurr := view.getExpectedType
   let tUncurr ← `($(view.shortDeclName ++ `Uncurried |> mkIdent) $vec)
-  let dtCurr ← `($(view.getExpectedTypeWithId dtId) ζ)
+  let dtCurr ← `($(view.getExpectedTypeWithName dtName) ζ)
   let dtUncurr ← `( $(``MvQPF.DeepThunk.Uncurried |> mkIdent)
     $(view.shortDeclName ++ `Base.Uncurried |> mkIdent)
     ($(mkIdent ``TypeVec.append1) $vec ζ))
@@ -362,7 +364,7 @@ def genForCoData : CommandElabM Unit := do
 
   dbg_trace shape
   Data.Command.mkConstructorsWithNameAndType view shape (fun ctor =>
-    (view.declName ++ `DeepThunk ++ (ctor.declName.replacePrefix view.declName .anonymous) |> mkIdent))
+    (view.declName ++ `DeepThunk ++ ctor.declName.replacePrefix view.declName .anonymous))
     (← `(ζ ⊕ ($dtCurr)))
     dtCurr
     (#[(← `(bb|{ ζ : Type }) : TSyntax ``bracketedBinder)])

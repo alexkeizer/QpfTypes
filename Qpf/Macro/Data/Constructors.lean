@@ -2,7 +2,7 @@ import Qpf.Macro.Data.Replace
 import Qpf.Macro.Data.RecForm
 import Qpf.Macro.Data.View
 
-open Lean Meta Elab Elab.Command 
+open Lean Meta Elab Elab.Command
 open PrettyPrinter (delab)
 
 namespace Data.Command
@@ -14,13 +14,17 @@ partial def countConstructorArgs : Syntax → Nat
   | Syntax.node _ ``Term.arrow #[_, _, tail]  =>  1 + (countConstructorArgs tail)
   | _                                         => 0
 
-
+/--
+  Add definitions for constructors
+  that are generic across two input types shape and name.
+  Additionally we allow the user to control how names are generated.
+  The binders param allows for adding constant binders to an expression.
+-/
 def mkConstructorsWithNameAndType
     (view : DataView) (shape : Name)
-    (nameGen : CtorView → Ident) (argTy retTy : Term)
+    (nameGen : CtorView → Name) (argTy retTy : Term)
     (binders : TSyntaxArray ``Parser.Term.bracketedBinder)
-
-  := do
+    : CommandElabM Unit := do
   for ctor in view.ctors do
     trace[QPF] "mkConstructors\n{ctor.declName} : {ctor.type?}"
     let n_args := (ctor.type?.map countConstructorArgs).getD 0
@@ -31,8 +35,6 @@ def mkConstructorsWithNameAndType
     let pointConstructor := mkIdent ((DataCommand.fixOrCofix view.command).getId ++ `mk)
     let shapeCtor := mkIdent <| Name.replacePrefix ctor.declName view.declName shape
     trace[QPF] "shapeCtor = {shapeCtor}"
-
-
 
     let body ← if n_args = 0 then
         `($pointConstructor $shapeCtor)
@@ -51,7 +53,7 @@ def mkConstructorsWithNameAndType
         name := `matchPattern
       }]
     }
-    let declId := nameGen ctor
+    let declId := mkIdent $ nameGen ctor
 
     let cmd ← `(
       $(quote modifiers):declModifiers
@@ -67,7 +69,7 @@ def mkConstructorsWithNameAndType
 -/
 def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
   let explicit ← view.getExplicitExpectedType
-  let nameGen := (mkIdent <| ·.declName.replacePrefix (←getCurrNamespace) .anonymous)
+  let nameGen := (·.declName.replacePrefix (←getCurrNamespace) .anonymous)
 
   mkConstructorsWithNameAndType view shape nameGen explicit explicit #[]
 
