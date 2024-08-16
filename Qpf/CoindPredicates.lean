@@ -202,13 +202,13 @@ coinductive Bisim (fsm : FSM) : fsm.S → fsm.S → Prop :=
     → (∀ t' ∈ fsm.d t, ∃ s' ∈ fsm.d s, Bisim s' t')
     → Bisim s t
 
-example : Bisim f a a := by
+theorem bisim_refl : Bisim f a a := by
   exists fun a b => a = b
   simp only [and_true]
   intro s t seqt
   simp_all
 
-example (h : Bisim f a b): Bisim f b a := by
+theorem bisim_symm (h : Bisim f a b): Bisim f b a := by
   rcases h with ⟨rel, relIsBisim, rab⟩
   use fun a b => rel b a
   simp_all
@@ -216,7 +216,7 @@ example (h : Bisim f a b): Bisim f b a := by
   specialize relIsBisim holds
   simp_all only [implies_true, and_self]
 
-example (x : Bisim f a b) (y : Bisim f b c) : Bisim f a c := by
+theorem bisim_trans (x : Bisim f a b) (y : Bisim f b c) : Bisim f a c := by
   rcases x with ⟨wx, pix, rab⟩
   rcases y with ⟨wy, piy, rac⟩
   use fun a c => ∃ b, wx a b ∧ wy b c
@@ -244,6 +244,16 @@ example (x : Bisim f a b) (y : Bisim f b c) : Bisim f a c := by
       simp_all only [true_and]
       use wb
   · use b
+
+/-- info: 'Test.bisim_trans' depends on axioms: [propext] -/
+#guard_msgs in
+#print axioms bisim_trans
+/-- info: 'Test.bisim_symm' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms bisim_symm
+/-- info: 'Test.bisim_refl' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms bisim_refl
 
 end Test
 
