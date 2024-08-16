@@ -71,6 +71,6 @@ def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
   let explicit ← view.getExplicitExpectedType
   let nameGen := (·.declName.replacePrefix (←getCurrNamespace) .anonymous)
 
-  mkConstructorsWithNameAndType view shape nameGen explicit explicit #[]
+  mkConstructorsWithNameAndType view shape nameGen explicit explicit (binders := #[])
 
 end Data.Command
