@@ -202,11 +202,20 @@ coinductive Bisim (fsm : FSM) : fsm.S → fsm.S → Prop :=
     → (∀ t' ∈ fsm.d t, ∃ s' ∈ fsm.d s, Bisim s' t')
     → Bisim s t
 
+macro "coinduction " "using" P:term "with" ids:(ppSpace colGt ident)+ : tactic =>
+  let ids := ids
+  `(tactic| (exists $P; constructor; intro $ids*))
+
 theorem bisim_refl : Bisim f a a := by
   exists fun a b => a = b
   simp only [and_true]
   intro s t seqt
   simp_all
+
+theorem bisim_refl' : Bisim f a a := by
+  coinduction using (· = ·) with s t h_Rst
+  · simp [h_Rst]
+  · rfl
 
 theorem bisim_symm (h : Bisim f a b): Bisim f b a := by
   rcases h with ⟨rel, relIsBisim, rab⟩
