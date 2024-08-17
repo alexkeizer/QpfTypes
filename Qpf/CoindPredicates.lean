@@ -258,3 +258,37 @@ theorem bisim_trans (x : Bisim f a b) (y : Bisim f b c) : Bisim f a c := by
 end Test
 
 
+namespace WeakBisimTest
+
+/-- An FSM without input, but with silent/tau steps -/
+structure FSM where
+  S : Type
+  d : S → S
+  /-- if `o s = none`, it's a silent step -/
+  o : S → Option Bool
+
+coinductive WeakBisim (fsm : FSM) : fsm.S → fsm.S → Prop :=
+  | step {s t : fsm.S} :
+    (fsm.o s = fsm.o t)
+    → WeakBisim (fsm.d s) (fsm.d t)
+    → WeakBisim s t
+  | tauLeft {s t : fsm.S} :
+    fsm.o s = none → WeakBisim (fsm.d s) t → WeakBisim s t
+  | tauRight {s t : fsm.S} :
+    fsm.o t = none → WeakBisim s (fsm.d t) → WeakBisim s t
+
+/--
+info: def WeakBisimTest.WeakBisim : (fsm : FSM) → fsm.S → fsm.S → Prop :=
+fun fsm x x_1 => ∃ R, WeakBisim.Is fsm R ∧ R x x_1
+-/
+#guard_msgs in #print WeakBisim
+
+/--
+info: @[reducible] def WeakBisimTest.WeakBisim.Is : (fsm : FSM) → (fsm.S → fsm.S → Prop) → Prop :=
+fun fsm WeakBisim =>
+  (∀ {s t : fsm.S}, WeakBisim s t → (
+    fsm.o t = none ∧ WeakBisim s (fsm.d t) ∨
+    fsm.o s = fsm.o t ∧ WeakBisim (fsm.d s) (fsm.d t)) ∨
+    fsm.o s = none ∧ WeakBisim (fsm.d s) t))
+-/
+#guard_msgs in #print WeakBisim.Is
