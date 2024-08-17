@@ -431,8 +431,8 @@ def mkType (view : DataView) (base : Term × Term × Term) : CommandElabM Unit :
     abbrev $baseIdent:ident $view.deadBinders:bracketedBinder* : TypeFun $(quote <| arity + 1) :=
       $base
 
-    abbrev $baseIdExt $view.deadBinders:bracketedBinder*
-      := TypeFun.curried $baseApplied
+    abbrev $baseIdExt $view.deadBinders:bracketedBinder* := 
+      TypeFun.curried $baseApplied
 
     instance $baseFunctorIdent:ident : MvFunctor ($baseApplied) := $functor
     instance $baseQPFIdent:ident : MvQPF ($baseApplied) := $q
