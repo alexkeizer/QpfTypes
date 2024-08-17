@@ -1,6 +1,4 @@
 import Std.Tactic.OpenPrivate
-import Mathlib.Util.WhatsNew
-import Mathlib.Data.Set.Basic
 import Lean
 
 open Lean Meta Elab.Command
@@ -192,14 +190,13 @@ namespace Test
 
 structure FSM where
   S : Type
-  d : S → Set S
-  A : Set S
+  d : S → Nat → S
+  A : S → Prop
 
 coinductive Bisim (fsm : FSM) : fsm.S → fsm.S → Prop :=
   | step {s t : fsm.S} :
-    (s ∈ fsm.A ↔ t ∈ fsm.A)
-    → (∀ s' ∈ fsm.d s, ∃ t' ∈ fsm.d t, Bisim s' t')
-    → (∀ t' ∈ fsm.d t, ∃ s' ∈ fsm.d s, Bisim s' t')
+    (fsm.A s ↔ fsm.A t)
+    → (∀ c, Bisim (fsm.d s c) (fsm.d t c))
     → Bisim s t
 
 macro "coinduction " "using" P:term "with" ids:(ppSpace colGt ident)+ : tactic =>
@@ -219,40 +216,42 @@ theorem bisim_refl' : Bisim f a a := by
 
 theorem bisim_symm (h : Bisim f a b): Bisim f b a := by
   rcases h with ⟨rel, relIsBisim, rab⟩
-  use fun a b => rel b a
+  exists fun a b => rel b a
   simp_all
   intro a₁ b₁ holds
   specialize relIsBisim holds
   simp_all only [implies_true, and_self]
 
-theorem bisim_trans (x : Bisim f a b) (y : Bisim f b c) : Bisim f a c := by
-  rcases x with ⟨wx, pix, rab⟩
-  rcases y with ⟨wy, piy, rac⟩
-  use fun a c => ∃ b, wx a b ∧ wy b c
+theorem Bisim.unfold {f} : Bisim.Is f (Bisim f) := by
+  rintro s t ⟨R, h_is, h_Rst⟩
   constructor
-  · intro a c ⟨b, wab, wbc⟩
-    specialize pix wab
-    specialize piy wbc
-    rcases pix with ⟨⟨aimpb, bdrivea⟩, adriveb⟩
-    rcases piy with ⟨⟨bimpc, cdriveb⟩, bdrivec⟩
-    simp_all only [true_and]
-    constructor
-    <;> intro v vmem
-    · specialize cdriveb v vmem
-      rcases cdriveb with ⟨wb, wbmem, rvwb⟩
-      specialize bdrivea wb wbmem
-      rcases bdrivea with ⟨wa, wamem, rvwa⟩
-      use wa
-      simp_all only [true_and]
-      use wb
-    · specialize adriveb v vmem
-      rcases adriveb with ⟨wb, wbmem, rvwb⟩
-      specialize bdrivec wb wbmem
-      rcases bdrivec with ⟨wc, wcmem, rvwc⟩
-      use wc
-      simp_all only [true_and]
-      use wb
-  · use b
+  · exact (h_is h_Rst).1
+  · intro c; exact ⟨R, h_is, (h_is h_Rst).2 c⟩
+
+-- case principle!
+@[elab_as_elim]
+def Bisim.casesOn {f : FSM} {s t}
+    {motive : Bisim f s t → Prop}
+    (h : Bisim f s t)
+    (step : ∀ {s t}, (f.A s ↔ f.A t)
+      → (∀ c, Bisim f (f.d s c) (f.d t c)) → motive h) :
+    motive h := by
+  have ⟨R, h_is, h_R⟩ := h
+  have ⟨h₁, h₂⟩ := h_is h_R
+  apply step h₁ (fun c => ⟨R, h_is, h₂ c⟩)
+
+theorem bisim_trans (h_ab : Bisim f a b) (h_bc : Bisim f b c) :
+    Bisim f a c := by
+  coinduction
+    using (fun s t => ∃ u, Bisim f s u ∧ Bisim f u t)
+    with s t h_Rst
+  · rcases h_Rst with ⟨u, h_su, h_ut⟩
+    have ⟨h_su₁, h_su₂⟩ := h_su.unfold
+    have ⟨h_ut₁, h_ut₂⟩ := h_ut.unfold
+    refine ⟨?_, ?_⟩
+    · rw [h_su₁, h_ut₁]
+    · intro c; exact ⟨_, h_su₂ c, h_ut₂ c⟩
+  · exact ⟨b, h_ab, h_bc⟩
 
 /-- info: 'Test.bisim_trans' depends on axioms: [propext] -/
 #guard_msgs in
@@ -313,3 +312,5 @@ fun fsm WeakBisim =>
     fsm.o s = none ∧ WeakBisim (fsm.d s) t))
 -/
 #guard_msgs in #print WeakBisim.Is
+
+end WeakBisimTest
