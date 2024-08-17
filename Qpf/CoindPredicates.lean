@@ -276,6 +276,18 @@ structure FSM where
   /-- if `o s = none`, it's a silent step -/
   o : S → Option Bool
 
+
+coinductive Const (b? : Option Bool) (fsm : FSM) : fsm.S → Prop
+  | step {s} :
+      fsm.o s = b? → Const (fsm.d s) → Const s
+
+/--
+info: @[reducible] def WeakBisimTest.Const.Is : Option Bool → (fsm : FSM) → (fsm.S → Prop) → Prop :=
+fun b? fsm Const => ∀ {s : fsm.S}, Const s → fsm.o s = b? ∧ Const (fsm.d s)
+-/
+#guard_msgs in #print Const.Is
+
+
 coinductive WeakBisim (fsm : FSM) : fsm.S → fsm.S → Prop :=
   | step {s t : fsm.S} :
     (fsm.o s = fsm.o t)
