@@ -88,7 +88,7 @@ def ofStx (stx : Syntax) : CommandElabM CoinductiveView := do
 
   let ctors ← decl[4].getArgs.mapM $ CtorView.ofStx declName modifiers
 
-  Lean.Elab.addDeclarationRanges declName decl
+  Elab.addDeclarationRanges declName decl
 
   let out := {
     ref := ⟨decl⟩
@@ -134,39 +134,83 @@ partial def typeToArgArr (type : Term) : Array Term × Term := Prod.map List.toA
     | Syntax.node _ ``Parser.Term.arrow #[hd, _, tail] => Prod.map (⟨hd⟩ :: ·) id $ go tail
     | rest => ⟨[], ⟨rest⟩⟩
 
+def appsToArgArr (type : Term) : Array Term × Term := match type.raw with
+    | Syntax.node _ ``Parser.Term.app #[v, cont] => ⟨cont.getArgs.map (⟨·⟩), ⟨v⟩⟩
+    | rest => ⟨#[], ⟨rest⟩⟩
+
 deriving instance Repr for BinderView
 
+def extractName : Syntax → Name
+  | .ident _ _ nm _ => nm
+  | _ => .anonymous
 
-
-def generateIs (view : CoinductiveView) : CommandElabM Unit := do
+def generateIs (view : CoinductiveView) (argArr : Array Ident) : CommandElabM Unit := do
   let v : Array Term ← view.ctors.mapM ctor
 
   if v.size = 0 then throwErrorAt view.ref s!"{view.declName} coinductive predicate is isomorphic to False"
 
   let p ← v.pop.foldlM (fun acc curr => `($acc ∨ $curr)) v.back
   let stx ← `(command|
-    abbrev $(view.shortDeclName ++ `Is |> mkIdent) $(←view.binders.mapM binderViewtoBracketedBinder)* ($(view.shortDeclName |> mkIdent) : $(view.type)) : Prop := $p)
+    abbrev $(view.shortDeclName ++ `Is |> mkIdent) $(←view.binders.mapM binderViewtoBracketedBinder)* ($(view.shortDeclName |> mkIdent) : $(view.type)) : Prop :=
+      ∀ { $argArr* }, $(mkIdent view.shortDeclName) $argArr* → $p)
 
   Lean.Elab.Command.elabCommand stx
 
   where
+    correctorIterator (loc : Term)
+      | ⟨.ident _ _ nm _⟩ :: tla, binderV :: tlb => do
+        let .ident _ _ nmx _ := binderV.id | unreachable!
+        if nm == nmx then correctorIterator loc tla tlb
+        else throwErrorAt loc s!"Expected {binderV.id}"
+      | loc :: _, binderV :: _ => throwErrorAt loc s!"Expected {binderV.id}"
+      | rest, [] =>
+        pure rest
+      | [], _ => throwErrorAt loc "Insufficent arguments"
+
+    handleRetty appl arr id := do
+      let .ident _ _ nm _ := id.raw  | throwErrorAt id s!"Expected return type to be {view.declId}" 
+      if nm != view.shortDeclName then throwErrorAt id s!"Expected return type to be {view.declId}"
+
+      correctorIterator appl arr.toList view.binders.toList
+
+    -- Removal array × Equational array
+    equationalTransformer (loc : Term) : List Term → List Ident → CommandElabM ((List (Ident × Ident)) × (List Term))
+      | [], [] => return Prod.mk [] []
+      | x@⟨.ident _ _ _ _⟩ :: tla, hdb :: tlb => do
+        let ⟨rem, eq⟩ ← equationalTransformer loc tla tlb
+        return ⟨(Prod.mk ⟨x.raw⟩ hdb) :: rem, eq⟩
+      | hda :: tla, hdb :: tlb => do
+        let ⟨rem, eq⟩ ← equationalTransformer loc tla tlb
+        return ⟨rem, (←`($hda = $hdb)) :: eq⟩
+      | [], _ | _, [] => throwErrorAt loc "Incorrect number of arguments"
+
     ctor view := do
       let .some type := view.type? | throwErrorAt view.ref "An coinductive predicate without a retty could better be expressed inductively" -- TODO: is this the case
       let ⟨args, out⟩ := typeToArgArr type
-      let ⟨inputBinders, dualizedBinders⟩ := view.binders.foldl (fun ⟨a, b⟩ v =>
-        if (out.raw.find? (· == v.id)).isSome then ⟨v :: a, b⟩ else ⟨a, v :: b⟩
-      ) $ Prod.mk [] []
 
-      -- Currently, here, it assocaites the wrong way TODO: make it assocaite the right way
-      let args := args.reverse
-      let body ← if args.size = 0 then `(True)
-        else args.pop.foldlM (fun acc curr => `($acc ∧ $curr)) args.back
+      let ⟨arr, id⟩ := appsToArgArr out
+      let arr ← handleRetty out arr id
+
+      let ⟨eqRpl, eqs⟩ ← equationalTransformer out arr argArr.toList
+
+      let binders := view.binders.filter (fun x => eqRpl.find? (fun v => (extractName x.id) == extractName v.fst.raw) |>.isNone )
+
+      let body ← match (args ++ eqs.toArray).reverse with
+        | ⟨[]⟩ => `(True)
+        | ⟨hd :: tl⟩ => tl.foldlM (fun acc curr => `($curr ∧ $acc)) hd
 
       -- As ∃ is just Σ in u = 0, we represent possibly depdented values using ∃
-      let body ← dualizedBinders.foldlM (fun acc curr => `(∃ $(⟨curr.id⟩):ident : $(⟨curr.type⟩):term, $acc )) body
-      let body ← `(∀ $(List.toArray $ ←inputBinders.reverse.mapM binderViewtoBracketedBinder):bracketedBinder*, $out → $body)
+      let body ← binders.foldlM (fun acc curr => `(∃ $(⟨curr.id⟩):ident : $(⟨curr.type⟩):term, $acc )) body
 
-      return body
+      let body ← eqRpl.foldlM (fun term ⟨src, rpl⟩ =>
+        let src := extractName src
+        term.replaceM (fun
+          | .ident _ _ nm _ =>
+            if nm == src then return some rpl
+            else return none
+          | _ => return none)) body.raw
+
+      return ⟨body⟩
 
 open Macro in
 @[command_elab Coind.Parser.declaration]
@@ -178,7 +222,7 @@ def elabData : CommandElab := fun stx => do
 
   let argArr := (← argArr.mapM (fun _ => Elab.Term.mkFreshBinderName)).map mkIdent
 
-  generateIs view
+  generateIs view argArr
   let stx ← `(
     def $(view.shortDeclName |> mkIdent) $(←view.binders.mapM binderViewtoBracketedBinder)* : $(view.type) :=
       fun $argArr* => ∃ R, @$(view.shortDeclName ++ `Is |> mkIdent) $(view.binders.map (⟨·.id⟩)):ident* R ∧ R $argArr* )
@@ -197,7 +241,7 @@ coinductive Bisim (fsm : FSM) : fsm.S → fsm.S → Prop :=
   | step {s t : fsm.S} :
     (fsm.A s ↔ fsm.A t)
     → (∀ c, Bisim (fsm.d s c) (fsm.d t c))
-    → Bisim s t
+    → Bisim fsm s t
 
 macro "coinduction " "using" P:term "with" ids:(ppSpace colGt ident)+ : tactic =>
   let ids := ids
@@ -218,7 +262,7 @@ theorem bisim_symm (h : Bisim f a b): Bisim f b a := by
   rcases h with ⟨rel, relIsBisim, rab⟩
   exists fun a b => rel b a
   simp_all
-  intro a₁ b₁ holds
+  intro a b holds
   specialize relIsBisim holds
   simp_all only [implies_true, and_self]
 
@@ -278,11 +322,11 @@ structure FSM where
 
 coinductive Const (b? : Option Bool) (fsm : FSM) : fsm.S → Prop
   | step {s} :
-      fsm.o s = b? → Const (fsm.d s) → Const s
+      fsm.o s = b? → Const (fsm.d s) → Const b? fsm s
 
 /--
 info: @[reducible] def WeakBisimTest.Const.Is : Option Bool → (fsm : FSM) → (fsm.S → Prop) → Prop :=
-fun b? fsm Const => ∀ {s : fsm.S}, Const s → fsm.o s = b? ∧ Const (fsm.d s)
+fun b? fsm Const => ∀ {x : fsm.S}, Const x → fsm.o x = b? ∧ Const (fsm.d x)
 -/
 #guard_msgs in #print Const.Is
 
@@ -291,11 +335,11 @@ coinductive WeakBisim (fsm : FSM) : fsm.S → fsm.S → Prop :=
   | step {s t : fsm.S} :
     (fsm.o s = fsm.o t)
     → WeakBisim (fsm.d s) (fsm.d t)
-    → WeakBisim s t
+    → WeakBisim fsm s t
   | tauLeft {s t : fsm.S} :
-    fsm.o s = none → WeakBisim (fsm.d s) t → WeakBisim s t
+    fsm.o s = none → WeakBisim (fsm.d s) t → WeakBisim fsm s t
   | tauRight {s t : fsm.S} :
-    fsm.o t = none → WeakBisim s (fsm.d t) → WeakBisim s t
+    fsm.o t = none → WeakBisim s (fsm.d t) → WeakBisim fsm s t
 
 /--
 info: def WeakBisimTest.WeakBisim : (fsm : FSM) → fsm.S → fsm.S → Prop :=
@@ -306,10 +350,10 @@ fun fsm x x_1 => ∃ R, WeakBisim.Is fsm R ∧ R x x_1
 /--
 info: @[reducible] def WeakBisimTest.WeakBisim.Is : (fsm : FSM) → (fsm.S → fsm.S → Prop) → Prop :=
 fun fsm WeakBisim =>
-  (∀ {s t : fsm.S}, WeakBisim s t → (
-    fsm.o t = none ∧ WeakBisim s (fsm.d t) ∨
-    fsm.o s = fsm.o t ∧ WeakBisim (fsm.d s) (fsm.d t)) ∨
-    fsm.o s = none ∧ WeakBisim (fsm.d s) t))
+  ∀ {x x_1 : fsm.S},
+    WeakBisim x x_1 →
+      (fsm.o x_1 = none ∧ WeakBisim x (fsm.d x_1) ∨ fsm.o x = fsm.o x_1 ∧ WeakBisim (fsm.d x) (fsm.d x_1)) ∨
+        fsm.o x = none ∧ WeakBisim (fsm.d x) x_1
 -/
 #guard_msgs in #print WeakBisim.Is
 
