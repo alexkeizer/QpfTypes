@@ -23,13 +23,6 @@ we can safely coerce syntax of these categories  -/
 instance : Coe (TSyntax ``bb) (TSyntax ``bracketedBinder)      where coe x := ⟨x.raw⟩
 instance : Coe (TSyntax ``matchAltExprs) (TSyntax ``matchAlts) where coe x := ⟨x.raw⟩
 
-/-- When we want to operate on patterns the names we need must start with shape.
-This is done as if theres a constructor called `mk` dot notation breaks. -/
-def addShapeToName : Name → Name
-  | .anonymous => .str .anonymous "Shape"
-  | .str a b => .str (addShapeToName a) b
-  | .num a b => .num (addShapeToName a) b
-
 section
 variable {m} [Monad m] [MonadQuotation m] [MonadError m] [MonadTrace m] [AddMessageContext m]
 
@@ -75,7 +68,7 @@ def seq (f : TSyntax kx → TSyntax kx → m (TSyntax kx)) : List (TSyntax kx) �
 def generateIndBody (ctors : Array (Name × List RecursionForm)) (includeMotive : Bool) : m $ TSyntax ``matchAlts := do
   let deeper: (TSyntaxArray ``matchAlt) ← ctors.mapM fun ⟨outerCase, form⟩ => do
     let callName := mkIdent $ flattenForArg outerCase
-    let outerCaseId := mkIdent $ addShapeToName outerCase
+    let outerCaseId := mkIdent $ `Shape ++ outerCase
     let rec_count := form.count .directRec
 
     let names ← listToEqLenNames form
@@ -129,7 +122,7 @@ def generateIndBody (ctors : Array (Name × List RecursionForm)) (includeMotive 
 def generateRecBody (ctors : Array (Name × List RecursionForm)) (includeMotive : Bool) : m $ TSyntax ``matchAlts := do
   let deeper: (TSyntaxArray ``matchAlt) ← ctors.mapM fun ⟨outerCase, form⟩ => do
     let callName := mkIdent $ flattenForArg outerCase
-    let outerCaseId := mkIdent $ addShapeToName outerCase
+    let outerCaseId := mkIdent $ `Shape ++ outerCase
 
     let names ← listToEqLenNames form
     let names := names.zip form.toArray
@@ -167,7 +160,7 @@ def genRecursors (view : DataView) : CommandElabM Unit := do
 
   let indDef : Command ← `(
     @[elab_as_elim, eliminator]
-    def $(.str view.shortDeclName "ind" |> mkIdent):ident
+    def $(view.shortDeclName ++ `ind |> mkIdent):ident
       { motive : $rec_type → Prop}
       $ih_types*
       : (val : $rec_type) → motive val
@@ -178,7 +171,7 @@ def genRecursors (view : DataView) : CommandElabM Unit := do
 
   let recDef : Command ← `(
     @[elab_as_elim]
-    def $(.str view.shortDeclName "rec" |> mkIdent):ident
+    def $(view.shortDeclName ++ `rec |> mkIdent):ident
       { motive : $rec_type → Type _}
       $ih_types*
       : (val : $rec_type) → motive val
@@ -190,7 +183,7 @@ def genRecursors (view : DataView) : CommandElabM Unit := do
 
   let casesDef : Command ← `(
     @[elab_as_elim]
-    def $(.str view.shortDeclName "cases" |> mkIdent):ident
+    def $(view.shortDeclName ++ `cases |> mkIdent):ident
       { motive : $rec_type → Prop}
       $casesOnTypes*
       : (val : $rec_type) → motive val
@@ -200,7 +193,7 @@ def genRecursors (view : DataView) : CommandElabM Unit := do
 
   let casesTypeDef : Command ← `(
     @[elab_as_elim]
-    def $(.str view.shortDeclName "casesType" |> mkIdent):ident
+    def $(view.shortDeclName ++ `casesType |> mkIdent):ident
       { motive : $rec_type → Type}
       $casesOnTypes*
       : (val : $rec_type) → motive val
