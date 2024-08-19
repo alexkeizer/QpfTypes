@@ -8,12 +8,12 @@ namespace MvQPF
 /-!
   # DeepThunk
 
-  `DeepThunk` corresponds to the (co-)trace of a given polynomial functor.
+  `DeepThunk` corresponds approximately to the [trace](https://ncatlab.org/nlab/show/traced+monoidal+category) of a given polynomial functor.
   These allows the original pfunctor to inject into them allowing for the most general state of a co-recursive principle.
 
   ## Stronger generaliziation
 
-  Currently the functors are mapped as follows `F := cofix f α in α` to `DT := cofix f (β ⊕ α) in α`.
+  Currently a functor defined as `F := cofix f α in α` would generate the DeepThunk `DT := cofix f (β ⊕ α) in α`.
   This could be generalized to `DT := cofix f ( (β ⊕ α) × (F → F) )` which would allow for modifying the returned value of a deeper call.
   Note this is still a QPF as (F → F) is constant, also note the function could not be (F → DT) as this would be unproductive
   (think of the function that simply skips the first value then yields a recursive construct).
@@ -23,6 +23,9 @@ namespace MvQPF
 
   which would be productive though strange. This generalizes to nested guarded recursive structures.
   Unproductive unguarded structures are limited in the same way they currently are.
+
+  Even more general this could take a vector of a given length of continuation and a function from a vector of that length of Fs and output a single F.
+  This would allow for a lot more recursive calls to also be implemented.
 -/
 
 /--
