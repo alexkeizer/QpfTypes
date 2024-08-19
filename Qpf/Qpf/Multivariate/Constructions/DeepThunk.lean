@@ -27,77 +27,66 @@ namespace MvQPF
 
 /--
   This is a fresh sum-type that represents the actions that can be taken within a `DeepThunk`.
-  These are that a user can either
-
-  1. recall - hand responsibility back to the co-recursor
-  2. cont   - continue constructing a DeepThunk
-
-  These we're previously represented as a sum type but  
+  These we're previously represented as a sum type but this lead to issues when trying to detect it in a macro so we prefer a fresh type
 -/
 inductive DTSum (α β : Type u) : Type u
+  /-- Hand responsibility back to the co-recursor -/
   | recall (v : α)
+  /-- Continue constructing a DeepThunk -/
   | cont   (v : β)
 
 namespace DTSum
-abbrev F := @TypeFun.ofCurried 2 DTSum
 
-def box {Γ : TypeVec 2} : F Γ → QpfSum' Γ
-  | recall a => MvQPF.Sum.inl a
-  | cont   b => MvQPF.Sum.inr b
+def equivSum : DTSum α β ≃ α ⊕ β where
+  toFun
+    | .recall a => .inl a
+    | .cont   a => .inr a
+  invFun
+    | .inl a => .recall a
+    | .inr a => .cont a
 
-def unbox {Γ : TypeVec 2} : QpfSum' Γ → F Γ
-  | ⟨i, f⟩ => match i with
-    | .fz   => recall (f 1 .fz)
-    | .fs 0 => cont   (f 0 .fz)
+  left_inv  := by rintro (_|_) <;> rfl
+  right_inv := by rintro (_|_) <;> rfl
 
-def equiv {Γ} : F Γ ≃ QpfSum' Γ :=
-{
-  toFun   := box
-  invFun  := unbox
-  left_inv  := by intro x; cases x <;> rfl
-  right_inv := by
-    intro x
-    rcases x with ⟨(i : PFin2 _), f⟩
-    dsimp only [box, unbox, Sum.inl, Sum.inr]
-    fin_cases i <;> {
-      simp only [Function.Embedding.coeFn_mk, PFin2.ofFin2_fs, PFin2.ofFin2_fz,
-        Fin2.instOfNatFin2HAddNatInstHAddInstAddNatOfNat, Nat.rec_zero]
-      apply congrArg
-      funext i; fin_cases i <;> (funext (j : PFin2 _); fin_cases j)
-      rfl
-    }
-}
+abbrev Uncurried := @TypeFun.ofCurried 2 DTSum
 
+def equiv {Γ} : Uncurried Γ ≃ QpfSum' Γ := equivSum.trans MvQPF.Sum.equiv
 
 end DTSum
 
 open DTSum in
-instance : MvFunctor DTSum.F where
-  map f x   := equiv.invFun <| Sum.SumPFunctor.map f <| equiv.toFun <| x
+instance : MvFunctor DTSum.Uncurried where
+  map f := equiv.invFun ∘ Sum.SumPFunctor.map f ∘ equiv.toFun
 
 open DTSum in
-instance : MvQPF.IsPolynomial F :=
+instance : MvQPF.IsPolynomial DTSum.Uncurried :=
   .ofEquiv _ equiv
 
 namespace DeepThunk
-abbrev innerMapper : Vec (TypeFun (n.succ)) n := (fun
-  | .fz => Comp DTSum.F !![Prj 1, Prj 0]
-  | .fs n => Prj (n.add 2))
 
-/-- The actual higher order functor taking `cofix f α in α` to `cofix f (β ⊕ α) in α` -/
+/--
+  This function handles the composition by replacing the first arg with the new DTSum value.
+  One could see this being implemented as a Vec.append1 but this would force n > 0 which just makes expressing the rest of these values quite painful
+-/
+abbrev innerMapper : Vec (TypeFun (n.succ)) n
+  | .fz => Comp DTSum.Uncurried !![Prj 1, Prj 0]
+  | .fs n => Prj (n.add 2)
+
+/-- If `F` is `Cofix G α`, then `hoFunctor F` is `Cofix G (DTSum β α)` -/
 abbrev hoFunctor (F : TypeFun n) : TypeFun (n + 1) := Comp F innerMapper
 
 instance : MvFunctor (!![Prj 1, @Prj (n + 2) 0] j) := by
   rcases j with _|_|_|_
   <;> simp only [Vec.append1]
   <;> infer_instance
+
 instance : MvQPF (!![Prj 1, @Prj (n + 2) 0] j) := by
   rcases j with _|_|_|_
   <;> simp only [Vec.append1]
   <;> infer_instance
 
 instance {i : Fin2 n} : MvFunctor (innerMapper i) := by cases i <;> infer_instance
-instance {i : Fin2 n} : MvQPF (innerMapper i) := by cases i <;> infer_instance
+instance {i : Fin2 n} : MvQPF (innerMapper i)     := by cases i <;> infer_instance
 
 abbrev Uncurried (F : TypeFun n) [MvFunctor F] [MvQPF F] := Cofix (hoFunctor F)
 
