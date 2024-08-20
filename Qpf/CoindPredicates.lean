@@ -8,9 +8,10 @@ open Parser.Term (namedArgument)
 open PrettyPrinter (delab)
 
 namespace Coind
+open Lean.Parser.Command
 
 namespace Parser
-open Lean.Parser Lean.Parser.Command
+open Lean.Parser
 
 def coind : Parser :=
   leading_parser "coinductive " >> declId
@@ -144,17 +145,24 @@ def extractName : Syntax → Name
   | .ident _ _ nm _ => nm
   | _ => .anonymous
 
-def generateIs (view : CoinductiveView) (argArr : Array Ident) : CommandElabM Unit := do
-  let v : Array Term ← view.ctors.mapM ctor
+def generateIs (topView : CoinductiveView) (argArr : Array Ident) (tyArr : Array Term) : CommandElabM Unit := do
+  let id := topView.shortDeclName ++ `Invariant
 
-  if v.size = 0 then throwErrorAt view.ref s!"{view.declName} coinductive predicate is isomorphic to False"
+  let isTy ← `($(mkIdent id) $(topView.binders.map (⟨·.id⟩))* $(mkIdent topView.shortDeclName) $argArr*)
 
-  let p ← v.pop.foldlM (fun acc curr => `($acc ∨ $curr)) v.back
+  let v : Array (TSyntax ``ctor) ← topView.ctors.mapM $ handleCtor isTy
+
+  let x ← argArr.zip tyArr |>.mapM (fun ⟨id, v⟩ => `(bb| ($id : $v) ))
+
+  let invariant ← `(command|
+    inductive $(mkIdent id) $(←topView.binders.mapM binderViewtoBracketedBinder)* ($(topView.shortDeclName |> mkIdent) : $(topView.type)) $x* : Prop := $v*
+  )
   let stx ← `(command|
-    abbrev $(view.shortDeclName ++ `Is |> mkIdent) $(←view.binders.mapM binderViewtoBracketedBinder)* ($(view.shortDeclName |> mkIdent) : $(view.type)) : Prop :=
-      ∀ { $argArr* }, $(mkIdent view.shortDeclName) $argArr* → $p)
+    abbrev $(topView.shortDeclName ++ `Is |> mkIdent) $(←topView.binders.mapM binderViewtoBracketedBinder)* (R : $(topView.type)) : Prop :=
+      ∀ { $argArr* }, R $argArr* → $(mkIdent id) $(topView.binders.map (⟨·.id⟩))* R $argArr*)
 
-  Lean.Elab.Command.elabCommand stx
+  Elab.Command.elabCommand invariant
+  Elab.Command.elabCommand stx
 
   where
     correctorIterator (loc : Term)
@@ -168,10 +176,10 @@ def generateIs (view : CoinductiveView) (argArr : Array Ident) : CommandElabM Un
       | [], _ => throwErrorAt loc "Insufficent arguments"
 
     handleRetty appl arr id := do
-      let .ident _ _ nm _ := id.raw  | throwErrorAt id s!"Expected return type to be {view.declId}" 
-      if nm != view.shortDeclName then throwErrorAt id s!"Expected return type to be {view.declId}"
+      let .ident _ _ nm _ := id.raw  | throwErrorAt id s!"Expected return type to be {topView.declId}" 
+      if nm != topView.shortDeclName then throwErrorAt id s!"Expected return type to be {topView.declId}"
 
-      correctorIterator appl arr.toList view.binders.toList
+      correctorIterator appl arr.toList topView.binders.toList
 
     -- Removal array × Equational array
     equationalTransformer (loc : Term) : List Term → List Ident → CommandElabM ((List (Ident × Ident)) × (List Term))
@@ -184,7 +192,9 @@ def generateIs (view : CoinductiveView) (argArr : Array Ident) : CommandElabM Un
         return ⟨rem, (←`($hda = $hdb)) :: eq⟩
       | [], _ | _, [] => throwErrorAt loc "Incorrect number of arguments"
 
-    ctor view := do
+    handleCtor isTy view := do
+      let nm := view.declName.replacePrefix topView.declName .anonymous
+
       let .some type := view.type? | throwErrorAt view.ref "An coinductive predicate without a retty could better be expressed inductively" -- TODO: is this the case
       let ⟨args, out⟩ := typeToArgArr type
 
@@ -194,39 +204,41 @@ def generateIs (view : CoinductiveView) (argArr : Array Ident) : CommandElabM Un
       let ⟨eqRpl, eqs⟩ ← equationalTransformer out arr argArr.toList
 
       let binders := view.binders.filter (fun x => eqRpl.find? (fun v => (extractName x.id) == extractName v.fst.raw) |>.isNone )
+      let binders ← binders.mapM binderViewtoBracketedBinder
 
-      let body ← match (args ++ eqs.toArray).reverse with
-        | ⟨[]⟩ => `(True)
-        | ⟨hd :: tl⟩ => tl.foldlM (fun acc curr => `($curr ∧ $acc)) hd
+      let out ← (eqs.toArray ++ args).reverse.foldlM (fun acc curr => `($curr → $acc)) isTy
+      let out ← `(ctor| | $(mkIdent nm):ident $binders* : $out)
 
-      -- As ∃ is just Σ in u = 0, we represent possibly depdented values using ∃
-      let body ← binders.foldlM (fun acc curr => `(∃ $(⟨curr.id⟩):ident : $(⟨curr.type⟩):term, $acc )) body
-
-      let body ← eqRpl.foldlM (fun term ⟨src, rpl⟩ =>
+      let out ← eqRpl.foldlM (fun term ⟨src, rpl⟩ =>
         let src := extractName src
         term.replaceM (fun
           | .ident _ _ nm _ =>
             if nm == src then return some rpl
             else return none
-          | _ => return none)) body.raw
+          | _ => return none)) out.raw
 
-      return ⟨body⟩
+      return ⟨out⟩
+
+def preprocessView (view : CoinductiveView) (argArr : Array Term) (out : Term) : CommandElabM CoinductiveView := do
+  let .node _ ``Parser.Term.prop _ := out.raw | throwErrorAt out "Expected return type to be a Prop"
+  throwError "lol"
 
 open Macro in
 @[command_elab Coind.Parser.declaration]
 def elabData : CommandElab := fun stx => do
   let view ← CoinductiveView.ofStx stx
 
-  let ⟨argArr, out⟩ := typeToArgArr view.type
+  let ⟨tyArr, out⟩ := typeToArgArr view.type
+  let argArr := (← tyArr.mapM (fun _ => Elab.Term.mkFreshBinderName)).map mkIdent
+
+  /- let view ← preprocessView view argArr out -/
   let .node _ ``Parser.Term.prop _ := out.raw | throwErrorAt out "Expected return type to be a Prop"
 
-  let argArr := (← argArr.mapM (fun _ => Elab.Term.mkFreshBinderName)).map mkIdent
-
-  generateIs view argArr
+  generateIs view argArr tyArr
   let stx ← `(
     def $(view.shortDeclName |> mkIdent) $(←view.binders.mapM binderViewtoBracketedBinder)* : $(view.type) :=
       fun $argArr* => ∃ R, @$(view.shortDeclName ++ `Is |> mkIdent) $(view.binders.map (⟨·.id⟩)):ident* R ∧ R $argArr* )
-  Lean.Elab.Command.elabCommand stx
+  Elab.Command.elabCommand stx
 end Coind
 
 
