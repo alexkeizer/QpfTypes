@@ -5,7 +5,6 @@ Authors: Mario Carneiro
 -/
 
 import Mathlib.Data.Fin.Fin2
-import Mathlib.Init.Order.Defs
 
 /-!
 # Inductive type variant of `Fin`
@@ -143,25 +142,19 @@ by
 
 @[simp]
 theorem inv_involution {i : PFin2 n} :
-  i.inv.inv = i :=
-by
-    induction i
-    simp [inv]
-    case fz => apply inv_last_eq_fz
-    case fs n i ih => {
-      cases n;
-      case zero => contradiction
-      case succ n =>
-        simp[inv]
-        rw[inv_weaken_eq_fs_inv i.inv]
-        apply congrArg
-        apply ih
-    }
-
-
-    -- case zero.fs => contradiction
-    -- case succ.fs => simp[inv_last_eq_fz, weaken]
-
+    i.inv.inv = i := by
+  induction i
+  case fz =>
+    simp only [succ_eq_add_one, inv]
+    apply inv_last_eq_fz
+  case fs n i ih =>
+    cases n;
+    case zero => contradiction
+    case succ n =>
+      simp[inv]
+      rw[inv_weaken_eq_fs_inv i.inv]
+      apply congrArg
+      apply ih
 
 /--
   Typeclass instances to make it easier to work with `PFin2`'s

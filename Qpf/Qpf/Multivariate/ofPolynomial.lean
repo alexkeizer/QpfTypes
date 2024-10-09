@@ -25,7 +25,6 @@ namespace MvQPF
   /-- If `F` is isomorphic to a QPF `F'`, then `F` is also a QPF -/
   def ofIsomorphism {F : TypeFun n}
                     (F' : TypeFun n)
-                    [functor' : MvFunctor F']
                     [functor : MvFunctor F]
                     [q : MvQPF F']
                     (box    : ∀{α}, F α → F' α)
@@ -34,7 +33,7 @@ namespace MvQPF
                     (unbox_box_id : ∀{α} (x : F α), unbox (box x) = x
                                   := by intros; rfl
                                 )
-                    (map_eq : ∀ (α β : TypeVec n) (f : TypeVec.Arrow α β) (a : F α), functor.map f a = (unbox <| functor'.map f <| box a) := by intros; rfl)
+                    (map_eq : ∀ (α β : TypeVec n) (f : TypeVec.Arrow α β) (a : F α), functor.map f a = (unbox <| MvFunctor.map f <| box a) := by intros; rfl)
                   : MvQPF F
     where
       P           := q.P
