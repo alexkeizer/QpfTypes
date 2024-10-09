@@ -232,19 +232,14 @@ instance : ToString (DataView) := ⟨
   specifications
 -/
 def DataView.doSanityChecks (view : DataView) : CommandElabM Unit := do
-  if view.liveBinders.isEmpty then
-    if view.deadBinders.isEmpty then
-      if view.command == .Codata then
-        throwError "Due to a bug, codatatype without any parameters don't quite work yet. Please try adding parameters to your type"
-      else
-        throwError "Trying to define a datatype without variables, you probably want an `inductive` type instead"
-    else
-      throwErrorAt view.binders "You should mark some variables as live by removing the type ascription (they will be automatically inferred as `Type _`), or if you don't have variables of type `Type _`, you probably want an `inductive` type"
-
-  -- TODO: remove once dead variables are fully supported
-  if !view.deadBinders.isEmpty then
-    dbg_trace "Dead variables are not fully supported yet"
-
+  -- if view.liveBinders.isEmpty then
+  --   if view.deadBinders.isEmpty then
+  --     if view.command == .Codata then
+  --       throwError "Due to a bug, codatatype without any parameters don't quite work yet. Please try adding parameters to your type"
+  --     else
+  --       throwError "Trying to define a datatype without variables, you probably want an `inductive` type instead"
+  --   else
+  --     throwErrorAt view.binders "You should mark some variables as live by removing the type ascription (they will be automatically inferred as `Type _`), or if you don't have variables of type `Type _`, you probably want an `inductive` type"
 
   -- TODO: make this more intelligent. In particular, allow types like `Type`, `Type 3`, or `Type u`
   --       and only throw an error if the user tries to define a family of types
