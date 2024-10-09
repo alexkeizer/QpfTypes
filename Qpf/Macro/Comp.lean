@@ -37,6 +37,8 @@ open Syntax
 open Parser.Term (bracketedBinder)
 open Parser.Command (declModifiers definition)
 
+open Macro (withQPFTraceNode)
+
 open Qq
 
 -- TODO: make everything work without this compatibility coercion
@@ -275,12 +277,15 @@ structure QpfCompositionBinders where
 -/
 def elabQpfCompositionBody (view: QpfCompositionBodyView) :
       CommandElabM (Term × Term) := do
-  trace[QPF] "elabQpfCompositionBody ::
-    type?       := {view.type?}
-    target      := {view.target}
-    liveBinders := {view.liveBinders}
-    deadBinders := {view.deadBinders}
-  "
+  withQPFTraceNode "composition pipeline"
+    (tag := "elabQpfCompositionBody") <| do
+
+  withQPFTraceNode "arguments" <| do
+    trace[QPF] "type?       := {view.type?}"
+    trace[QPF] "target      := {view.target}"
+    trace[QPF] "liveBinders := {view.liveBinders}"
+    trace[QPF] "deadBinders := {view.deadBinders}"
+
   runTermElabM fun _ => do
     let u : Level ←
       if let some typeStx := view.type? then
@@ -293,25 +298,29 @@ def elabQpfCompositionBody (view: QpfCompositionBodyView) :
         mkFreshLevelMVar
 
     withAutoBoundImplicit <|
-      elabBinders view.deadBinders fun _deadVars =>
-        withLiveBinders view.liveBinders fun vars =>
-          withoutAutoBoundImplicit <| do
-            let target_expr ← elabTermEnsuringTypeQ (u:=u.succ.succ) view.target q(Type u)
-            let arity := vars.toList.length
-            let vars : Vector _ arity := ⟨vars.toList, rfl⟩
+    elabBinders view.deadBinders fun _deadVars =>
+    withLiveBinders view.liveBinders fun vars =>
+    withoutAutoBoundImplicit <| do
+      let target_expr ← elabTermEnsuringTypeQ (u:=u.succ.succ) view.target q(Type u)
+      let arity := vars.toList.length
+      let vars : Vector _ arity := ⟨vars.toList, rfl⟩
 
-            let some vars := vars.mmap Expr.fvarId? |
-              throwError "Expected all args to be fvars" -- TODO: throwErrorAt
+      let some vars := vars.mmap Expr.fvarId? |
+        throwError "Expected all args to be fvars" -- TODO: throwErrorAt
 
-            let res ← elabQpf vars target_expr view.target
+      let res ← elabQpf vars target_expr view.target
 
-            res.F.check
-            res.qpf.check
+      res.F.check
+      res.qpf.check
 
-            withOptions (fun opt => opt.insert `pp.explicit true) <| do
-              let F ← delab res.F
-              let qpf ← delab res.qpf
-              return ⟨F, qpf⟩
+      withOptions (fun opt => opt.insert `pp.explicit true) <| do
+        let F ← delab res.F
+        let qpf ← delab res.qpf
+
+        withQPFTraceNode "results …" <| do
+          trace[QPF] "Functor := {F}"
+          trace[QPF] "MvQPF instance := {qpf}"
+        return ⟨F, qpf⟩
 
 
 structure QpfCompositionView where

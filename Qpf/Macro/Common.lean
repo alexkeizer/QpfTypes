@@ -10,12 +10,25 @@ namespace Macro
     registerTraceClass `QPF
 
 
-  variable [MonadControlT MetaM n] [Monad n] [MonadLiftT MetaM n] 
+  variable [MonadControlT MetaM n] [Monad n] [MonadLiftT MetaM n]
             [MonadError n] [MonadLog n] [AddMessageContext n]
             [MonadQuotation n] [MonadTrace n] [MonadOptions n]
-            [MonadLiftT IO n]
+            [MonadLiftT IO n] [MonadAlwaysExcept ε n] [MonadLiftT BaseIO n]
 
+/-- Add trace node with the `QPF` trace class -/
+def withQPFTraceNode (header : MessageData) (k : n α)
+    (collapsed : Bool := true) (tag : String := "")
+    : n α := do
+  Lean.withTraceNode `QPF (fun _ => pure header) k collapsed tag
 
+/-- Wrapper around `elabCommand` which first traces the command syntax
+(in a `QPF` trace node), before elaborating the command -/
+def elabCommandAndTrace (stx : Syntax)
+    (header : MessageData := "elaborating command …") :
+    CommandElabM Unit := do
+  withQPFTraceNode header <| do
+    trace[QPF] stx
+  Lean.Elab.Command.elabCommand stx
 
   /--
     Takes an expression `e` of type `CurriedTypeFun n` and returns an expression of type `TypeFun n`
@@ -34,20 +47,20 @@ namespace Macro
     -- let F_inner ← mkFreshExprMVar (kind:=MetavarKind.synthetic) none
     -- let us      ← mkFreshLevelMVars 2
     -- let app     := mkApp2 (mkConst ``TypeFun.curried us) n F_inner
-    
+
     -- trace[QPF] "\nChecking defEq of {F} and {app}"
     -- if (←isDefEq F app) then
     --   if let some F' :=  (← getExprMVarAssignment? F_inner.mvarId!) then
     --     trace[QPF] "yes: {F'}"
     --     return F'
-    
+
     -- trace[QPF] "no"
     -- mkAppM ``TypeFun.ofCurried #[F]
 
-  
+
 
   def withLiveBinders [Inhabited α]
-                  (binders : Array Syntax) 
+                  (binders : Array Syntax)
                   (f : Array Expr → n α) : n α
   := do
     let u := mkLevelSucc <|← mkFreshLevelMVar;
@@ -56,25 +69,27 @@ namespace Macro
         α[0]
       else
         α
-      α.getId, 
+      α.getId,
       fun _ => pure (mkSort u)
     )
 
     withLocalDeclsD decls f
 
 
-  
+
   /--
     Takes an array of bracketed binders, and allocate a fresh identifier for each hole in the binders.
     Returns a pair of the binder syntax with all holes replaced, and an array of all bound identifiers,
     both pre-existing and newly created
   -/
-  def mkFreshNamesForBinderHoles (binders : Array Syntax) : 
-      n ((TSyntaxArray ``bracketedBinder) × (Array Ident)) 
-  := do
+  def mkFreshNamesForBinderHoles (binders : Array Syntax) :
+      n ((TSyntaxArray ``bracketedBinder) × (Array Ident)) :=
+    withQPFTraceNode "mkFreshNamesForBinderHoles"
+      (tag := "mkFreshNamesForBinderHoles") (collapsed := false) do
+
     let mut bindersNoHoles := #[]
     let mut binderNames := #[]
-  
+
     for stx in binders do
       let mut newArgStx := Syntax.missing
       let kind := stx.getKind
@@ -85,7 +100,7 @@ namespace Macro
           -- let id := mkIdentFrom stx (← mkFreshBinderName)
           -- binderNames := binderNames.push id
           -- newArgStx := stx[1].setArgs #[id, Syntax.atom SourceInfo.none ":"]
-        else    
+        else
           trace[QPF] stx[1]
           let id := stx[1][0]
           binderNames := binderNames.push ⟨id⟩
@@ -100,11 +115,11 @@ namespace Macro
             return id
           else if kind == ``Lean.Parser.Term.hole then
             return mkIdentFrom id (← mkFreshBinderName)
-          else 
+          else
             throwErrorAt id "identifier or `_` expected, found {kind}"
-            
+
         for id in ids do
-          binderNames := binderNames.push ⟨id⟩ 
+          binderNames := binderNames.push ⟨id⟩
         newArgStx := stx[1].setArgs ids
 
       let newStx := stx.setArg 1 newArgStx
@@ -125,12 +140,12 @@ namespace Macro
   def BinderKind.ofSyntaxKind (kind : SyntaxNodeKind) : BinderKind :=
     if kind == ``implicitBinder then
           .implicit
-        else if kind == ``Lean.binderIdent 
-                || kind == ``Lean.Parser.Term.binderIdent 
+        else if kind == ``Lean.binderIdent
+                || kind == ``Lean.Parser.Term.binderIdent
                 || kind == ``Lean.Parser.Term.ident
                 || kind == ``Lean.Parser.ident
-                -- HACK: this one should be just a single backquote  
-                || kind == `ident 
+                -- HACK: this one should be just a single backquote
+                || kind == `ident
                 then
           .ident
         else if kind == ``explicitBinder then
@@ -142,10 +157,10 @@ namespace Macro
   open Lean.Parser.Term in
   /--
     Takes a list of binders, and split it into live and dead binders, respectively.
-    For the live binders, return an array of with syntax of kind `binderIdent`, unwrapping 
+    For the live binders, return an array of with syntax of kind `binderIdent`, unwrapping
     `simpleBinder` nodes if needed (while asserting that there were no type annotations)
   -/
-  def splitLiveAndDeadBinders (binders : Array Syntax) 
+  def splitLiveAndDeadBinders (binders : Array Syntax)
       : n (TSyntaxArray ``Lean.Parser.Term.binderIdent × TSyntaxArray ``bracketedBinder) := do
     let mut liveVars := #[]
     let mut deadBinders := #[]
@@ -156,7 +171,7 @@ namespace Macro
 
       if kind == .ident then
         isLive := true
-        liveVars := liveVars.push ⟨binder⟩ 
+        liveVars := liveVars.push ⟨binder⟩
 
       -- else if kind == .explicit then
       --   isLive := true
@@ -170,38 +185,38 @@ namespace Macro
       else if isLive then
         throwErrorAt binder f!"Unexpected bracketed binder, dead arguments must precede all live arguments.\nPlease reorder your arguments or mark this binder as live by removing brackets and/or type ascriptions"
 
-      else 
+      else
         deadBinders := deadBinders.push ⟨binder⟩
 
     return (liveVars, deadBinders)
 
 
 
-  
 
-  
+
+
   /--
-    Takes a list of binders, and returns an array of just the bound identifiers, 
+    Takes a list of binders, and returns an array of just the bound identifiers,
     for use in applications
   -/
-  def getBinderIdents (binders : Array Syntax) (includeImplicits := true) 
-    : Array Term := 
+  def getBinderIdents (binders : Array Syntax) (includeImplicits := true)
+    : Array Term :=
   Id.run do
     let mut idents : Array Term := #[]
 
     for binder in binders do
       let kind := BinderKind.ofSyntaxKind binder.getKind
-        
+
       if kind == .implicit && !includeImplicits then
         continue
 
       else if kind == .ident then
-        idents := idents.push ⟨binder⟩ 
+        idents := idents.push ⟨binder⟩
 
-      else 
+      else
         for id in binder[1].getArgs do
-          idents := idents.push ⟨id⟩ 
-        
+          idents := idents.push ⟨id⟩
+
 
     -- dbg_trace "idents = {idents}"
     pure idents
@@ -212,10 +227,10 @@ namespace Macro
 open Parser.Command in
 instance : Quote Modifiers (k := ``declModifiers) where
   quote mod :=
-    let isNoncomputable : Syntax := 
-      if mod.isNoncomputable then 
+    let isNoncomputable : Syntax :=
+      if mod.isNoncomputable then
         mkNode ``«noncomputable» #[mkAtom "noncomputable "]
-      else 
+      else
         mkNullNode
 
     let visibility := match mod.visibility with
@@ -232,12 +247,12 @@ instance : Quote Modifiers (k := ``declModifiers) where
       mkNullNode  -- partial / nonrec
     ]
 
-  
+
   -- open Lean.Parser.Term in
   -- elab "#dbg_syntax " t:term : command => do
   --   dbg_trace t
 
-    
+
   -- open Lean.Parser.Term Elab.Command in
   -- elab "#dbg_expr " t:term : command => do
   --   let expr ← liftTermElabM none $ elabTerm t none
@@ -251,7 +266,7 @@ end Macro
 
 -- set_option pp.raw true
 
--- open Lean in 
+-- open Lean in
 -- elab "#dbg_ident" id:binderIdent : command => do
 --   dbg_trace "{id}"
 --   let id := id.raw
@@ -259,8 +274,8 @@ end Macro
 --   dbg_trace "args: {id.getArgs}"
 --   dbg_trace "args[0].getKind: {id.getArgs[0]!.getKind}"
 
--- #dbg_ident x 
--- #dbg_ident _ 
+-- #dbg_ident x
+-- #dbg_ident _
 
--- example : ``Lean.binderIdent = ``Lean.Parser.Term.binderIdent := 
+-- example : ``Lean.binderIdent = ``Lean.Parser.Term.binderIdent :=
 --   by rfl

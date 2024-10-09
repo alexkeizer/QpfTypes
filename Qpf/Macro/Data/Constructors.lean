@@ -5,6 +5,8 @@ import Qpf.Macro.Data.View
 open Lean Meta Elab Elab.Command
 open PrettyPrinter (delab)
 
+open Macro (withQPFTraceNode elabCommandAndTrace)
+
 namespace Data.Command
 open Parser in
 /--
@@ -18,7 +20,7 @@ partial def countConstructorArgs : Syntax → Nat
   Add definitions for constructors
   that are generic across two input types shape and name.
   Additionally we allow the user to control how names are generated.
-  Any binders passed in `binders` are added as parameters to the generated constructor 
+  Any binders passed in `binders` are added as parameters to the generated constructor
 -/
 def mkConstructorsWithNameAndType
     (view : DataView) (shape : Name)
@@ -26,7 +28,8 @@ def mkConstructorsWithNameAndType
     (binders : TSyntaxArray ``Parser.Term.bracketedBinder := #[])
     : CommandElabM Unit := do
   for ctor in view.ctors do
-    trace[QPF] "mkConstructors\n{ctor.declName} : {ctor.type?}"
+    withQPFTraceNode "define constructor {ctor.declName}" <| do
+    trace[QPF] "type := {ctor.type?}"
     let n_args := (ctor.type?.map countConstructorArgs).getD 0
 
     let args := (← (List.range n_args).mapM
@@ -53,20 +56,19 @@ def mkConstructorsWithNameAndType
     }
     let declId := mkIdent $ nameGen ctor
 
-    let cmd ← `(
+    elabCommandAndTrace <|← `(
       $(quote modifiers):declModifiers
       def $declId:ident $binders*: $type := $body:term
     )
-
-    trace[QPF] "mkConstructor.cmd = {cmd}"
-    elabCommand cmd
 
   return
 
 /--
   Add convenient constructor functions to the environment
 -/
-def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit := do
+def mkConstructors (view : DataView) (shape : Name) : CommandElabM Unit :=
+  withQPFTraceNode "deriving constructors" (tag := "mkConstructors") <| do
+
   let explicit ← view.getExplicitExpectedType
   let nameGen := (·.declName.replacePrefix (←getCurrNamespace) .anonymous)
 

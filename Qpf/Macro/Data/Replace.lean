@@ -4,6 +4,7 @@ import Qpf.Macro.Common
 import Qpf.Macro.Data.View
 
 open Lean Meta Elab.Command Elab.Term
+open Macro (withQPFTraceNode)
 
 /-
   This file contains the core "shape" extraction logic.
@@ -279,7 +280,8 @@ open Parser
   Simultaneously checks that each constructor type, if given, is indeed a sequence of arrows
   ... → ... → ... culminating in the type to be defined.
 -/
-def makeNonRecursive (view : DataView) : MetaM (DataView × Name) := do
+def makeNonRecursive (view : DataView) : MetaM (DataView × Name) :=
+  withQPFTraceNode "makeNonRecursive" <| do
   let expected := view.getExpectedType
 
   let rec ← mkFreshBinderName
@@ -292,4 +294,5 @@ def makeNonRecursive (view : DataView) : MetaM (DataView × Name) := do
     return CtorView.withType? ctor type?
 
   let view := view.setCtors ctors
+  trace[QPF] "non-recursive view: {view}"
   pure (view, rec)

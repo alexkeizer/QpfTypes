@@ -8,6 +8,8 @@ open Lean.Parser (Parser)
 open Lean Meta Elab.Command Elab.Term Parser.Term
 open Lean.Parser.Tactic (inductionAlt)
 
+open Macro (withQPFTraceNode elabCommandAndTrace)
+
 def flattenForArg (n : Name) := Name.str .anonymous $ n.toStringWithSep "_" true
 
 /-- Both `bracketedBinder` and `matchAlts` have optional arguments,
@@ -148,7 +150,10 @@ def generateRecBody (ctors : Array (Name × List RecursionForm)) (includeMotive 
 
   `(matchAltExprs| $deeper:matchAlt*)
 
-def genRecursors (view : DataView) : CommandElabM Unit := do
+def genRecursors (view : DataView) : CommandElabM Unit :=
+  withQPFTraceNode "attempting to generate recursors for datatype"
+    (tag := "genRecursors") <| do
+
   let rec_type := view.getExpectedType
 
   let mapped := view.ctors.map (RecursionForm.extractWithName view.declName · rec_type)
@@ -156,7 +161,7 @@ def genRecursors (view : DataView) : CommandElabM Unit := do
   let ih_types ← mapped.mapM fun ⟨name, base⟩ =>
     mkRecursorBinder (rec_type) (name) base true
 
-  let indDef : Command ← `(
+  elabCommandAndTrace (header := "elaborating induction principle …") <|← `(
     @[elab_as_elim, induction_eliminator]
     def $(view.shortDeclName ++ `ind |> mkIdent):ident
       { motive : $rec_type → Prop}
@@ -167,7 +172,7 @@ def genRecursors (view : DataView) : CommandElabM Unit := do
         ($(mkIdent `p) := motive)
         (match ·,· with $(← generateIndBody mapped true)))
 
-  let recDef : Command ← `(
+  elabCommandAndTrace (header := "elaborating recursor …") <|← `(
     @[elab_as_elim]
     def $(view.shortDeclName ++ `rec |> mkIdent):ident
       { motive : $rec_type → Type _}
@@ -179,8 +184,8 @@ def genRecursors (view : DataView) : CommandElabM Unit := do
   let casesOnTypes ← mapped.mapM fun ⟨name, base⟩ =>
     mkRecursorBinder (rec_type) (name) base false
 
-  let casesDef : Command ← `(
-    @[elab_as_elim]
+  elabCommandAndTrace (header := "elaborating casesOn (Prop) eliminator …") <|← `(
+    @[elab_as_elim, cases_eliminator]
     def $(view.shortDeclName ++ `cases |> mkIdent):ident
       { motive : $rec_type → Prop}
       $casesOnTypes*
@@ -189,7 +194,7 @@ def genRecursors (view : DataView) : CommandElabM Unit := do
         ($(mkIdent `p) := motive)
         (match ·,· with $(← generateIndBody mapped false)))
 
-  let casesTypeDef : Command ← `(
+  elabCommandAndTrace (header := "elaborating casesOn (Type _) eliminator …") <|← `(
     @[elab_as_elim]
     def $(view.shortDeclName ++ `casesType |> mkIdent):ident
       { motive : $rec_type → Type}
@@ -197,16 +202,3 @@ def genRecursors (view : DataView) : CommandElabM Unit := do
       : (val : $rec_type) → motive val
     := $(mkIdent ``_root_.MvQPF.Fix.drec)
         (match · with $(← generateRecBody mapped false)))
-
-  trace[QPF] "Rec definitions:"
-  trace[QPF] indDef
-  trace[QPF] recDef
-  Elab.Command.elabCommand indDef
-  Elab.Command.elabCommand recDef
-
-  trace[QPF] casesDef
-  trace[QPF] casesTypeDef
-  Elab.Command.elabCommand casesDef
-  Elab.Command.elabCommand casesTypeDef
-
-  pure ()
