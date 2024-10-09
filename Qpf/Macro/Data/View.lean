@@ -6,11 +6,10 @@ import Qpf.Macro.Common
 
 open Lean
 open Meta Elab Elab.Command
-
 open Parser.Term (bracketedBinder)
 open Parser.Command (declId)
 
-
+open Macro (withQPFTraceNode)
 
 inductive DataCommand where
   | Data
@@ -140,16 +139,63 @@ def DataView.getExplicitExpectedType (view : DataView) : CommandElabM Term
         @$(mkIdent view.shortDeclName):ident $args:term*
       )
 
+/-! ## MessageData -/
 
-
-def CtorView.debug (ctor: CtorView) : String :=
-  s!"\{
+instance : ToMessageData CtorView where
+  toMessageData ctor := m!"\{\
   modifiers := {ctor.modifiers},
   declName  := {ctor.declName},
   binders   := {ctor.binders},
   type?     := {ctor.type?},
 }"
 
+instance : ToMessageData InductiveView where
+  toMessageData view := m!"\{\
+  declId          := {view.declId},
+  modifiers       := {view.modifiers},
+  ref             := {view.ref             },
+  declId          := {view.declId          },
+  modifiers       := {view.modifiers       },
+  shortDeclName   := {view.shortDeclName   },
+  declName        := {view.declName        },
+  levelNames      := {view.levelNames      },
+  binders         := {view.binders         },
+  type?           := {view.type?},
+  ctors           := {view.ctors},
+  derivingClasses := <not able to be printed>,
+}"
+
+instance : ToMessageData DataView where
+  toMessageData view := m!"\{\
+  declId          := {view.declId},
+  modifiers       := {view.modifiers},
+  ref             := {view.ref             },
+  declId          := {view.declId          },
+  modifiers       := {view.modifiers       },
+  shortDeclName   := {view.shortDeclName   },
+  declName        := {view.declName        },
+  levelNames      := {view.levelNames      },
+  binders         := {view.binders         },
+  type?           := {view.type?},
+  ctors           := {view.ctors},
+  derivingClasses := <not able to be printed>,
+  command         := {view.command         },
+  liveBinders     := {view.liveBinders     },
+  deadBinders     := {view.deadBinders     },
+  deadBinderNames := {view.deadBinderNames },
+}"
+
+
+@[deprecated]
+def CtorView.debug (ctor: CtorView) : String :=
+  (s!"\{
+  modifiers := {ctor.modifiers},
+  declName  := {ctor.declName},
+  binders   := {ctor.binders},
+  type?     := {ctor.type?},
+}")
+
+@[deprecated]
 def DataView.debug (view : DataView) : String :=
   let ctors := view.ctors.map CtorView.debug
 s!"\{
@@ -210,7 +256,9 @@ def DataView.doSanityChecks (view : DataView) : CommandElabM Unit := do
 /-
   Heavily based on `inductiveSyntaxToView` from Lean.Elab.Declaration
 -/
-def dataSyntaxToView (modifiers : Modifiers) (decl : Syntax) : CommandElabM DataView := do
+def dataSyntaxToView (modifiers : Modifiers) (decl : Syntax) : CommandElabM DataView :=
+  withQPFTraceNode "dataSyntaxToView" (tag := "dataSyntaxToView") <| do
+
   -- `data`/`codata` declarations may be noncomputable (not sure about partial, but we allow it for now)
   -- checkValidInductiveModifier modifiers
 
@@ -254,7 +302,8 @@ def dataSyntaxToView (modifiers : Modifiers) (decl : Syntax) : CommandElabM Data
     binders, type?, ctors,
     command, liveBinders, deadBinders, deadBinderNames
   }
-  trace[Qpf.Data] "{view.debug}"
+  withQPFTraceNode "elaborated view …" <| do
+    trace[QPF] m!"{view}"
 
   view.doSanityChecks
   return view
