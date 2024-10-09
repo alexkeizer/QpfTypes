@@ -13,7 +13,7 @@ def flattenForArg (n : Name) := Name.str .anonymous $ n.toStringWithSep "_" true
 /-- Both `bracketedBinder` and `matchAlts` have optional arguments,
 which cause them to not by recognized as parsers in quotation syntax
 (that is, ``` `(bracketedBinder| ...) ``` does not work).
-To work around this, we define aliases that force the optional argument to it's default value, 
+To work around this, we define aliases that force the optional argument to it's default value,
 so that we can write ``` `(bb| ...) ```instead. -/
 abbrev bb            : Parser := bracketedBinder
 abbrev matchAltExprs : Parser := matchAlts
@@ -64,7 +64,6 @@ def seq (f : TSyntax kx → TSyntax kx → m (TSyntax kx)) : List (TSyntax kx) �
   | hd :: tl => do f hd (← seq f tl)
   | [] => throwError "Expected at least one value for interspersing"
 
-
 def generateIndBody (ctors : Array (Name × List RecursionForm)) (includeMotive : Bool) : m $ TSyntax ``matchAlts := do
   let deeper: (TSyntaxArray ``matchAlt) ← ctors.mapM fun ⟨outerCase, form⟩ => do
     let callName := mkIdent $ flattenForArg outerCase
@@ -107,8 +106,7 @@ def generateIndBody (ctors : Array (Name × List RecursionForm)) (includeMotive 
         have $proofs:term : $type := by
           simp only [
             $(mkIdent ``MvFunctor.LiftP):ident,
-            $(mkIdent ``TypeVec.PredLast):ident,
-            $(mkIdent ``Fin2.instOfNatFin2HAddNatInstHAddInstAddNatOfNat):ident
+            $(mkIdent ``TypeVec.PredLast):ident
           ] at ih
 
           rcases ih with ⟨w, proof⟩
@@ -159,7 +157,7 @@ def genRecursors (view : DataView) : CommandElabM Unit := do
     mkRecursorBinder (rec_type) (name) base true
 
   let indDef : Command ← `(
-    @[elab_as_elim, eliminator]
+    @[elab_as_elim, induction_eliminator]
     def $(view.shortDeclName ++ `ind |> mkIdent):ident
       { motive : $rec_type → Prop}
       $ih_types*
