@@ -7,7 +7,7 @@ namespace Test
 data Wrap α
   | mk : α → Wrap α
 
-/-- info: Test.Wrap.mk {α : Type} (a✝ : α) : Wrap α -/
+/-- info: Test.Wrap.mk {α : Type} : α → Wrap α -/
 #guard_msgs in
   #check Wrap.mk
 
