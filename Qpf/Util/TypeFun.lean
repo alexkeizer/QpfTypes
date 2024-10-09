@@ -9,7 +9,6 @@ abbrev CurriedFun (α : Type u) (β : Type v) : Nat → Type (max u v)
   | 1   => α → β
   | n+1 => α → CurriedFun α β n
 
-
 /-- A curried type function of `n` arguments, i.e., `Type u → Type u → ... → Type v` -/
 abbrev CurriedTypeFun : Nat → Type ((max u v) + 1)
   := CurriedFun (Type u) (Type v)
@@ -56,15 +55,13 @@ namespace TypeFun
   by
     cases n
     case zero => simp [curriedAux, ofCurriedAux]
-    case succ n => {
+    case succ n =>
       induction n
-      <;> simp [curriedAux, ofCurriedAux, Vec.append1]
-
-      case succ _ ih => {
-        funext a;
+      case zero =>
+        rfl
+      case succ _ ih =>
+        funext a
         apply @ih (F a);
-      }
-    }
 
   @[simp]
   theorem curried_ofCurried_involution {F : CurriedTypeFun n} :
@@ -86,9 +83,9 @@ namespace TypeFun
       congr
       funext i
       contradiction
-    case succ n => {
+    case succ n =>
       induction n;
-      case zero => {
+      case zero =>
         funext x;
         simp [curriedAux, ofCurriedAux];
         apply congrArg;
@@ -96,17 +93,14 @@ namespace TypeFun
         cases i;
         . simp [Vec.append1, OfNat.ofNat]
         . contradiction
-      }
 
-      case succ _ ih => {
+      case succ _ ih =>
         funext x;
         simp [ofCurriedAux, curriedAux];
         let F' := fun α => F (α ::: x.last);
         have : F x = F' x.drop := by simp [F']
         rw [this]
         rw [@ih F']
-      }
-    }
 
   @[simp]
   theorem ofCurried_curried_involution {F : TypeFun n} :

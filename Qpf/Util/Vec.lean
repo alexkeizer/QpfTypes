@@ -154,15 +154,14 @@ namespace Vec
       simp_heq
 
       induction n <;> cases i;
-      case succ.fz n ih => {
+      case succ.fz n ih =>
         dsimp only [toList, last, DVec.last, ofList, append1, List.length_cons, Nat.succ_eq_add_one]
         show HEq (v .fz) (v <| cast _ Fin2.fz)
         apply hcongr <;> (try solve | intros; rfl)
         simp_heq
         apply hcongr <;> (try solve | intros; rfl)
         simp
-      }
-      case succ.fs n ih i => {
+      case succ.fs n ih i =>
         dsimp[ofList, toList, append1, drop]
 
         apply HEq.trans (@ih (fun i => v (.fs i)) i);
@@ -175,7 +174,6 @@ namespace Vec
 
         apply hcongr <;> (try solve | intros; rfl);
         simp
-      }
 
   theorem ofList_toList_iso' {v : Vec α n} :
     HEq (fun (j : PFin2.{u} (toList v).length) => ofList (toList v) j.toFin2)
@@ -187,8 +185,7 @@ namespace Vec
     have n_eq : (toList v).length = n := toList_length_eq_n;
     apply hcongr
     . apply ofList_toList_iso
-    . intros
-      apply hcongr <;> intros <;> (try rw[n_eq])
+    . apply hcongr <;> intros <;> (try rw[n_eq])
       . simp_heq
     . intros; simp
     . rw[n_eq]
@@ -201,6 +198,7 @@ namespace Vec
     case nil          => rfl
     case cons a as ih =>
       simp only [toList, ofList, append1, last, DVec.last, drop_append1', ih]
+      rfl
 
   instance : Coe (Vec (Type u) n) (TypeVec.{u} n) where
     coe v i := v i

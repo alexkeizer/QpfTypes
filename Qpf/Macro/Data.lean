@@ -107,7 +107,7 @@ def mkHeadT (view : InductiveView) : CommandElabM Name := do
   }
   -- The head type is the same as the original type, but with all constructor arguments removed
   let ctors ← view.ctors.mapM fun ctor => do
-    let declName := ctor.declName.replacePrefix view.declName declName 
+    let declName := ctor.declName.replacePrefix view.declName declName
     pure {
       modifiers, declName,
       ref := ctor.ref
@@ -215,7 +215,7 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT P : Ide
   let boxBody ← ctors.mapM fun (ctor, args) => do
     let argsId  := args.args.map mkIdent
     let alt     := mkIdent ctor.declName
-    let headAlt := mkIdent $ ctor.declName.replacePrefix shapeView.declName headT.getId 
+    let headAlt := mkIdent $ ctor.declName.replacePrefix shapeView.declName headT.getId
 
     `(matchAltExpr| | $alt:ident $argsId:ident* => ⟨$headAlt:ident, fun i => match i with
         $(
@@ -409,12 +409,11 @@ def isPolynomial (view : DataView) (F: Term) : CommandElabM (Option Term) := do
   Take either the fixpoint or cofixpoint of `base` to produce an `Internal` uncurried QPF,
   and define the desired type as the curried version of `Internal`
 -/
-def mkType (view : DataView) (base : Term × Term × Term) : CommandElabM Unit := do
+def mkType (view : DataView) (base : Term × Term) : CommandElabM Unit := do
   trace[QPF] "mkType"
   let uncurriedIdent ← addSuffixToDeclIdent view.declId "Uncurried"
   let baseIdExt ← addSuffixToDeclIdent view.declId "Base"
   let baseIdent ← addSuffixToDeclIdent baseIdExt "Uncurried"
-  let baseFunctorIdent ← addSuffixToDeclIdent baseIdent "instMvFunctor"
   let baseQPFIdent ← addSuffixToDeclIdent baseIdent "instQPF"
 
   let deadBinderNamedArgs ← view.deadBinderNames.mapM fun n =>
@@ -425,16 +424,14 @@ def mkType (view : DataView) (base : Term × Term × Term) : CommandElabM Unit :
   let arity := view.liveBinders.size
   let fix_or_cofix := DataCommand.fixOrCofix view.command
 
-  let ⟨base, functor, q⟩ := base
-  trace[QPF] m!"instMvFunctor: {functor}"
+  let ⟨base, q⟩ := base
   let cmd ← `(
     abbrev $baseIdent:ident $view.deadBinders:bracketedBinder* : TypeFun $(quote <| arity + 1) :=
       $base
 
-    abbrev $baseIdExt $view.deadBinders:bracketedBinder* := 
+    abbrev $baseIdExt $view.deadBinders:bracketedBinder* :=
       TypeFun.curried $baseApplied
 
-    instance $baseFunctorIdent:ident : MvFunctor ($baseApplied) := $functor
     instance $baseQPFIdent:ident : MvQPF ($baseApplied) := $q
 
     abbrev $uncurriedIdent:ident $view.deadBinders:bracketedBinder* : TypeFun $(quote arity) := $fix_or_cofix $base

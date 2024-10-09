@@ -30,16 +30,17 @@ import Qq
 namespace Macro.Comp
 open MvQPF
 open Lean Elab Term Command Meta
+open Mathlib (Vector)
+
 open PrettyPrinter (delab)
 open Syntax
--- open Parser (ident)
 open Parser.Term (bracketedBinder)
-open Parser.Command (declModifiers «def»)
+open Parser.Command (declModifiers definition)
 
 open Qq
 
-  -- TODO: make everything work without this compatibility coercion
-  open TSyntax.Compat
+-- TODO: make everything work without this compatibility coercion
+open TSyntax.Compat
 
 def synthMvFunctor {n : Nat} (F : Q(TypeFun.{u,u} $n)) : MetaM Q(MvFunctor $F) := do
   let inst_type : Q(Type (u+1)) :=
@@ -60,7 +61,7 @@ def synthQPF {n : Nat} (F : Q(TypeFun.{u,u} $n)) (_ : Q(MvFunctor $F)) : MetaM Q
     * `F` is a QPF
   Then, tries to infer an instance of `MvQPF (TypeFun.curried F)`
 -/
-protected def parseApp (isLiveVar : FVarId → Bool) (F : Q(Type u)) :
+protected partial def parseApp (isLiveVar : FVarId → Bool) (F : Q(Type u)) :
     TermElabM ((n : Nat) × Q(TypeFun.{u,u} $n) × Vector Expr n) :=
   if F.isApp then
     /-
@@ -152,11 +153,19 @@ def DVec.toExpr {n : Nat} {αs : Q(Fin2 $n → Type u)} (xs : DVec (fun (i : Fin
       | .fs i => $as i
     )
 
+/-! ## instances
+Our automation needs to refer to instances of `MvQPF` by name.
+Since the name of those instances might change, we define our own aliasses
+to guard against this.
+-/
+protected def instMvQPFComp (F : TypeFun n) (Gs : Fin2 n → TypeFun m)
+    [q : MvQPF F] [qG : ∀ i, MvQPF (Gs i)] :
+    MvQPF (Comp F Gs) :=
+  inferInstance
 
 structure ElabQpfResult (u : Level) (arity : Nat) where
   F : Q(TypeFun.{u,u} $arity)
-  functor : Q(MvFunctor $F)         := by exact q(by infer_instance)
-  qpf     : Q(@MvQPF _ $F $functor) := by exact q(by infer_instance)
+  qpf     : Q(@MvQPF _ $F) := by exact q(by infer_instance)
 deriving Inhabited
 
 def isLiveVar (varIds : Vector FVarId n) (id : FVarId) := varIds.toList.contains id
@@ -173,14 +182,13 @@ partial def handleLiveFVar (vars : Vector FVarId arity) (target : FVarId)  : Ter
   let prj := q(@Prj.{u} $arity $ind)
   trace[QPF] "represented by: {prj}"
 
-  pure { F := prj, functor := q(Prj.mvfunctor _), qpf := q(Prj.mvqpf _) }
+  pure { F := prj, qpf := q(Prj.mvqpf _) }
 
 partial def handleConst (target : Q(Type u))  : TermElabM (ElabQpfResult u arity) := do
   trace[QPF] "target {target} is a constant"
   let const := q(Const.{u} $arity $target)
   trace[QPF] "represented by: {const}"
-
-  pure { F := const, functor := q(Const.MvFunctor), qpf := q(Const.mvqpf)}
+  pure { F := const, qpf := q(Const.mvqpf)}
 
 
 partial def handleApp (vars : Vector FVarId arity) (target : Q(Type u)) : TermElabM (ElabQpfResult u arity) := do
@@ -198,40 +206,35 @@ partial def handleApp (vars : Vector FVarId arity) (target : Q(Type u)) : TermEl
 
   if is_trivial then
     trace[QPF] "The application is trivial"
-    let functor ← synthInstanceQ q(MvFunctor $F)
     let qpf ← synthInstanceQ q(MvQPF $F)
-
-    return { F, functor, qpf }
+    return { F, qpf }
   else
     let G ← args.mmap (elabQpf vars · none false)
 
     let Ffunctor ← synthInstanceQ q(MvFunctor $F)
-    let Fqpf ← synthInstanceQ q(@MvQPF _ $F $Ffunctor)
+    let Fqpf ← synthInstanceQ q(@MvQPF _ $F)
 
     let G : Vec _ numArgs := fun i => G.get i.inv
     let GExpr : Q(Vec (TypeFun.{u,u} $arity) $numArgs) :=
       Vec.toExpr (fun i => (G i).F)
-    let GFunctor : Q(∀ i, MvFunctor.{u,u} ($GExpr i)) :=
-      let αs := q(fun i => MvFunctor.{u,u} ($GExpr i))
-      @DVec.toExpr _ _ αs (fun i => (G i).functor)
-    let GQpf : Q(∀ i, @MvQPF.{u,u} _ _ ($GFunctor i)) :=
-      let αs := q(fun i => @MvQPF.{u,u} _ _ ($GFunctor i))
+    let GQpf : Q(∀ i, MvQPF.{u,u} ($GExpr i)) :=
+      let αs := q(fun i => MvQPF.{u,u} ($GExpr i))
       @DVec.toExpr _ _ αs (fun i => (G i).qpf)
 
     let comp := q(@Comp $numArgs _ $F $GExpr)
     trace[QPF] "G := {GExpr}"
     trace[QPF] "comp := {comp}"
 
-    let functor := q(Comp.instMvFunctorComp)
-    let qpf := q(Comp.instMvQPFCompInstMvFunctorCompFin2
-      (fF := $Ffunctor) (q := $Fqpf) (fG := _) (q' := $GQpf)
+    let qpf := q(
+      @Macro.Comp.instMvQPFComp (q := $Fqpf) (qG := $GQpf)
     )
-    return { F := comp, functor, qpf }
+    return { F := comp, qpf }
 
 
 partial def handleArrow (binderType body : Expr) (vars : Vector FVarId arity) (targetStx : Option Term := none) (normalized := false) : TermElabM (ElabQpfResult u arity) := do
   let newTarget ← mkAppM ``MvQPF.Arrow.Arrow #[binderType, body]
   elabQpf vars newTarget targetStx normalized
+
 /--
   Elaborate the body of a qpf
 -/
@@ -271,7 +274,7 @@ structure QpfCompositionBinders where
   that represents the desired functor (in uncurried form)
 -/
 def elabQpfCompositionBody (view: QpfCompositionBodyView) :
-      CommandElabM (Term × Term × Term) := do
+      CommandElabM (Term × Term) := do
   trace[QPF] "elabQpfCompositionBody ::
     type?       := {view.type?}
     target      := {view.target}
@@ -303,14 +306,12 @@ def elabQpfCompositionBody (view: QpfCompositionBodyView) :
             let res ← elabQpf vars target_expr view.target
 
             res.F.check
-            res.functor.check
             res.qpf.check
 
             withOptions (fun opt => opt.insert `pp.explicit true) <| do
               let F ← delab res.F
-              let functor ← delab res.functor
               let qpf ← delab res.qpf
-              return ⟨F, functor, qpf⟩
+              return ⟨F, qpf⟩
 
 
 structure QpfCompositionView where
@@ -333,7 +334,7 @@ def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
   /-
     Elaborate body
   -/
-  let ⟨body, functor, qpf⟩ ← elabQpfCompositionBody {
+  let ⟨body, qpf⟩ ← elabQpfCompositionBody {
     type?   := view.type?
     target  := view.target
     liveBinders,
@@ -364,9 +365,6 @@ def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
       $modifiers:declModifiers
       def $F:ident $deadBinders:bracketedBinder* : CurriedTypeFun $live_arity :=
         TypeFun.curried $F_internal_applied
-
-      $modifiers:declModifiers
-      instance : MvFunctor ($F_internal_applied) := $functor:term
 
       $modifiers:declModifiers
       instance $deadBinders:bracketedBinder* : MvQPF ($F_internal_applied) := $qpf:term

@@ -5,7 +5,7 @@ import Lean
 import Qpf.Macro.Common
 
 open Lean
-open Meta Elab Elab.Command 
+open Meta Elab Elab.Command
 
 open Parser.Term (bracketedBinder)
 open Parser.Command (declId)
@@ -17,7 +17,7 @@ inductive DataCommand where
   | Codata
   deriving BEq, Inhabited
 
-namespace DataCommand 
+namespace DataCommand
 
 def fromSyntax : Syntax → CommandElabM DataCommand
   | Syntax.atom _ "data"   => pure .Data
@@ -79,13 +79,13 @@ def DataView.asInductive (view : DataView) : InductiveView
   := {
     ref             := view.ref
     declId          := view.declId
-    modifiers       := view.modifiers      
-    shortDeclName   := view.shortDeclName  
-    declName        := view.declName       
-    levelNames      := view.levelNames     
-    binders         := view.binders        
-    type?           := view.type?          
-    ctors           := view.ctors          
+    modifiers       := view.modifiers
+    shortDeclName   := view.shortDeclName
+    declName        := view.declName
+    levelNames      := view.levelNames
+    binders         := view.binders
+    type?           := view.type?
+    ctors           := view.ctors
     derivingClasses := view.derivingClasses
     -- TODO: find out what these computed fields are, add support for them in `data`/`codata`
     computedFields  := #[]
@@ -185,12 +185,12 @@ instance : ToString (DataView) := ⟨
   Raises (hopefully) more informative errors when `data` or `codata` are used with unsupported
   specifications
 -/
-def DataView.doSanityChecks (view : DataView) : CommandElabM Unit := do  
-  if view.liveBinders.isEmpty then    
+def DataView.doSanityChecks (view : DataView) : CommandElabM Unit := do
+  if view.liveBinders.isEmpty then
     if view.deadBinders.isEmpty then
       if view.command == .Codata then
         throwError "Due to a bug, codatatype without any parameters don't quite work yet. Please try adding parameters to your type"
-      else 
+      else
         throwError "Trying to define a datatype without variables, you probably want an `inductive` type instead"
     else
       throwErrorAt view.binders "You should mark some variables as live by removing the type ascription (they will be automatically inferred as `Type _`), or if you don't have variables of type `Type _`, you probably want an `inductive` type"
@@ -216,7 +216,7 @@ def dataSyntaxToView (modifiers : Modifiers) (decl : Syntax) : CommandElabM Data
 
   let (binders, type?) := expandOptDeclSig decl[2]
 
-  let declId  : TSyntax ``declId := ⟨decl[1]⟩ 
+  let declId  : TSyntax ``declId := ⟨decl[1]⟩
   let ⟨name, declName, levelNames⟩ ← expandDeclId declId modifiers
   addDeclarationRanges declName decl
   let ctors      ← decl[4].getArgs.mapM fun ctor => withRef ctor do
@@ -238,7 +238,7 @@ def dataSyntaxToView (modifiers : Modifiers) (decl : Syntax) : CommandElabM Data
     addDocString' ctorName ctorModifiers.docString?
     addAuxDeclarationRanges ctorName ctor ctor[3]
     return { ref := ctor, modifiers := ctorModifiers, declName := ctorName, binders := binders, type? := type? : CtorView }
-  let classes ← getOptDerivingClasses decl[5]
+  let classes ← liftCoreM <| getOptDerivingClasses decl[5]
 
 
   let command ← DataCommand.fromSyntax decl[0]

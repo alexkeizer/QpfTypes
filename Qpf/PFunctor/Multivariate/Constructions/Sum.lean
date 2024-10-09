@@ -60,7 +60,7 @@ def equiv {Γ} : Sum' Γ ≃ QpfSum' Γ :=
     dsimp only [box, unbox, inl, inr]
     fin_cases i <;> {
       simp only [Function.Embedding.coeFn_mk, PFin2.ofFin2_fs, PFin2.ofFin2_fz,
-        Fin2.instOfNatFin2HAddNatInstHAddInstAddNatOfNat, Nat.rec_zero]
+        Nat.rec_zero]
       apply congrArg
       funext i; fin_cases i <;> (funext (j : PFin2 _); fin_cases j)
       rfl

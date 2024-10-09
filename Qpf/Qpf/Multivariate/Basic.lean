@@ -9,7 +9,6 @@ namespace MvQPF
   -/
   class IsPolynomial {n} (F : TypeVec n → Type _) [MvFunctor F] extends MvQPF F where
     repr_abs : ∀ {α} (x : P.Obj α), repr (abs x) = x
-  #align mvqpf.is_polynomial MvQPF.IsPolynomial
 
 
   namespace IsPolynomial
@@ -26,7 +25,6 @@ namespace MvQPF
       left_inv := p.abs_repr,
       right_inv := p.repr_abs,
     }
-    #align mvqpf.is_polynomial.equiv MvQPF.IsPolynomial.equiv
 
     def ofEquiv (P : MvPFunctor n) (eqv : ∀ {α}, F α ≃ P.Obj α) [functor : MvFunctor F] (map_eq : ∀ (α β : TypeVec n) (f : TypeVec.Arrow α β) (x : F α), functor.map f x = (eqv.invFun <| P.map f <| eqv.toFun <| x) := by intros; rfl) : IsPolynomial F where
       P         := P
@@ -73,24 +71,18 @@ variable {n} {F : TypeFun n}
 
 namespace MvQPF
   instance instMvFunctor_ofCurried_curried [f : MvFunctor F] :
-      MvFunctor <| TypeFun.ofCurried <| F.curried := 
-    by rw[TypeFun.ofCurried_curried_involution]; exact f
+      MvFunctor <| TypeFun.ofCurried <| F.curried :=
+    TypeFun.ofCurried_curried_involution ▸ f
 
-  instance instQPF_ofCurried_curried [functor : MvFunctor F] [q : MvQPF F] : 
+  instance instQPF_ofCurried_curried [MvFunctor F] [q : MvQPF F] :
       MvQPF <| TypeFun.ofCurried <| F.curried :=
-    by 
-      apply cast ?_ q
-      congr
-      . rw[TypeFun.ofCurried_curried_involution]
-      . exact (cast_heq _ _).symm
+    TypeFun.ofCurried_curried_involution ▸ q
 
-  instance instIsPolynomial_ofCurried_curried [functor : MvFunctor F] [p : IsPolynomial F] : 
-      IsPolynomial <| TypeFun.ofCurried <| F.curried := 
-    by 
-      apply cast ?_ p
-      congr
-      . rw[TypeFun.ofCurried_curried_involution]
-      . exact (cast_heq _ _).symm
+  instance instIsPolynomial_ofCurried_curried [functor : MvFunctor F] [p : IsPolynomial F] :
+      IsPolynomial <| TypeFun.ofCurried <| F.curried := by
+    apply cast ?_ p
+    congr
+    · rw [TypeFun.ofCurried_curried_involution]
+    · exact HEq.symm (eqRec_heq ..)
 
 end MvQPF
-
