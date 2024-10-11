@@ -31,5 +31,5 @@ jobs:
       - name: Compile tests 🧐
         run: lake -R build +Test
 
-      - name: Compile ITree Library 🧐
+      - name: Compile ITree library 🧐
         run: lake -R build +ITree
