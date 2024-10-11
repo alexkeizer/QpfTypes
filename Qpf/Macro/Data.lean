@@ -99,10 +99,11 @@ open Parser in
   That is, it defines a type with exactly as many constructor as the input type, but such that
   all constructors are constants (take no arguments).
 -/
-def mkHeadT (view : InductiveView) : CommandElabM Name :=
-  withQPFTraceNode "mkHeadT" (tag := "mkHeadT") <| do
-  -- If the original declId was `MyType`, we want to register the head type under `MyType.HeadT`
+def mkHeadT (view : InductiveView) : CommandElabM Name := do
   let (declName, declId, shortDeclName) ← addSuffixToDeclId view.declId "HeadT"
+  withQPFTraceNode m!"defining `{declName}`" (tag := "mkHeadT") <| do
+  -- If the original declId was `MyType`, we want to register the head type under `MyType.HeadT`
+
 
 
   let modifiers : Modifiers := {
@@ -147,11 +148,10 @@ open Parser Parser.Term Parser.Command in
   `ChildT a i` corresponds to the times that constructor `a` takes an argument of the `i`-th type
   argument
 -/
-def mkChildT (view : InductiveView) (r : Replace) (headTName : Name) : CommandElabM Name :=
-  withQPFTraceNode "mkChildT" (tag := "mkChildT") <| do
-
+def mkChildT (view : InductiveView) (r : Replace) (headTName : Name) : CommandElabM Name := do
   -- If the original declId was `MyType`, we want to register the child type under `MyType.ChildT`
   let (declName, declId, _shortDeclName) ← addSuffixToDeclId view.declId "ChildT"
+  withQPFTraceNode m!"defining `{declName}`" (tag := "mkChildT") <| do
 
   let target_type := Syntax.mkApp (mkIdent ``TypeVec) #[quote r.arity]
 
@@ -183,7 +183,8 @@ open Parser.Term in
   Show that the `Shape` type is a qpf, through an isomorphism with the `Shape.P` pfunctor
 -/
 def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT P : Ident) (arity : Nat) : CommandElabM Unit := do
-  withQPFTraceNode "mkQPF" (tag := "mkQPF") <| do
+  withQPFTraceNode m!"deriving instance of `MvQPF {shapeView.shortDeclName}`"
+    (tag := "mkQPF") <| do
 
   let (shapeN, _) := Elab.expandDeclIdCore shapeView.declId
   let eqv := mkIdent $ Name.mkStr shapeN "equiv"
@@ -277,7 +278,8 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT P : Ide
         $unboxBody:matchAlt*
   )
 
-  elabCommandAndTrace <|← `(
+  let header := m!"showing that {shapeView.declName} is equivalent to a polynomial functor …"
+  elabCommandAndTrace (header := header) <|← `(
     def $eqv:ident {Γ} : (@TypeFun.ofCurried $(quote arity) $shape) Γ ≃ ($P).Obj Γ where
       toFun     := $box
       invFun    := $unbox
@@ -296,10 +298,12 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT P : Ide
         <;> (funext i; fin_cases i)
         <;> (funext (j : PFin2 _); fin_cases j)
         <;> rfl
-
+  )
+  elabCommandAndTrace (header := "defining {functor}") <|← `(
     instance $functor:ident : MvFunctor (@TypeFun.ofCurried $(quote arity) $shape) where
       map f x   := ($eqv).invFun <| ($P).map f <| ($eqv).toFun <| x
-
+  )
+  elabCommandAndTrace (header := "defining {q}") <|← `(
     instance $q:ident : MvQPF.IsPolynomial (@TypeFun.ofCurried $(quote arity) $shape) :=
       .ofEquiv $P $eqv
   )
@@ -313,11 +317,11 @@ structure MkShapeResult where
   (effects : CommandElabM Unit)
 
 open Parser in
-def mkShape (view : DataView) : TermElabM MkShapeResult :=
-  withQPFTraceNode "mkShape" (tag := "mkShape") <| do
-
+def mkShape (view : DataView) : TermElabM MkShapeResult := do
   -- If the original declId was `MyType`, we want to register the shape type under `MyType.Shape`
   let (declName, declId, shortDeclName) ← addSuffixToDeclId view.declId "Shape"
+
+  withQPFTraceNode m!"defining `{declName}`" (tag := "mkShape") <| do
 
 
   -- Extract the "shape" functors constructors

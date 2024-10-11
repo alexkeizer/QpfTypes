@@ -26,7 +26,7 @@ def withQPFTraceNode (header : MessageData) (k : n α)
 def elabCommandAndTrace (stx : Syntax)
     (header : MessageData := "elaborating command …") :
     CommandElabM Unit := do
-  withQPFTraceNode header <| do
+  withQPFTraceNode header (collapsed := false) <| do
     trace[QPF] stx
   Lean.Elab.Command.elabCommand stx
 
