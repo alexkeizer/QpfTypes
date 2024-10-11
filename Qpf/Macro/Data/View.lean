@@ -149,11 +149,16 @@ instance : ToMessageData CtorView where
   type?     := {ctor.type?},
 }"
 
+/-
+We omit ref from the output, since it tends to dump a large amount of not
+particularly interesting syntax -- especially considering ref is only used
+as a reference to know where to throw an error
+-/
 instance : ToMessageData InductiveView where
   toMessageData view := m!"\{\
   declId          := {view.declId},
   modifiers       := {view.modifiers},
-  ref             := {view.ref             },
+  ref             := <omitted>,
   declId          := {view.declId          },
   modifiers       := {view.modifiers       },
   shortDeclName   := {view.shortDeclName   },
@@ -162,14 +167,14 @@ instance : ToMessageData InductiveView where
   binders         := {view.binders         },
   type?           := {view.type?},
   ctors           := {view.ctors},
-  derivingClasses := <not able to be printed>,
+  derivingClasses := <omitted>,
 }"
 
 instance : ToMessageData DataView where
   toMessageData view := m!"\{\
   declId          := {view.declId},
   modifiers       := {view.modifiers},
-  ref             := {view.ref             },
+  ref             := <omitted>,
   declId          := {view.declId          },
   modifiers       := {view.modifiers       },
   shortDeclName   := {view.shortDeclName   },
@@ -178,7 +183,7 @@ instance : ToMessageData DataView where
   binders         := {view.binders         },
   type?           := {view.type?},
   ctors           := {view.ctors},
-  derivingClasses := <not able to be printed>,
+  derivingClasses := <omitted>,
   command         := {view.command         },
   liveBinders     := {view.liveBinders     },
   deadBinders     := {view.deadBinders     },
