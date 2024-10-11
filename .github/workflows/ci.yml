@@ -22,12 +22,14 @@ jobs:
           ~/.elan/bin/lean --version
           echo "$HOME/.elan/bin" >> $GITHUB_PATH
 
-      - name: Compile Library 🧐
-        run: |
-          lake -R exe cache get
-          lake -R build
+      - name: Fetch cached dependencies 🕑
+        run : lake -R exe cache get
 
-      - name: Compile Tests
-        run: |
-          lake -R exe cache get
-          lake -R build +Test
+      - name: Compile QpfTypes library 🧐
+        run: lake -R build
+
+      - name: Compile tests 🧐
+        run: lake -R build +Test
+
+      - name: Compile ITree library 🧐
+        run: lake -R build +ITree
