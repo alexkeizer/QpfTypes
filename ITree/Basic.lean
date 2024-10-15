@@ -116,6 +116,30 @@ theorem symm {x y : ITree α ε ρ} : EquivUTT x y → EquivUTT y x := by
     <;> assumption
   · exact h_R
 
+theorem trans {x y z : ITree α ε ρ} : EquivUTT x y → EquivUTT y z → EquivUTT x z := by
+  rintro ⟨R₁, isFixpoint₁, h_R₁⟩ ⟨R₂, isFixpoint₂, h_R₂⟩
+  let R' (a c) := ∃ b, R₁ a b ∧ R₂ b c
+  apply EquivUTT.intro (R := R')
+  · rintro a c ⟨b, h_fR₁, h_fR₂⟩
+    specialize isFixpoint₁ _ _ h_fR₁
+    specialize isFixpoint₂ _ _ h_fR₂
+    clear h_fR₁ h_fR₂
+    -- have r'_of_left (a c) : R' a c
+
+    cases isFixpoint₁
+    case ret r =>
+      generalize ret r = retr
+      -- split at isFixpoint₂
+      -- cases isFixpoint₂
+      · sorry
+    · sorry
+    · sorry
+    · sorry
+    · sorry
+  · exact ⟨y, h_R₁, h_R₂⟩
+
+
+
 end EquivUTT
 
 end ITree
