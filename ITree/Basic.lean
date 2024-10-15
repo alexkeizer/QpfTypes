@@ -96,4 +96,26 @@ inductive EquivUTT (x y : ITree α ε ρ) : Prop where
     (h_fixpoint : ∀ a b, R a b → EquivUTT.F R a b)
     (h_R : R x y)
 
+namespace EquivUTT
+
+theorem refl (x : ITree α ε ρ) : EquivUTT x x := by
+  apply EquivUTT.intro (R := (· = ·))
+  · rintro a - rfl
+    cases a
+    · constructor
+    · constructor; rfl
+    · constructor; intro; rfl
+  · rfl
+
+theorem symm {x y : ITree α ε ρ} : EquivUTT x y → EquivUTT y x := by
+  rintro ⟨R, isFixpoint, h_R⟩
+  apply EquivUTT.intro (R := flip R)
+  · rintro a b h_fR
+    cases isFixpoint _ _ h_fR
+    <;> constructor
+    <;> assumption
+  · exact h_R
+
+end EquivUTT
+
 end ITree
