@@ -78,4 +78,22 @@ def cases {α ε ρ : Type} {motive : ITree α ε ρ → Sort u}
 def spin : ITree α ε ρ :=
   corec (fun () => .tau ()) ()
 
+inductive EquivUTT.F (R : ITree α ε ρ → ITree α ε ρ → Prop) :
+    ITree α ε ρ → ITree α ε ρ → Prop
+  | ret : EquivUTT.F R (.ret r) (.ret r)
+  | vis :
+    (∀ a, R (k₁ a) (k₂ a))
+    → EquivUTT.F R (.vis e k₁) (.vis e k₂)
+  | tau : R x y → EquivUTT.F R (.tau x) (.tau y)
+  | taul : R x y → EquivUTT.F R (.tau x) y
+  | taur : R x y → EquivUTT.F R x (.tau y)
+
+/-- Equivalence-up-to-tau, i.e., weak bisimiulation.
+
+This is called `eutt` in the Coq development -/
+inductive EquivUTT (x y : ITree α ε ρ) : Prop where
+  | intro (R : ITree α ε ρ → ITree α ε ρ → Prop)
+    (h_fixpoint : ∀ a b, R a b → EquivUTT.F R a b)
+    (h_R : R x y)
+
 end ITree
