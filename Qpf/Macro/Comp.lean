@@ -120,13 +120,6 @@ def List.indexOf' {α : Type} [BEq α] :  α → (as : List α) → Option (Fin2
                       | none   => none
                       | some i => some <| .fs i
 
-
-
--- structure QpfExpr (u : Level) (arity : Nat) where
---   F : Q(TypeFun.{u,u} $arity)
---   qpf     : Q(@MvQPF _ $F) := by exact q(by infer_instance)
--- deriving Inhabited
-
 def isLiveVar (varIds : Vector FVarId n) (id : FVarId) := varIds.toList.contains id
 
 open PrettyPrinter in
