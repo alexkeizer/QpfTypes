@@ -1,4 +1,7 @@
 import Qpf
+import Mathlib.Data.QPF.Multivariate.Constructions.Sigma
+
+#check MvPFunctor
 
 /-!
 # Interaction Trees
@@ -36,11 +39,33 @@ Unfortunately, this, too yields an error, so for now we settle for fixing a
 particular input type `α`, by making `α` a parameter of the type.
 -/
 
-codata ITree α ε ρ where
+set_option trace.QPF true
+codata ITree (α : Type) (ι : α → Type) (ε : α → Type) ρ where
   | ret (r : ρ)
-  | tau (t : ITree α ε ρ)
-  | vis : ε → α → ITree α ε ρ → ITree α ε ρ
+  | tau (t : ITree ε ρ)
+  | vis (e : Σ a : α, ε a × (ι a) → ITree ε ρ)
 
+inductive ITree2.Shape ρ ι ν
+  | ret (r : ρ)
+  | tau (t : ι) -- ι = ITree ε ρ
+  | vis (e : ν) -- ν = Σ α : Type, ε α × α → ITree ε ρ
+
+-- qpf F ε ρ ι ν    = (Σ α : Type, ε α × α → ι)
+
+-- qpf F (α : Type) ε ρ ι ν    = Sigma G
+
+qpf G (α : Type) (ε : Type → Type) ρ ι ν := ε α × (α → ι)
+
+#check G
+#check Sigma
+
+def Gs {α : Type} (f : α → Type) (ε : Type _ → Type _) : TypeFun 3 :=
+  MvQPF.Sigma (A := α) (fun a => TypeFun.ofCurried (n:=3) <| G (f a) ε)
+
+
+#print ITree.Shape
+#print ITree.Shape.P
+#print MvQPF.Sigma
 
 namespace ITree
 

@@ -10,6 +10,9 @@
   We can define constant functors, that don't depend on their variables at all
   `qpf F_int α β := Int`
 
+  Or sigma types
+  `qpf Fₛ (α : Type) β := Σ α, β `
+
   It's primary use is for (nested) compositions
   `qpf F₃ α β := F₁ β α (F_int β α)`
 
@@ -239,6 +242,8 @@ partial def handleArrow (binderType body : Expr) (vars : Vector FVarId arity) (t
 
 /--
   Elaborate the body of a qpf
+
+  Try to find an `F`, s.t., `F vars = target` and `F` is a QPF
 -/
 partial def elabQpf {arity : Nat} (vars : Vector FVarId arity) (target : Q(Type u)) (targetStx : Option Term := none) (normalized := false) :
     TermElabM (ElabQpfResult u arity) := do
