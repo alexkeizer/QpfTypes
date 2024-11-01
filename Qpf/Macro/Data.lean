@@ -1,6 +1,3 @@
-import Mathlib.Data.QPF.Multivariate.Constructions.Cofix
-import Mathlib.Data.QPF.Multivariate.Constructions.Fix
-
 import Qpf.Macro.Data.Constructors
 import Qpf.Macro.Data.Replace
 import Qpf.Macro.Data.Count
@@ -8,6 +5,7 @@ import Qpf.Macro.Data.View
 import Qpf.Macro.Data.Ind
 import Qpf.Macro.Common
 import Qpf.Macro.Comp
+import Qpf.Macro.QpfExpr
 
 open Lean Meta Elab.Command
 open Elab (Modifiers elabModifiers)
@@ -31,7 +29,6 @@ private def PFin2.quoteOfNat : Nat → Term
 private def Fin2.quoteOfNat : Nat → Term
   | 0   => mkIdent ``Fin2.fz
   | n+1 => Syntax.mkApp (mkIdent ``Fin2.fs) #[(quoteOfNat n)]
-
 
 namespace Data.Command
 

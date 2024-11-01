@@ -24,6 +24,7 @@ import Mathlib.Data.Vector.Basic
 
 import Qpf.Qpf
 import Qpf.Macro.Common
+import Qpf.Macro.QpfExpr
 
 import Qq
 
@@ -110,9 +111,6 @@ where
       let _ ← synthQPF F functor
       return ⟨depth, F, args⟩
 
-
-
-
 def List.indexOf' {α : Type} [BEq α] :  α → (as : List α) → Option (Fin2 (as.length))
   | _, []       =>  none
   | a, b :: bs  =>  if a == b then
@@ -123,117 +121,59 @@ def List.indexOf' {α : Type} [BEq α] :  α → (as : List α) → Option (Fin2
                       | some i => some <| .fs i
 
 
-def Fin2.toExpr {n : Nat} : Fin2 n → Q(Fin2 $n)
-  | .fz   => q(Fin2.fz)
-  | .fs i => q(Fin2.fs $(toExpr i))
 
-instance {n : Nat} : ToExpr (Fin2 n) where
-  toExpr      := Fin2.toExpr
-  toTypeExpr  := q(Fin2 $n)
-
-
-def Vec.toExpr {α : Q(Type u)} : {n : Nat} → Vec Q($α) n → Q(Vec $α $n)
-  | 0,   _  => q(Vec.nil)
-  | _+1, as =>
-    let a : Q($α) := as.last
-    let as := toExpr as.drop
-    q(Vec.append1 $as $a)
-
-instance {α : Q(Type u)} {n : Nat} : ToExpr (Vec Q($α) n) where
-  toExpr      := Vec.toExpr
-  toTypeExpr  := q(Vec $α $n)
-
-def DVec.toExpr {n : Nat} {αs : Q(Fin2 $n → Type u)} (xs : DVec (fun (i : Fin2 n) => Q($αs $i))) :
-    Q(DVec.{u} $αs) :=
-  match n with
-  | 0   => q(Fin2.elim0)
-  | _+1 =>
-    let a : Q($αs 0) := xs.last
-    let as := toExpr xs.drop
-    q(fun
-      | .fz   => $a
-      | .fs i => $as i
-    )
-
-/-! ## instances
-Our automation needs to refer to instances of `MvQPF` by name.
-Since the name of those instances might change, we define our own aliasses
-to guard against this.
--/
-protected def instMvQPFComp (F : TypeFun n) (Gs : Fin2 n → TypeFun m)
-    [q : MvQPF F] [qG : ∀ i, MvQPF (Gs i)] :
-    MvQPF (Comp F Gs) :=
-  inferInstance
-
-structure ElabQpfResult (u : Level) (arity : Nat) where
-  F : Q(TypeFun.{u,u} $arity)
-  qpf     : Q(@MvQPF _ $F) := by exact q(by infer_instance)
-deriving Inhabited
+-- structure QpfExpr (u : Level) (arity : Nat) where
+--   F : Q(TypeFun.{u,u} $arity)
+--   qpf     : Q(@MvQPF _ $F) := by exact q(by infer_instance)
+-- deriving Inhabited
 
 def isLiveVar (varIds : Vector FVarId n) (id : FVarId) := varIds.toList.contains id
 
 open PrettyPrinter in
 mutual
-partial def handleLiveFVar (vars : Vector FVarId arity) (target : FVarId)  : TermElabM (ElabQpfResult u arity) := do
+partial def handleLiveFVar (vars : Vector FVarId arity) (target : FVarId)  : TermElabM (QpfExpr u arity) := do
   trace[QPF] f!"target {Expr.fvar target} is a free variable"
   let ind ← match List.indexOf' target vars.toList with
   | none      => throwError "Free variable {Expr.fvar target} is not one of the qpf arguments"
   | some ind  => pure ind
 
   let ind : Fin2 arity := cast (by simp) ind.inv
-  let prj := q(@Prj.{u} $arity $ind)
+  let prj := QpfExpr.prj ind
   trace[QPF] "represented by: {prj}"
+  return prj
 
-  pure { F := prj, qpf := q(Prj.mvqpf _) }
-
-partial def handleConst (target : Q(Type u))  : TermElabM (ElabQpfResult u arity) := do
+partial def handleConst (target : Q(Type u))  : TermElabM (QpfExpr u arity) := do
   trace[QPF] "target {target} is a constant"
-  let const := q(Const.{u} $arity $target)
+  let const := QpfExpr.const _ target
   trace[QPF] "represented by: {const}"
-  pure { F := const, qpf := q(Const.mvqpf)}
+  return const
 
-
-partial def handleApp (vars : Vector FVarId arity) (target : Q(Type u)) : TermElabM (ElabQpfResult u arity) := do
+partial def handleApp (vars : Vector FVarId arity) (target : Q(Type u)) : TermElabM (QpfExpr u arity) := do
   let vars' := vars.toList
 
   let ⟨numArgs, F, args⟩ ← (Comp.parseApp (isLiveVar vars) target)
   trace[QPF] "target {target} is an application of {F} to {args.toList}"
+  let F ← QpfExpr.ofTypeFun F
 
   /-
     Optimization: check if the application is of the form `F α β γ .. = G α β γ ..`.
     In such cases, we can directly return `G`, rather than generate a composition of projections.
   -/
-
   let is_trivial := args.toList.mapM Expr.fvarId? == some vars'
-
   if is_trivial then
     trace[QPF] "The application is trivial"
-    let qpf ← synthInstanceQ q(MvQPF $F)
-    return { F, qpf }
+    let some F := F.cast?
+      | throwError "internal error: failed to cast {F} to be of arity {arity}"
+    return F
   else
     let G ← args.mmap (elabQpf vars · none false)
-
-    let Ffunctor ← synthInstanceQ q(MvFunctor $F)
-    let Fqpf ← synthInstanceQ q(@MvQPF _ $F)
-
     let G : Vec _ numArgs := fun i => G.get i.inv
-    let GExpr : Q(Vec (TypeFun.{u,u} $arity) $numArgs) :=
-      Vec.toExpr (fun i => (G i).F)
-    let GQpf : Q(∀ i, MvQPF.{u,u} ($GExpr i)) :=
-      let αs := q(fun i => MvQPF.{u,u} ($GExpr i))
-      @DVec.toExpr _ _ αs (fun i => (G i).qpf)
 
-    let comp := q(@Comp $numArgs _ $F $GExpr)
-    trace[QPF] "G := {GExpr}"
-    trace[QPF] "comp := {comp}"
+    let C := QpfExpr.comp F G
+    trace[QPF] "represented by: {C}"
+    return C
 
-    let qpf := q(
-      @Macro.Comp.instMvQPFComp (q := $Fqpf) (qG := $GQpf)
-    )
-    return { F := comp, qpf }
-
-
-partial def handleArrow (binderType body : Expr) (vars : Vector FVarId arity) (targetStx : Option Term := none) (normalized := false) : TermElabM (ElabQpfResult u arity) := do
+partial def handleArrow (binderType body : Expr) (vars : Vector FVarId arity) (targetStx : Option Term := none) (normalized := false) : TermElabM (QpfExpr u arity) := do
   let newTarget ← mkAppM ``MvQPF.Arrow.Arrow #[binderType, body]
   elabQpf vars newTarget targetStx normalized
 
@@ -241,7 +181,7 @@ partial def handleArrow (binderType body : Expr) (vars : Vector FVarId arity) (t
   Elaborate the body of a qpf
 -/
 partial def elabQpf {arity : Nat} (vars : Vector FVarId arity) (target : Q(Type u)) (targetStx : Option Term := none) (normalized := false) :
-    TermElabM (ElabQpfResult u arity) := do
+    TermElabM (QpfExpr u arity) := do
   trace[QPF] "elabQPF :: {(vars.map Expr.fvar).toList} -> {target}"
   let isLiveVar := isLiveVar vars
 
@@ -309,13 +249,11 @@ def elabQpfCompositionBody (view: QpfCompositionBodyView) :
         throwError "Expected all args to be fvars" -- TODO: throwErrorAt
 
       let res ← elabQpf vars target_expr view.target
-
-      res.F.check
-      res.qpf.check
+      res.check
 
       withOptions (fun opt => opt.insert `pp.explicit true) <| do
-        let F ← delab res.F
-        let qpf ← delab res.qpf
+        let F ← delab res.typeFun
+        let qpf ← delab res.qpfInstance
 
         withQPFTraceNode "results …" <| do
           trace[QPF] "Functor := {F}"
