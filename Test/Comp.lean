@@ -1,7 +1,7 @@
 import Qpf
-import Test.List
+-- import Test.List
 
-open Test
+-- open Test
 
 
 /-

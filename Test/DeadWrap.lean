@@ -5,6 +5,7 @@ import Qpf
 
 namespace Test
 
+set_option trace.QPF true
 data DeadWrap (α : Type) β
   | mk : α → DeadWrap α β
 

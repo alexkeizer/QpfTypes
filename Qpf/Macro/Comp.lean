@@ -66,16 +66,16 @@ def synthQPF {n : Nat} (F : Q(TypeFun.{u,u} $n)) (_ : Q(MvFunctor $F)) : MetaM Q
 -/
 protected partial def parseApp (isLiveVar : FVarId → Bool) (F : Q(Type u)) :
     TermElabM ((n : Nat) × Q(TypeFun.{u,u} $n) × Vector Expr n) :=
-  if F.isApp then
-    /-
-      HACK: Technically `F` is *not* an instance of `CurriedTypeFun 0`.
-      However, we know that it is an application, and we only check the type after
-      deconstructing the application
-    -/
-    parseAppAux F ⟨[], rfl⟩ none
-  else
-    throwError "application expected:\n {F}"
-
+  withQPFTraceNode m!"decomposing {F}" <| do
+    if F.isApp then
+      /-
+        HACK: Technically `F` is *not* an instance of `CurriedTypeFun 0`.
+        However, we know that it is an application, and we only check the type after
+        deconstructing the application
+      -/
+      parseAppAux F ⟨[], rfl⟩ none
+    else
+      throwError "application expected:\n {F}"
 where
   parseAppAux : {n : Nat} → Q(CurriedTypeFun.{u,u} $n) → Vector Expr n → Option Exception → _
   | depth', Expr.app F a, args', _ => do
@@ -208,8 +208,8 @@ structure QpfCompositionBinders where
   Given the description of a QPF composition (`QpfCompositionView`), generate the syntax for a term
   that represents the desired functor (in uncurried form)
 -/
-def elabQpfCompositionBody (view: QpfCompositionBodyView) :
-      CommandElabM (Term × Term) := do
+def elabQpfCompositionBody (view : QpfCompositionBodyView) :
+      CommandElabM (Σ u n, QpfExpr' u n) := do
   withQPFTraceNode "composition pipeline"
     (tag := "elabQpfCompositionBody") <| do
 
@@ -231,7 +231,7 @@ def elabQpfCompositionBody (view: QpfCompositionBodyView) :
         mkFreshLevelMVar
 
     withAutoBoundImplicit <|
-    elabBinders view.deadBinders fun _deadVars =>
+    elabBinders view.deadBinders fun deadVars =>
     withLiveBinders view.liveBinders fun vars =>
     withoutAutoBoundImplicit <| do
       let target_expr ← elabTermEnsuringTypeQ (u:=u.succ.succ) view.target q(Type u)
@@ -243,16 +243,10 @@ def elabQpfCompositionBody (view: QpfCompositionBodyView) :
 
       let res ← elabQpf vars target_expr view.target
       res.check
-
-      withOptions (fun opt => opt.insert `pp.explicit true) <| do
-        let F ← delab res.typeFun
-        let qpf ← delab res.qpfInstance
-
-        withQPFTraceNode "results …" <| do
-          trace[QPF] "Functor := {F}"
-          trace[QPF] "MvQPF instance := {qpf}"
-        return ⟨F, qpf⟩
-
+      withQPFTraceNode "results …" <| do
+        trace[QPF] "{res}"
+      let res ← res.mkLambdaFVars deadVars
+      return ⟨_, _, res⟩
 
 structure QpfCompositionView where
   (modifiers  : Modifiers := {})
@@ -261,6 +255,7 @@ structure QpfCompositionView where
   (type?      : Option Term := none)
   (target     : Term)
 
+#synth CoreM MetaM
 
 /--
   Given the description of a QPF composition (`QpfCompositionView`), add a declaration for the
@@ -274,7 +269,7 @@ def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
   /-
     Elaborate body
   -/
-  let ⟨body, qpf⟩ ← elabQpfCompositionBody {
+  let ⟨_, _, qpfExpr⟩ ← elabQpfCompositionBody {
     type?   := view.type?
     target  := view.target
     liveBinders,
@@ -284,48 +279,52 @@ def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
   /-
     Define the qpf using the elaborated body
   -/
-  let F_internal := mkIdent $ Name.mkStr view.F "Uncurried";
-  let F := mkIdent view.F;
-  let modifiers := quote (k := ``declModifiers) view.modifiers;
-
-  let live_arity := mkNumLit liveBinders.size.repr;
-  trace[QPF] "body: {body}"
-  elabCommand <|← `(
-      $modifiers:declModifiers
-      def $F_internal:ident $deadBinders:bracketedBinder* :
-        TypeFun $live_arity :=
-      $body:term
-  )
-
-  let deadBinderNamedArgs ← deadBinderNames.mapM fun n => `(Parser.Term.namedArgument| ($n:ident := $n:term))
-  let F_internal_applied ← `($F_internal $deadBinderNamedArgs:namedArgument*)
+  let F_internal := Name.mkStr view.F "Uncurried";
+  let F := view.F;
 
 
-  let cmd ← `(
-      $modifiers:declModifiers
-      def $F:ident $deadBinders:bracketedBinder* : CurriedTypeFun $live_arity :=
-        TypeFun.curried $F_internal_applied
+  qpfExpr.addToEnvironment F_internal []
+  return ()
+  -- let modifiers := quote (k := ``declModifiers) view.modifiers;
 
-      $modifiers:declModifiers
-      instance $deadBinders:bracketedBinder* : MvQPF ($F_internal_applied) := $qpf:term
-  )
-  trace[QPF] "cmd: {cmd}"
-  elabCommand cmd
+  -- let live_arity := mkNumLit liveBinders.size.repr;
+  -- trace[QPF] "body: {body}"
+  -- elabCommand <|← `(
+  --     $modifiers:declModifiers
+  --     def $F_internal:ident $deadBinders:bracketedBinder* :
+  --       TypeFun $live_arity :=
+  --     $body:term
+  -- )
+
+  -- let deadBinderNamedArgs ← deadBinderNames.mapM fun n => `(Parser.Term.namedArgument| ($n:ident := $n:term))
+  -- let F_internal_applied ← `($F_internal $deadBinderNamedArgs:namedArgument*)
 
 
-  let F_applied ← `($F $deadBinderNamedArgs:namedArgument*)
+  -- let cmd ← `(
+  --     $modifiers:declModifiers
+  --     def $F:ident $deadBinders:bracketedBinder* : CurriedTypeFun $live_arity :=
+  --       TypeFun.curried $F_internal_applied
 
-  let cmd ← `(
-    $modifiers:declModifiers
-    instance : MvFunctor (TypeFun.ofCurried $F_applied) :=
-      MvQPF.instMvFunctor_ofCurried_curried
+  --     $modifiers:declModifiers
+  --     instance $deadBinders:bracketedBinder* : MvQPF ($F_internal_applied) := $qpf:term
+  -- )
+  -- trace[QPF] "cmd: {cmd}"
+  -- elabCommand cmd
 
-    $modifiers:declModifiers
-    instance $deadBindersNoHoles:bracketedBinder* : MvQPF (TypeFun.ofCurried $F_applied) :=
-      MvQPF.instQPF_ofCurried_curried
-  )
-  trace[QPF] "cmd₂: {cmd}"
-  elabCommand cmd
+
+  -- let F_applied ← `($F $deadBinderNamedArgs:namedArgument*)
+
+  -- let cmd ← `(
+  --   $modifiers:declModifiers
+  --   instance : MvFunctor (TypeFun.ofCurried $F_applied) :=
+  --     MvQPF.instMvFunctor_ofCurried_curried
+
+  --   $modifiers:declModifiers
+  --   instance $deadBindersNoHoles:bracketedBinder* : MvQPF (TypeFun.ofCurried $F_applied) :=
+  --     MvQPF.instQPF_ofCurried_curried
+  -- )
+  -- trace[QPF] "cmd₂: {cmd}"
+  -- elabCommand cmd
 
 
 

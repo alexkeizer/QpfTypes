@@ -32,6 +32,13 @@ inductive QpfExpr (u : Level) (n : Nat)
   -/
 deriving Inhabited
 
+/-- An analogue of `QpfExpr`, where the expressions have the same types,
+*except* that they may be prefixed by a sequence of lambdas
+(i.e., dead variables) -/
+inductive QpfExpr' (u : Level) (n : Nat)
+  | qpf (F : Expr) (qpf : Expr)
+  deriving Inhabited
+
 /-! ## Preliminaries -/
 section ToExpr
 
@@ -78,7 +85,6 @@ def typeFun {n : Nat} : QpfExpr u n → Q(TypeFun.{u, u} $n)
 def qpfInstance {n : Nat} : (q : QpfExpr u n) → Q(MvQPF $q.typeFun)
   | qpf _ q => q
 
-
 variable {m} [Monad m] [MonadLiftT MetaM m] in
 /-- Construct a `QPFExpr` from an expression of type `TypeFun n`, by
 synthesizing the corresponding MvQPF instance.
@@ -101,6 +107,14 @@ def check : QpfExpr u n → MetaM Unit
   | qpf F q => do
     F.check
     q.check
+
+/-- Call `Meta.mkLambdaFVars xs` on the constituent expressions,
+returning a `QpfExpr'` -/
+def mkLambdaFVars (xs : Array Expr) : QpfExpr u n → MetaM (QpfExpr' u n)
+  | qpf F q => do
+    let F ← Meta.mkLambdaFVars xs F
+    let q ← Meta.mkLambdaFVars xs q
+    return .qpf F q
 
 /-! ## Tracing-/
 
@@ -151,6 +165,50 @@ def comp (F : QpfExpr u n) (Gs : Vec (QpfExpr u m) n) : QpfExpr u m :=
 
   let comp := q(@MvQPF.Comp $n _ $F.typeFun $GExpr)
   let qpfInstance := q(
-    @instMvQPFComp (q := $F.qpfInstance) (qG := $GQpf)
+    instMvQPFComp (q := $F.qpfInstance) (qG := $GQpf)
   )
   qpf comp qpfInstance
+
+end QpfExpr
+
+/-! ## QpfExpr' -/
+
+namespace QpfExpr'
+
+/-! ### Basic Fields -/
+
+/-- The raw type function, i.e., an expression of type `TypeFun n` -/
+def typeFun {n : Nat} : QpfExpr' u n → Q(TypeFun.{u, u} $n)
+  | qpf F _ => F
+
+/-- The bundled QPF instance, i.e., an expression of type `MvQPF ($typeFun)` -/
+def qpfInstance {n : Nat} : (q : QpfExpr' u n) → Q(MvQPF $q.typeFun)
+  | qpf _ q => q
+
+/-! ### Environment Manipulation -/
+
+variable {m} [Monad m] [MonadLiftT CoreM m]
+/-- Add the typefunction of a `QpfExpr'` to the environment under the given
+name, together with the corresponding QPF instance as `$name.instMvQPF`. -/
+def addToEnvironment
+    (e : QpfExpr' u n)
+    (name : Name) (levelParams : List Name)
+    (hints : ReducibilityHints := .regular 0)
+    (safety : DefinitionSafety := .safe)
+    : m Unit := do
+  addAndCompile <| Declaration.defnDecl {
+    name,
+    levelParams
+    type := q(TypeFun.{u, u} $n)
+    value := e.typeFun
+    hints, safety
+  }
+  let F : Q(TypeFun.{u, u} $n) :=
+    Expr.const name (levelParams.map Level.param)
+  addAndCompile <| Declaration.defnDecl {
+    name := Name.str name "instMvQPF"
+    levelParams := levelParams
+    type := q(MvQPF $F)
+    value := e.qpfInstance
+    hints, safety
+  }
