@@ -13,8 +13,8 @@ namespace Prod
 
 open PFin2 (fz fs)
 
-def P : MvPFunctor 2
-  := .mk Unit fun _ _ => PFin2 1
+def P : MvPFunctor.{u} 2
+  := .mk PUnit fun _ _ => PFin2 1
 
 
 abbrev QpfProd' := P.Obj
@@ -30,9 +30,9 @@ abbrev Prod' : TypeFun 2
 /--
   Constructor for `QpfProd'`
 -/
-def mk (a : Γ 1) (b : Γ 0) : QpfProd' Γ
+def mk (a : Γ 1) (b : Γ 0) : QpfProd'.{u} Γ
   := ⟨
-      (),
+      ⟨⟩,
       fun
       | 1, _ => a
       | 0, _ => b
