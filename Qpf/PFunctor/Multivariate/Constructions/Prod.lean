@@ -6,7 +6,6 @@ import Mathlib.Data.QPF.Multivariate.Basic
 import Mathlib.Tactic.FinCases
 
 import Qpf.Util
-import Qpf.Qpf.Multivariate.Basic
 
 namespace MvQPF
 namespace Prod
@@ -20,16 +19,11 @@ def P : MvPFunctor 2
 abbrev QpfProd' := P.Obj
 abbrev QpfProd  := TypeFun.curried QpfProd'
 
-/--
-  An uncurried version of the root `Prod`
--/
-abbrev Prod' : TypeFun 2
-  := @TypeFun.ofCurried 2 Prod
+/-- An uncurried version of the root `Prod` -/
+def Prod' : TypeFun 2 :=
+  @TypeFun.ofCurried 2 Prod
 
-
-/--
-  Constructor for `QpfProd'`
--/
+/-- Constructor for `QpfProd'` -/
 def mk (a : Γ 1) (b : Γ 0) : QpfProd' Γ
   := ⟨
       (),
@@ -56,8 +50,9 @@ def equiv {Γ} : Prod' Γ ≃ QpfProd' Γ := {
 instance : MvFunctor Prod' where
   map f x   := equiv.invFun <| P.map f <| equiv.toFun <| x
 
-instance : MvQPF.IsPolynomial Prod' := .ofEquiv _ equiv
-
+instance : MvQPF Prod' := .ofEquiv (fun _ => equiv)
+instance : MvQPF (@TypeFun.ofCurried 2 Prod) :=
+  inferInstanceAs (MvQPF Prod')
 
 end Prod
 

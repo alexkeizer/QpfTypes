@@ -6,7 +6,6 @@ import Mathlib.Data.QPF.Multivariate.Basic
 import Mathlib.Tactic.FinCases
 
 import Qpf.Util
-import Qpf.Qpf.Multivariate.Basic
 
 namespace MvQPF
 namespace Sum
@@ -38,7 +37,7 @@ def inr {Γ : TypeVec 2} (b : Γ 0) : QpfSum' Γ
     ⟩
 
 
-abbrev Sum' := @TypeFun.ofCurried 2 Sum
+def Sum' := @TypeFun.ofCurried 2 Sum
 
 def box {Γ : TypeVec 2} : Sum' Γ → QpfSum' Γ
   | .inl a => inl a
@@ -70,8 +69,9 @@ def equiv {Γ} : Sum' Γ ≃ QpfSum' Γ :=
 instance : MvFunctor Sum' where
   map f x   := equiv.invFun <| SumPFunctor.map f <| equiv.toFun <| x
 
-instance : MvQPF.IsPolynomial Sum' :=
-  .ofEquiv _ equiv
+instance : MvQPF Sum' := .ofEquiv @equiv
+instance : MvQPF (@TypeFun.ofCurried 2 Sum) :=
+  inferInstanceAs (MvQPF Sum')
 
 end Sum
 

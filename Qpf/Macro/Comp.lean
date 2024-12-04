@@ -49,7 +49,7 @@ def synthMvFunctor {n : Nat} (F : Q(TypeFun.{u,u} $n)) : MetaM Q(MvFunctor $F) :
     q(MvFunctor $F)
   synthInstanceQ inst_type
 
-def synthQPF {n : Nat} (F : Q(TypeFun.{u,u} $n)) (_ : Q(MvFunctor $F)) : MetaM Q(MvQPF $F) := do
+def synthQPF {n : Nat} (F : Q(TypeFun.{u,u} $n)) : MetaM Q(MvQPF $F) := do
   let inst_type : Q(Type (u+1)) :=
     q(MvQPF $F)
   synthInstanceQ inst_type
@@ -87,10 +87,9 @@ where
     try
       -- Only try to infer QPF if `F` contains no live variables
       if !F.hasAnyFVar isLiveVar then
-        let F : Q(TypeFun.{u,u} $depth)
-          := q(TypeFun.ofCurried $F)
-        let functor ← synthMvFunctor F
-        let _ ← synthQPF F functor
+        let F : Q(TypeFun.{u,u} $depth) :=
+          q(TypeFun.ofCurried $F)
+        let _ ← synthQPF F
         return ⟨depth, F, args⟩
       throwError "Smallest function subexpression still contains live variables:\n  {F}\ntry marking more variables as dead"
     catch e =>
@@ -106,8 +105,7 @@ where
       trace[QPF] "F := {F}\nargs := {args.toList}\ndepth := {depth}"
       let F : Q(TypeFun.{u,u} $depth)
         := q(TypeFun.ofCurried $F)
-      let functor ← synthMvFunctor F
-      let _ ← synthQPF F functor
+      let _ ← synthQPF F
       return ⟨depth, F, args⟩
 
 
@@ -213,7 +211,6 @@ partial def handleApp (vars : Vector FVarId arity) (target : Q(Type u)) : TermEl
   else
     let G ← args.mmap (elabQpf vars · none false)
 
-    let Ffunctor ← synthInstanceQ q(MvFunctor $F)
     let Fqpf ← synthInstanceQ q(@MvQPF _ $F)
 
     let G : Vec _ numArgs := fun i => G.get i.inv
