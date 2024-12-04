@@ -23,6 +23,7 @@ import Mathlib.Data.QPF.Multivariate.Constructions.Prj
 import Mathlib.Data.Vector.Basic
 
 import Qpf.Qpf
+import Qpf.Qpf.Multivariate.Basic
 import Qpf.Macro.Common
 
 import Qq
@@ -310,14 +311,17 @@ def elabQpfCompositionBody (view: QpfCompositionBodyView) :
       res.F.check
       res.qpf.check
 
-      withOptions (fun opt => opt.insert `pp.explicit true) <| do
+      let (F, qpf) ← withOptions (fun opt => opt.insert `pp.explicit true) <| do
         let F ← delab res.F
         let qpf ← delab res.qpf
+        pure (F, qpf)
 
-        withQPFTraceNode "results …" <| do
-          trace[QPF] "Functor := {F}"
-          trace[QPF] "MvQPF instance := {qpf}"
-        return ⟨F, qpf⟩
+      withQPFTraceNode "results …" <| do
+        trace[QPF] "Functor (expr) := {res.F}"
+        trace[QPF] "Functor (stx)  := {F}"
+        trace[QPF] "MvQPF   (expr) := {res.qpf}"
+        trace[QPF] "MvQPF   (stx)  := {qpf}"
+      return ⟨F, qpf⟩
 
 
 structure QpfCompositionView where
@@ -382,10 +386,6 @@ def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
   let F_applied ← `($F $deadBinderNamedArgs:namedArgument*)
 
   let cmd ← `(
-    $modifiers:declModifiers
-    instance : MvFunctor (TypeFun.ofCurried $F_applied) :=
-      MvQPF.instMvFunctor_ofCurried_curried
-
     $modifiers:declModifiers
     instance $deadBindersNoHoles:bracketedBinder* : MvQPF (TypeFun.ofCurried $F_applied) :=
       MvQPF.instQPF_ofCurried_curried
