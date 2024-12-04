@@ -36,8 +36,8 @@ namespace Arrow
 
 
 
-  def box (f : Arrow' α Γ) : (QpfArrow' α Γ)
-    := ⟨(), fun | 0 => f⟩
+  def box (f : Arrow'.{u} α Γ) : (QpfArrow' α Γ)
+    := ⟨⟨⟩, fun | 0 => f⟩
 
   def unbox : QpfArrow' α Γ → Arrow' α Γ
     | ⟨_, f⟩ => f 0
@@ -60,7 +60,7 @@ namespace Arrow
   instance : MvFunctor (Arrow' x) where
     map f a     := unbox <| (ArrowPFunctor x).map f <| box a
 
-  instance : MvQPF (Arrow' x) where
+  instance instMvQPF : MvQPF (Arrow' x) where
     P           := ArrowPFunctor x
     abs         := @unbox x
     repr        := @box x
