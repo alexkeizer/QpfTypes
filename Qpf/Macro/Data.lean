@@ -301,8 +301,8 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT P : Ide
       map f x   := ($eqv).invFun <| ($P).map f <| ($eqv).toFun <| x
   )
   elabCommandAndTrace (header := "defining {q}") <|← `(
-    instance $q:ident : MvQPF.IsPolynomial (@TypeFun.ofCurried $(quote arity) $shape) :=
-      .ofEquiv $P $eqv
+    instance $q:ident : MvQPF (@TypeFun.ofCurried $(quote arity) $shape) :=
+      .ofEquiv (fun _ => $eqv)
   )
 
 /-! ## mkShape -/
@@ -378,33 +378,6 @@ def mkShape (view : DataView) : TermElabM MkShapeResult := do
 
     mkQpf view ctorArgs headTId PId r.expr.size
   ⟩
-
-open Elab.Term Parser.Term in
-/--
-  Checks whether the given term is a polynomial functor, i.e., whether there is an instance of
-  `IsPolynomial F`, and return that instance (if it exists).
--/
-def isPolynomial (view : DataView) (F: Term) : CommandElabM (Option Term) :=
-  withQPFTraceNode "isPolynomial" (tag := "isPolynomial") <|
-  runTermElabM fun _ => do
-  elabBinders view.deadBinders fun _deadVars => do
-    let inst_func ← `(MvFunctor $F:term)
-    let inst_func ← elabTerm inst_func none
-
-    trace[QPF] "F = {F}"
-    let inst_type ← `(MvQPF.IsPolynomial $F:term)
-    trace[QPF] "inst_type_stx: {inst_type}"
-    let inst_type ← elabTerm inst_type none
-    trace[QPF] "inst_type: {inst_type}"
-
-    try
-      let _ ← synthInstance inst_func
-      let inst ← synthInstance inst_type
-      return some <|<- delab inst
-    catch e =>
-      trace[QPF] "Failed to synthesize `IsPolynomial` instance.\
-        \n\n{e.toMessageData}"
-      return none
 
 /--
   Take either the fixpoint or cofixpoint of `base` to produce an `Internal` uncurried QPF,

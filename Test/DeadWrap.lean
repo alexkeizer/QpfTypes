@@ -19,6 +19,6 @@ data DeadWrap (α : Type) β
 
 /-- info: DeadWrap.Shape.qpf -/
 #guard_msgs in
-  #synth MvQPF.IsPolynomial <| @TypeFun.ofCurried 3 DeadWrap.Shape
+  #synth MvQPF <| @TypeFun.ofCurried 3 DeadWrap.Shape
 
 end Test

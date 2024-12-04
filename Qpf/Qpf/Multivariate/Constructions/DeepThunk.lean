@@ -62,8 +62,8 @@ instance : MvFunctor DTSum.Uncurried where
   map f := equiv.invFun ∘ Sum.SumPFunctor.map f ∘ equiv.toFun
 
 open DTSum in
-instance : MvQPF.IsPolynomial DTSum.Uncurried :=
-  .ofEquiv _ equiv
+instance : MvQPF DTSum.Uncurried :=
+  .ofEquiv (fun _ => equiv)
 
 namespace DeepThunk
 

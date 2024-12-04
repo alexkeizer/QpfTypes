@@ -1,6 +1,4 @@
 
-import Qpf.Qpf.Multivariate.Basic
-
 import Qpf.PFunctor.Multivariate.Basic
 import Qpf.PFunctor.Multivariate.Constructions.Arrow
 import Qpf.PFunctor.Multivariate.Constructions.Prod
