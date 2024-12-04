@@ -7,7 +7,7 @@ namespace MvQPF
     `repr_abs` is the last property needed to show that `abs` is an isomorphism, with `repr`
     its inverse
   -/
-  class IsPolynomial {n} (F : TypeVec n → Type _) [MvFunctor F] extends MvQPF F where
+  class IsPolynomial {n} (F : TypeVec n → Type _) extends MvQPF F where
     repr_abs : ∀ {α} (x : P.Obj α), repr (abs x) = x
 
 
@@ -83,6 +83,5 @@ namespace MvQPF
     apply cast ?_ p
     congr
     · rw [TypeFun.ofCurried_curried_involution]
-    · exact HEq.symm (eqRec_heq ..)
 
 end MvQPF
