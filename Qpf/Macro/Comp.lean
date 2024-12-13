@@ -280,8 +280,8 @@ def elabQpfComposition (view: QpfCompositionView) : CommandElabM Unit := do
   let F_internal := Name.mkStr view.F "Uncurried";
   let F := view.F;
 
-
-  qpfExpr.addToEnvironment F_internal []
+  liftCoreM <| do
+    qpfExpr.addToEnvironment F_internal []
   return ()
   -- let modifiers := quote (k := ``declModifiers) view.modifiers;
 

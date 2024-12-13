@@ -383,7 +383,7 @@ def mkShape (view : DataView) : TermElabM MkShapeResult := do
   Take either the fixpoint or cofixpoint of `base` to produce an `Internal` uncurried QPF,
   and define the desired type as the curried version of `Internal`
 -/
-def mkType (view : DataView) (base : Term × Term) : CommandElabM Unit :=
+def mkType {u n} (view : DataView) (base : QpfExpr' u n) : CommandElabM Unit :=
   withQPFTraceNode m!"defining (co)datatype {view.declId}" (tag := "mkType") <| do
 
   let uncurriedIdent ← addSuffixToDeclIdent view.declId "Uncurried"
@@ -399,37 +399,38 @@ def mkType (view : DataView) (base : Term × Term) : CommandElabM Unit :=
   let arity := view.liveBinders.size
   let fix_or_cofix := DataCommand.fixOrCofix view.command
 
-  let ⟨base, q⟩ := base
-  elabCommandAndTrace
-    (header := m!"elaborating uncurried base functor {baseIdent} …") <|← `(
-      abbrev $baseIdent:ident $view.deadBinders:bracketedBinder* :
-          TypeFun $(quote <| arity + 1) :=
-        $base
-  )
+  return ()
+  -- let ⟨base, q⟩ := base
+  -- elabCommandAndTrace
+  --   (header := m!"elaborating uncurried base functor {baseIdent} …") <|← `(
+  --     abbrev $baseIdent:ident $view.deadBinders:bracketedBinder* :
+  --         TypeFun $(quote <| arity + 1) :=
+  --       $base
+  -- )
 
-  elabCommandAndTrace
-    (header := m!"elaborating *curried* base functor {baseIdExt} …") <|← `(
-      abbrev $baseIdExt $view.deadBinders:bracketedBinder* :=
-        TypeFun.curried $baseApplied
-  )
+  -- elabCommandAndTrace
+  --   (header := m!"elaborating *curried* base functor {baseIdExt} …") <|← `(
+  --     abbrev $baseIdExt $view.deadBinders:bracketedBinder* :=
+  --       TypeFun.curried $baseApplied
+  -- )
 
-  elabCommandAndTrace
-    (header := m!"elaborating qpf instance for {baseIdent} …") <|← `(
-      instance $baseQPFIdent:ident : MvQPF ($baseApplied) := $q
-  )
+  -- elabCommandAndTrace
+  --   (header := m!"elaborating qpf instance for {baseIdent} …") <|← `(
+  --     instance $baseQPFIdent:ident : MvQPF ($baseApplied) := $q
+  -- )
 
-  elabCommandAndTrace
-    (header := m!"elaborating uncurried (co)fixpoint {uncurriedIdent} …") <|← `(
-      abbrev $uncurriedIdent:ident $view.deadBinders:bracketedBinder* :
-          TypeFun $(quote arity) :=
-        $fix_or_cofix $base
-  )
+  -- elabCommandAndTrace
+  --   (header := m!"elaborating uncurried (co)fixpoint {uncurriedIdent} …") <|← `(
+  --     abbrev $uncurriedIdent:ident $view.deadBinders:bracketedBinder* :
+  --         TypeFun $(quote arity) :=
+  --       $fix_or_cofix $base
+  -- )
 
-  elabCommandAndTrace
-    (header := m!"elaborating *curried* (co)fixpoint {view.declId} …")  <|← `(
-      abbrev $(view.declId) $view.deadBinders:bracketedBinder* :=
-        TypeFun.curried $uncurriedApplied
-  )
+  -- elabCommandAndTrace
+  --   (header := m!"elaborating *curried* (co)fixpoint {view.declId} …")  <|← `(
+  --     abbrev $(view.declId) $view.deadBinders:bracketedBinder* :=
+  --       TypeFun.curried $uncurriedApplied
+  -- )
 
 open Macro Comp in
 /--
@@ -453,7 +454,7 @@ def elabData : CommandElab := fun stx =>
   let _ ← eff
 
   /- Composition pipeline -/
-  let base ← elabQpfCompositionBody {
+  let ⟨u, n, base⟩ ← elabQpfCompositionBody {
     liveBinders := nonRecView.liveBinders,
     deadBinders := nonRecView.deadBinders,
     type?   := none,

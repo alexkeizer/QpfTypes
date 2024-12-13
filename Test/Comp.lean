@@ -8,7 +8,13 @@ import Qpf
   # Composition pipeline
 -/
 
+set_option trace.QPF true
 qpf P₁ α β := α
+#check P₁
+#check P₁.Uncurried
+
+#exit
+
 qpf P₂ α β := β
 
 qpf C₁ α β := Nat

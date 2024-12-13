@@ -8,6 +8,7 @@ import Mathlib.Data.QPF.Multivariate.Constructions.Cofix
 import Mathlib.Data.QPF.Multivariate.Constructions.Fix
 
 import Qpf.Util.TypeFun
+import Qpf.Macro.Common
 
 /-!
 ## QpfExpr
@@ -17,7 +18,7 @@ the corresponding `MvQPF` instance, and define methods for the various
 constructions under which QPFs are closed ((co)fixpoints, composition, etc.).
 -/
 
-open Lean Qq
+open Lean Qq Macro
 
 /-- A Lean expression of type `TypeFun n`, with a bundled `MvQPF` instance -/
 inductive QpfExpr (u : Level) (n : Nat)
@@ -187,7 +188,6 @@ def qpfInstance {n : Nat} : (q : QpfExpr' u n) → Q(MvQPF $q.typeFun)
 
 /-! ### Environment Manipulation -/
 
-variable {m} [Monad m] [MonadLiftT CoreM m]
 /-- Add the typefunction of a `QpfExpr'` to the environment under the given
 name, together with the corresponding QPF instance as `$name.instMvQPF`. -/
 def addToEnvironment
@@ -195,20 +195,32 @@ def addToEnvironment
     (name : Name) (levelParams : List Name)
     (hints : ReducibilityHints := .regular 0)
     (safety : DefinitionSafety := .safe)
-    : m Unit := do
-  addAndCompile <| Declaration.defnDecl {
-    name,
-    levelParams
-    type := q(TypeFun.{u, u} $n)
-    value := e.typeFun
-    hints, safety
-  }
-  let F : Q(TypeFun.{u, u} $n) :=
-    Expr.const name (levelParams.map Level.param)
-  addAndCompile <| Declaration.defnDecl {
-    name := Name.str name "instMvQPF"
-    levelParams := levelParams
-    type := q(MvQPF $F)
-    value := e.qpfInstance
-    hints, safety
-  }
+    : MetaM Unit :=
+  withQPFTraceNode m!"adding QpfExpr {name} to environment" <| do
+
+  let levelParams := match (← instantiateLevelMVars u) with
+    | .mvar id =>
+    _
+    | .param u => u :: levelParams
+    | _ => levelParams
+
+  withQPFTraceNode m!"uncurried declaration ({name}): …" <| do
+    let type := q(TypeFun.{u, u} $n)
+    trace[QPF] m!"value := {e.typeFun}"
+    trace[QPF] m!"type  := {type}"
+    addAndCompile <| Declaration.defnDecl {
+      name,
+      levelParams,
+      type,
+      value := e.typeFun
+      hints, safety
+    }
+  -- let F : Q(TypeFun.{u, u} $n) :=
+  --   Expr.const name (levelParams.map Level.param)
+  -- addAndCompile <| Declaration.defnDecl {
+  --   name := Name.str name "instMvQPF"
+  --   levelParams := levelParams
+  --   type := q(MvQPF $F)
+  --   value := e.qpfInstance
+  --   hints, safety
+  -- }
