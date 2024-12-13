@@ -62,16 +62,19 @@ variable {n : Nat}
 This is guaranteed to be either an empty list, if `s` is not polymorphic,
 or a list with a single element `u`, which will be the universe that all
 parameters, and `s` itself, live in. -/
-private def levelParams (s : ShapeType n) : List Name :=
+private def levelParamNames (s : ShapeType n) : List Name :=
   match s.univ with
   | .param p => [p]
   | _        => []
+
+private def levelParams (s : ShapeType n) : List Level :=
+  s.levelParamNames.map .param
 
 /-- Translate a shape type constructor specification into Lean's internal
 representation of an inductive constructor. -/
 def Ctor.toInductiveCtor (s : ShapeType n) (params : Array Expr) (c : Ctor n) :
     TermElabM Lean.Constructor := do
-  let retTy := mkAppN (.const s.name <| s.levelParams.map .param) params
+  let retTy := mkAppN (.const s.name s.levelParams) params
   let retTy := c.args.foldr (init := retTy) fun arg retTy =>
     Expr.forallE arg.name (params.get! arg.type) retTy .default
   let retTy ← withNewBinderInfos (params.map (·.fvarId!, .implicit)) <|
@@ -112,6 +115,9 @@ def toDeclaration {n} (s : ShapeType n) : TermElabM Lean.Declaration := do
 def addToEnvironmentAsInductive (s : ShapeType n) : TermElabM Unit := do
   let decl ← s.toDeclaration
   addAndCompile decl
+  mkRecOn s.name
+  mkCasesOn s.name
+  mkNoConfusion s.name
 
 /-!
 ## Defining a shape type as a polynomial functor
@@ -129,6 +135,28 @@ set_option pp.universes true in
 #check TypeVec.append1
 #check MvPFunctor
 
+/-- Convert an array of expressions of type `Type $u` into a single expression
+of type `TypeVec.{$u}` -/
+def arrayToTypeVecExpr (x : Array Expr) (u : Level) : Expr :=
+  let emptyVec :=
+    mkApp (.const ``Fin2.elim0 [u.succ.succ])
+      (.lam .anonymous q(Fin2 0) q(Type $u) .default)
+  Prod.fst <|
+    x.foldl (init := (emptyVec, 0)) fun (vec, m) elem =>
+      let vec := mkApp3 (.const ``TypeVec.append1 [u]) (toExpr m) vec elem
+      (vec, m+1)
+
+/-- Convert a list of expressions of type `Type $u` into a single expression
+of type `TypeVec.{$u}` -/
+def listToTypeVecExpr (x : List Expr) (u : Level) : Expr :=
+  let emptyVec :=
+    mkApp (.const ``Fin2.elim0 [u.succ.succ])
+      (.lam .anonymous q(Fin2 0) q(Type $u) .default)
+  Prod.fst <|
+    x.foldl (init := (emptyVec, 0)) fun (vec, m) elem =>
+      let vec := mkApp3 (.const ``TypeVec.append1 [u]) (toExpr m) vec elem
+      (vec, m+1)
+
 /-- Return an expression of type `PFunctor $n` that is equivalent to the
 given shape type -/
 def toPFunctor (s : ShapeType n) : Expr :=
@@ -141,18 +169,13 @@ def toPFunctor (s : ShapeType n) : Expr :=
     | []    => mkApp (.const ``Fin.elim0 [u2]) TV
     | c::cs =>
       have m : Nat := cs.length
-      let (matchAlt, _) :=
-        let emptyVec :=
-          mkApp (.const ``Fin2.elim0 [u2])
-            (.lam .anonymous q(Fin2 0) q(Type $s.univ) .default)
+      let matchAlt :=
         List.finRange n
           |>.map (fun i =>
               let occurences := c.args.countP (·.type = i)
               mkApp (.const ``Fin []) (toExpr occurences)
             )
-          |>.foldl (init := (emptyVec, 0)) fun (vec, m) elem =>
-              let vec := mkApp3 (.const ``TypeVec.append1 [s.univ]) (toExpr m) vec elem
-              (vec, m+1)
+          |> (listToTypeVecExpr · s.univ)
       mkApp4 (.const ``Fin.cons [u2])
         (toExpr m)
         (Expr.lam .anonymous q(Fin ($m+1)) TV .default)
@@ -165,16 +188,113 @@ def toPFunctor (s : ShapeType n) : Expr :=
 private def PFunctorSuffix := "_PFunctor"
 
 /-- Add `s` to the environment as a polynomial functor, with the name
-`${s.name}._PFunctor` -/
-def addToEnvironmentAsPFunctor (s : ShapeType n) : TermElabM Unit := do
+`${s.name}._PFunctor`.
+
+Returns the name of the new definition. -/
+def addToEnvironmentAsPFunctor (s : ShapeType n) : TermElabM Name := do
   let P := s.toPFunctor
+  let name := .str s.name PFunctorSuffix
   let decl := Declaration.defnDecl {
-    name        := .str s.name PFunctorSuffix
+    name        := name
     value       := P
-    levelParams := s.levelParams
+    levelParams := s.levelParamNames
     type        := q(MvPFunctor.{0} $n)
     hints       := .regular 0
     safety      := .safe
   }
   addAndCompile decl
+  return name
 
+/-!
+## Equivalence proof
+-/
+
+section Tactic
+open Tactic
+
+def generateBox (s : ShapeType n) : TermElabM Unit := do
+  let ty := (Name.anonymous, .implicit, fun _ => pure <| Expr.sort s.univ.succ)
+  let tys := Array.range n |>.map fun _ => ty
+
+  withLocalDecls tys <| fun params => do
+
+  let Shape := mkAppN (Expr.const s.name s.levelParams) params
+  withLocalDeclD .anonymous Shape <| fun sVar => do
+
+    let paramsVec := sorry /- `params` as a TypeVec -/
+    let PObj := mkApp (.const ``MvPFunctor.Obj [0]) (.const (.str s.name PFunctorSuffix) [])
+
+    let casesOn := mkAppN (.const (.str s.name "casesOn") s.levelParams) params
+    let motive  := mkLambda .anonymous .default (← mkFreshExprMVar none)
+                    (mkApp PObj paramsVec)
+    let casesOn := mkApp casesOn motive
+/-
+open TypeVec (appendFun) in
+def Shape.box : Shape α β → Shape._PFunctor.Obj ((Fin2.elim0 ::: α) ::: β) :=
+  fun s =>
+  @Shape.casesOn α β (fun _ => Shape._PFunctor.Obj ((Fin2.elim0 ::: α) ::: β))
+    s
+    (fun a b c => Sigma.mk (0 : Fin 2) <|
+      appendFun (appendFun Fin2.elim0
+        (Fin.cons c Fin.elim0))
+        (Fin.cons a <| Fin.cons b Fin.elim0)
+    )
+    (fun a => Sigma.mk (1 : Fin 2) <|
+      appendFun (appendFun Fin2.elim0 (Fin.cons a Fin.elim0)) (Fin.elim0)
+    ) -/
+
+/-- Prove the equivalence between the inductive and pfunctor definitions of a
+specific shape type.
+
+NOTE: this definition assumes you've already added both definitions to the
+environment, through calling `add`
+ -/
+def proveInductiveEquivPFunctor (s : Name) : TacticM Expr := do
+  let originalGoals ← getGoals
+
+  -- stop
+  -- let sInfo ← getConstInfoInduct s
+  -- sInfo.toConstantVal
+  -- let sE := mkConst
+
+  sorry
+
+/-
+## Scratch space
+-/
+
+inductive Foo (α β : Type u) : Type u
+  -- | foo : α → β → α → Foo α β
+
+#check InductiveVal
+
+#eval @id (MetaM _) <| do
+  let .inductInfo info ← getConstInfo ``Foo
+    | return ()
+  println! "type: {info.type}"
+  println! "params: {info.numParams}"
+
+set_option trace.QPF true
+def shape : ShapeType 2 where
+  name := `Shape
+  univ := 0
+  params := [`α, `β]
+  ctors := [
+    {
+      name := `Shape.foo
+      args := [⟨`x, 1⟩, ⟨`y, 1⟩, ⟨.anonymous, 0⟩]
+    },
+    {
+      name := `Shape.bar
+      args := [⟨`x, 0⟩]
+    }
+  ]
+
+#eval shape.addToEnvironmentAsInductive
+#eval shape.addToEnvironmentAsPFunctor
+
+#check Shape.foo
+#print Shape._PFunctor
+#print Shape
+
+#check Shape.rec
