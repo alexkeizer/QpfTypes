@@ -92,9 +92,9 @@ instance IsLt.succ m n [l : IsLt m n] : IsLt (succ m) (succ n) :=
 /-- Use type class inference to infer the boundedness proof, so that we can directly convert a
 `nat` into a `PFin2 n`. This supports notation like `&1 : fin 3`. -/
 def ofNat' : ∀ {n} m [IsLt m n], PFin2 n
-  | 0, _, ⟨h⟩ => absurd h (Nat.not_lt_zero _)
-  | succ _, 0, ⟨_⟩ => fz
-  | succ n, succ m, ⟨h⟩ => fs (@ofNat' n m ⟨lt_of_succ_lt_succ h⟩)
+  | 0, _, i => absurd i.h (Nat.not_lt_zero _)
+  | succ _, 0, _ => fz
+  | succ n, succ m, i => fs (@ofNat' n m ⟨lt_of_succ_lt_succ i.h⟩)
 
 instance : Inhabited (PFin2 1) :=
   ⟨fz⟩
