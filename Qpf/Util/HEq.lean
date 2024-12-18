@@ -148,10 +148,10 @@ open Lean.Parser.Tactic
 /-- Calls `simp` with a bunch of theorems that are useful for simplifying heterogeneous
     equalities and casts
   -/
-syntax "simp_heq" (config)? (discharger)? ("only ")? ("[" simpLemma,* "]")? (location)? : tactic
+syntax "simp_heq" optConfig (discharger)? ("only ")? ("[" simpLemma,* "]")? (location)? : tactic
 macro_rules
-| `(tactic| simp_heq $[$cfg:config]? $[$dis:discharger]? $[$loc:location]? )
-    => `(tactic| simp $[$cfg]? $[$dis]?
+| `(tactic| simp_heq $cfg:optConfig $[$dis:discharger]? $[$loc:location]? )
+    => `(tactic| simp $cfg $[$dis]?
                       only [cast_trans, heq_cast_left, heq_cast_right, cast_eq, cast_heq,
                         heq_cast_left_fun, heq_cast_right_fun, cast_arg', HEq.refl]
                       $[$loc]?
