@@ -123,18 +123,6 @@ def addToEnvironmentAsInductive (s : ShapeType n) : TermElabM Unit := do
 ## Defining a shape type as a polynomial functor
 -/
 
-#check MvPFunctor.mk
-
--- set_option pp.universes true in
-#check Fin.cons (n:=?m) (α := fun _ => TypeVec n)
-#check Fin.elim0 (α := TypeVec n)
-
-#check Fin.cons
-
-set_option pp.universes true in
-#check TypeVec.append1
-#check MvPFunctor
-
 /-- Convert an array of expressions of type `Type $u` into a single expression
 of type `TypeVec.{$u}` -/
 def arrayToTypeVecExpr (x : Array Expr) (u : Level) : Expr :=
