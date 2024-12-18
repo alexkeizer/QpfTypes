@@ -139,7 +139,8 @@ def mkHeadT (view : InductiveView) : CommandElabM Name := do
   }
 
   withQPFTraceNode "elabInductiveViews" <|
-    elabInductiveViews #[view]
+    runTermElabM <| fun vars =>
+      elabInductiveViews vars #[view]
   pure declName
 
 open Parser Parser.Term Parser.Command in
@@ -358,7 +359,8 @@ def mkShape (view : DataView) : TermElabM MkShapeResult := do
   return ⟨r, declName, PName, do
     withQPFTraceNode "mkShape effects" <| do
 
-    elabInductiveViews #[view]
+    runTermElabM <| fun vars =>
+      elabInductiveViews vars #[view]
 
     let headTName ← mkHeadT view
     let childTName ← mkChildT view r headTName
@@ -444,7 +446,7 @@ open Macro Comp in
 def elabData : CommandElab := fun stx =>
   withQPFTraceNode "elabData" (tag := "elabData") (collapsed := false) <| do
 
-  let modifiers ← elabModifiers stx[0]
+  let modifiers ← elabModifiers ⟨stx[0]⟩
   let decl := stx[1]
 
   let view ← dataSyntaxToView modifiers decl

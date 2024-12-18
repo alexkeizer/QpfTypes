@@ -270,11 +270,11 @@ def dataSyntaxToView (modifiers : Modifiers) (decl : Syntax) : CommandElabM Data
   let (binders, type?) := expandOptDeclSig decl[2]
 
   let declId  : TSyntax ``declId := ⟨decl[1]⟩
-  let ⟨name, declName, levelNames⟩ ← expandDeclId declId modifiers
-  addDeclarationRanges declName decl
+  let ⟨name, declName, levelNames⟩ ← expandDeclId (← getCurrNamespace) (← getLevelNames) declId modifiers
+  -- addDeclarationRanges declName decl
   let ctors      ← decl[4].getArgs.mapM fun ctor => withRef ctor do
     -- def ctor := leading_parser optional docComment >> "\n| " >> declModifiers >> rawIdent >> optDeclSig
-    let mut ctorModifiers ← elabModifiers ctor[2]
+    let mut ctorModifiers ← elabModifiers ⟨ctor[2]⟩
     if let some leadingDocComment := ctor[0].getOptional? then
       if ctorModifiers.docString?.isSome then
         logErrorAt leadingDocComment "duplicate doc string"
@@ -289,7 +289,6 @@ def dataSyntaxToView (modifiers : Modifiers) (decl : Syntax) : CommandElabM Data
     let ctorName ← withRef ctor[3] $ applyVisibility ctorModifiers.visibility ctorName
     let (binders, type?) := expandOptDeclSig ctor[4]
     addDocString' ctorName ctorModifiers.docString?
-    addAuxDeclarationRanges ctorName ctor ctor[3]
     return { ref := ctor, modifiers := ctorModifiers, declName := ctorName, binders := binders, type? := type? : CtorView }
   let classes ← liftCoreM <| getOptDerivingClasses decl[5]
 
