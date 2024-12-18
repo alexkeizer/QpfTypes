@@ -1,6 +1,8 @@
 import Mathlib.Data.QPF.Multivariate.Constructions.Cofix
 import Mathlib.Data.QPF.Multivariate.Constructions.Fix
 
+import Qpf.Elab.ShapeType
+
 import Qpf.Macro.Data.Constructors
 import Qpf.Macro.Data.Replace
 import Qpf.Macro.Data.Count
