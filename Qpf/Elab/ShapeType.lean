@@ -17,6 +17,11 @@ A shape type is an inductive type where
 
 Note that this implies that shape types are non-recursive!
 
+This file is still under active development, currently we've implemented
+definitions of a shape type as both `inductive`s and `PFunctor`s, but
+are still lacking suppport for automatically deriving the equivalence between
+these definitions, and the subsequent `MvQPF` instance for the `inductive`
+version.
 -/
 
 open Qq
