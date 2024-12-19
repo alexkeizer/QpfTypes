@@ -9,3 +9,4 @@ import Test.Tree
 -- import Test.Variable
 import Test.WithBindersInCtor
 import Test.Wrap
+import Test.NoLiveVariables
