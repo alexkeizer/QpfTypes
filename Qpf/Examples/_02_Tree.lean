@@ -39,7 +39,7 @@ namespace QpfTree
 
     abbrev P := MvPFunctor.mk HeadT ChildT
 
-    abbrev F := P.Obj.curried
+    abbrev F := P.Obj.curreid
   end Shape
 
   /-
