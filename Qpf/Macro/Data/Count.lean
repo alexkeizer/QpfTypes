@@ -7,10 +7,9 @@ open Lean Meta
 
 open Parser
 private partial def countVarOccurencesAux (r : Replace) (acc : Array Nat) : Syntax → Array Nat
-  | Syntax.node _ ``Term.arrow #[arg, _arrow, tail] =>     
+  | Syntax.node _ ``Term.arrow #[arg, _arrow, tail] =>
       -- NOTE: `indexOf` return an index one-past-the-end of `r.vars` if it cant find the index
-      let i := (r.vars.indexOf? arg.getId).map fun ⟨n, _⟩ => n
-      let i := i.getD acc.size
+      let i := (r.vars.idxOf? arg.getId).getD acc.size
 
       -- dbg_trace "{r.expr}.indexOf {arg} == {i}"
       -- dbg_trace "pre:  {acc}"

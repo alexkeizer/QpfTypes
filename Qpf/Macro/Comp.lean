@@ -31,7 +31,6 @@ import Qq
 namespace Macro.Comp
 open MvQPF
 open Lean Elab Term Command Meta
-open Mathlib (Vector)
 
 open PrettyPrinter (delab)
 open Syntax
@@ -65,7 +64,7 @@ def synthQPF {n : Nat} (F : Q(TypeFun.{u,u} $n)) : MetaM Q(MvQPF $F) := do
   Then, tries to infer an instance of `MvQPF (TypeFun.curried F)`
 -/
 protected partial def parseApp (isLiveVar : FVarId → Bool) (F : Q(Type u)) :
-    TermElabM ((n : Nat) × Q(TypeFun.{u,u} $n) × Vector Expr n) :=
+    TermElabM ((n : Nat) × Q(TypeFun.{u,u} $n) × List.Vector Expr n) :=
   if F.isApp then
     /-
       HACK: Technically `F` is *not* an instance of `CurriedTypeFun 0`.
@@ -77,9 +76,9 @@ protected partial def parseApp (isLiveVar : FVarId → Bool) (F : Q(Type u)) :
     throwError "application expected:\n {F}"
 
 where
-  parseAppAux : {n : Nat} → Q(CurriedTypeFun.{u,u} $n) → Vector Expr n → Option Exception → _
+  parseAppAux : {n : Nat} → Q(CurriedTypeFun.{u,u} $n) → List.Vector Expr n → Option Exception → _
   | depth', Expr.app F a, args', _ => do
-    let args := Vector.cons a args'
+    let args := .cons a args'
     let depth : Nat := depth' + 1
     let F : Q(CurriedTypeFun.{u,u} $depth) := F
 
@@ -169,11 +168,11 @@ structure ElabQpfResult (u : Level) (arity : Nat) where
   qpf     : Q(@MvQPF _ $F) := by exact q(by infer_instance)
 deriving Inhabited
 
-def isLiveVar (varIds : Vector FVarId n) (id : FVarId) := varIds.toList.contains id
+def isLiveVar (varIds : List.Vector FVarId n) (id : FVarId) := varIds.toList.contains id
 
 open PrettyPrinter in
 mutual
-partial def handleLiveFVar (vars : Vector FVarId arity) (target : FVarId)  : TermElabM (ElabQpfResult u arity) := do
+partial def handleLiveFVar (vars : List.Vector FVarId arity) (target : FVarId)  : TermElabM (ElabQpfResult u arity) := do
   trace[QPF] f!"target {Expr.fvar target} is a free variable"
   let ind ← match List.indexOf' target vars.toList with
   | none      => throwError "Free variable {Expr.fvar target} is not one of the qpf arguments"
@@ -192,7 +191,7 @@ partial def handleConst (target : Q(Type u))  : TermElabM (ElabQpfResult u arity
   pure { F := const, qpf := q(Const.mvqpf)}
 
 
-partial def handleApp (vars : Vector FVarId arity) (target : Q(Type u)) : TermElabM (ElabQpfResult u arity) := do
+partial def handleApp (vars : List.Vector FVarId arity) (target : Q(Type u)) : TermElabM (ElabQpfResult u arity) := do
   let vars' := vars.toList
 
   let ⟨numArgs, F, args⟩ ← (Comp.parseApp (isLiveVar vars) target)
@@ -231,14 +230,14 @@ partial def handleApp (vars : Vector FVarId arity) (target : Q(Type u)) : TermEl
     return { F := comp, qpf }
 
 
-partial def handleArrow (binderType body : Expr) (vars : Vector FVarId arity) (targetStx : Option Term := none) (normalized := false) : TermElabM (ElabQpfResult u arity) := do
+partial def handleArrow (binderType body : Expr) (vars : List.Vector FVarId arity) (targetStx : Option Term := none) (normalized := false) : TermElabM (ElabQpfResult u arity) := do
   let newTarget ← mkAppM ``MvQPF.Arrow.Arrow #[binderType, body]
   elabQpf vars newTarget targetStx normalized
 
 /--
   Elaborate the body of a qpf
 -/
-partial def elabQpf {arity : Nat} (vars : Vector FVarId arity) (target : Q(Type u)) (targetStx : Option Term := none) (normalized := false) :
+partial def elabQpf {arity : Nat} (vars : List.Vector FVarId arity) (target : Q(Type u)) (targetStx : Option Term := none) (normalized := false) :
     TermElabM (ElabQpfResult u arity) := do
   trace[QPF] "elabQPF :: {(vars.map Expr.fvar).toList} -> {target}"
   let isLiveVar := isLiveVar vars
@@ -301,7 +300,7 @@ def elabQpfCompositionBody (view: QpfCompositionBodyView) :
     withoutAutoBoundImplicit <| do
       let target_expr ← elabTermEnsuringTypeQ (u:=u.succ.succ) view.target q(Type u)
       let arity := vars.toList.length
-      let vars : Vector _ arity := ⟨vars.toList, rfl⟩
+      let vars : List.Vector _ arity := ⟨vars.toList, rfl⟩
 
       let some vars := vars.mmap Expr.fvarId? |
         throwError "Expected all args to be fvars" -- TODO: throwErrorAt

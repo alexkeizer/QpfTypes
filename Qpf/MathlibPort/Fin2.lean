@@ -5,6 +5,7 @@ Authors: Mario Carneiro
 -/
 
 import Mathlib.Data.Fin.Fin2
+import Mathlib.Data.Fintype.OfMap
 
 /-!
 # Inductive type variant of `Fin`
