@@ -222,8 +222,6 @@ def elabCommandAndTrace (stx : Syntax)
     pure idents
 
 
-
-
 open Parser.Command in
 instance : Quote Modifiers (k := ``declModifiers) where
   quote mod :=
@@ -235,7 +233,7 @@ instance : Quote Modifiers (k := ``declModifiers) where
 
     let visibility := match mod.visibility with
       | .regular     => mkNullNode
-      | .«protected» => mkNode ``«protected» #[mkAtom "protected "]
+      | .«public» => mkNode ``«public» #[mkAtom "public "]
       | .«private»   => mkNode ``«private» #[mkAtom "private "]
 
     mkNode ``declModifiers #[

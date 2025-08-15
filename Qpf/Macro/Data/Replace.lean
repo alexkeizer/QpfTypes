@@ -70,12 +70,12 @@ private def ReplaceM.identFor (stx : Term) : ReplaceM m Ident := do
   let args := ctor.args.push argName
   -- dbg_trace "\nstx := {stx}\nr.expr := {r.expr}"
 
-  let name ← match r.expr.indexOf? stx with
+  let name ← match r.expr.idxOf? stx with
   | some id => do
-      let per_type := ctor.per_type.set! id $ (ctor.per_type.get! id).push argName
+      let per_type := ctor.per_type.set! id $ (ctor.per_type[id]!).push argName
       let ctor := { args, per_type }
       StateT.set { r with ctor }
-      pure $ r.vars.get! id
+      pure $ r.vars[id]!
   | none       => do
       let per_type := ctor.per_type.push #[argName]
       let name ← mkFreshBinderName

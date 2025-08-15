@@ -8,7 +8,7 @@ namespace Test
 data DeadWrap (α : Type) β
   | mk : α → DeadWrap α β
 
-/-- info: 'Test.DeadWrap.Base' depends on axioms: [propext, Quot.sound] -/
+/-- info: 'Test.DeadWrap.Base' depends on axioms: [propext] -/
 #guard_msgs in
   #print axioms DeadWrap.Base
 

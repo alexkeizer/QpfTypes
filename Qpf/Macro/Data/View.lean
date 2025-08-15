@@ -88,6 +88,9 @@ def DataView.asInductive (view : DataView) : InductiveView
     derivingClasses := view.derivingClasses
     -- TODO: find out what these computed fields are, add support for them in `data`/`codata`
     computedFields  := #[]
+    isClass := false
+    allowIndices := false
+    allowSortPolymorphism := false
   }
 
 
@@ -259,7 +262,7 @@ def DataView.doSanityChecks (view : DataView) : CommandElabM Unit := do
 
 
 /-
-  Heavily based on `inductiveSyntaxToView` from Lean.Elab.Declaration
+  Heavily based on `inductiveSyntaxToView` from Lean.Elab.Inductive
 -/
 def dataSyntaxToView (modifiers : Modifiers) (decl : Syntax) : CommandElabM DataView :=
   withQPFTraceNode "dataSyntaxToView" (tag := "dataSyntaxToView") <| do
@@ -273,12 +276,16 @@ def dataSyntaxToView (modifiers : Modifiers) (decl : Syntax) : CommandElabM Data
   let ⟨name, declName, levelNames⟩ ← expandDeclId (← getCurrNamespace) (← getLevelNames) declId modifiers
   -- addDeclarationRanges declName decl
   let ctors      ← decl[4].getArgs.mapM fun ctor => withRef ctor do
-    -- def ctor := leading_parser optional docComment >> "\n| " >> declModifiers >> rawIdent >> optDeclSig
+    /-
+    ```
+    def ctor := leading_parser optional docComment >> "\n| " >> declModifiers >> rawIdent >> optDeclSig
+    ```
+    -/
     let mut ctorModifiers ← elabModifiers ⟨ctor[2]⟩
     if let some leadingDocComment := ctor[0].getOptional? then
       if ctorModifiers.docString?.isSome then
         logErrorAt leadingDocComment "duplicate doc string"
-      ctorModifiers := { ctorModifiers with docString? := TSyntax.getDocString ⟨leadingDocComment⟩ }
+      ctorModifiers := { ctorModifiers with docString? := some ⟨leadingDocComment⟩ }
     if ctorModifiers.isPrivate && modifiers.isPrivate then
       throwError "invalid 'private' constructor in a 'private' inductive datatype"
     if ctorModifiers.isProtected && modifiers.isPrivate then
@@ -286,10 +293,10 @@ def dataSyntaxToView (modifiers : Modifiers) (decl : Syntax) : CommandElabM Data
     checkValidCtorModifier ctorModifiers
     let ctorName := ctor.getIdAt 3
     let ctorName := declName ++ ctorName
-    let ctorName ← withRef ctor[3] $ applyVisibility ctorModifiers.visibility ctorName
+    let ctorName ← withRef ctor[3] <| applyVisibility ctorModifiers ctorName
     let (binders, type?) := expandOptDeclSig ctor[4]
     addDocString' ctorName ctorModifiers.docString?
-    return { ref := ctor, modifiers := ctorModifiers, declName := ctorName, binders := binders, type? := type? : CtorView }
+    return { ref := ctor, declId := ctor[3], modifiers := ctorModifiers, declName := ctorName, binders := binders, type? := type? : CtorView }
   let classes ← liftCoreM <| getOptDerivingClasses decl[5]
 
 

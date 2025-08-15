@@ -49,7 +49,7 @@ def mkConstructorsWithNameAndType
       |> RecursionForm.toType retTy
 
     let modifiers : Modifiers := {
-      isNoncomputable := view.modifiers.isNoncomputable
+      computeKind := view.modifiers.computeKind
       attrs := #[{
         name := `matchPattern
       }]

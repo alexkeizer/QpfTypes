@@ -64,13 +64,8 @@ end
 open Elab.Term (TermElabM)
 
 def CtorView.declReplacePrefix (pref new_pref : Name) (ctor: CtorView) : CtorView :=
-  let declName := ctor.declName.replacePrefix pref new_pref
-  {
-    declName,
-    ref := ctor.ref
-    modifiers := ctor.modifiers
-    binders := ctor.binders
-    type? := ctor.type?
+  { ctor with
+      declName := ctor.declName.replacePrefix pref new_pref
   }
 
 
@@ -93,6 +88,16 @@ private def addSuffixToDeclIdent {m} [Monad m] [MonadResolveName m] (declId : Sy
   let (_, uncurriedDeclId, _) ← addSuffixToDeclId declId suffix
   pure ⟨uncurriedDeclId.raw[0]⟩
 
+open private elabInductiveViews from Lean.Elab.MutualInductive in
+open private elabCtors from Lean.Elab.Inductive in
+private def elabInductiveView (vars : Array Expr) (view : InductiveView) : TermElabM Unit := do
+  let view := {
+    view
+    elabCtors := fun rs r params => do
+      let ctors ← elabCtors (rs.map (·.indFVar)) params r
+      return { ctors }
+  }
+  let _ ← elabInductiveViews vars #[view]
 
 open Parser in
 /--
@@ -114,10 +119,9 @@ def mkHeadT (view : InductiveView) : CommandElabM Name := do
   -- The head type is the same as the original type, but with all constructor arguments removed
   let ctors ← view.ctors.mapM fun ctor => do
     let declName := ctor.declName.replacePrefix view.declName declName
-    pure {
+    pure { ctor with
       modifiers, declName,
-      ref := ctor.ref
-      binders := mkNullNode
+      binders := mkNullNode,
       type? := none
       : CtorView
     }
@@ -125,22 +129,13 @@ def mkHeadT (view : InductiveView) : CommandElabM Name := do
   -- let type ← `(Type $(mkIdent `u))
 
   -- TODO: make `HeadT` universe polymorphic
-  let view := {
+  let view := { view with
     ctors, declId, declName, shortDeclName, modifiers,
     binders         := view.binders.setArgs #[]
-    levelNames      := view.levelNames
-
-    ref             := view.ref
-    type?           := view.type?
-
-    derivingClasses := view.derivingClasses
-    computedFields  := #[]
-    : InductiveView
   }
 
   withQPFTraceNode "elabInductiveViews" <|
-    runTermElabM <| fun vars =>
-      elabInductiveViews vars #[view]
+    runTermElabM (elabInductiveView · view)
   pure declName
 
 open Parser Parser.Term Parser.Command in
@@ -267,8 +262,8 @@ def mkQpf (shapeView : InductiveView) (ctorArgs : Array CtorArgs) (headT P : Ide
       let (i, j) := (args.per_type.enum.map fun (i, t) =>
         -- the order of types is reversed, since `TypeVec`s count right-to-left
         let i := arity - 1 - i
-        ((t.indexOf? arg).map fun ⟨j, _⟩ => (i, j)).toList
-      ).toList.join.get! 0
+        ((t.idxOf? arg).map fun j => (i, j)).toList
+      ).toList.flatten[0]!
 
       `($unbox_child $(Fin2.quoteOfNat i) $(PFin2.quoteOfNat j))
 
@@ -341,15 +336,13 @@ def mkShape (view : DataView) : TermElabM MkShapeResult := do
   let modifiers : Modifiers := {
     isUnsafe := view.modifiers.isUnsafe
   }
-  let view : InductiveView := {
+  let view : InductiveView := { view with
     ctors, declId, declName, shortDeclName, modifiers, binders,
     levelNames      := []
-
-    ref             := view.ref
-    type?           := view.type?
-
-    derivingClasses := view.derivingClasses
     computedFields  := #[]
+    isClass := false
+    allowIndices := false
+    allowSortPolymorphism := false
     : InductiveView
   }
 
@@ -359,8 +352,7 @@ def mkShape (view : DataView) : TermElabM MkShapeResult := do
   return ⟨r, declName, PName, do
     withQPFTraceNode "mkShape effects" <| do
 
-    runTermElabM <| fun vars =>
-      elabInductiveViews vars #[view]
+    runTermElabM (elabInductiveView · view)
 
     let headTName ← mkHeadT view
     let childTName ← mkChildT view r headTName
