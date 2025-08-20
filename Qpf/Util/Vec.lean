@@ -67,28 +67,54 @@ end Vec
 -/
 
 syntax "!![" term,* "]" : term
+syntax "!![" term ";" term,* "]" : term
 macro_rules
   | `(!![])    => `(Vec.nil)
   | `(!![$x])  => `(Vec.append1 !![] $x)
   | `(!![ $xs,* , $x]) => `(Vec.append1 !![$xs,*] $x)
-
+  | `(!![$t; ])    => `($t)
+  | `(!![$t; $x])  => `(Vec.append1 $t $x)
+  | `(!![$t;  $xs,* , $x]) => `(Vec.append1 !![$t; $xs,*] $x)
 
 
 namespace Vec
+  open Lean in
+  def uex_inner : Syntax.Term → PrettyPrinter.UnexpandM (Option Term × TSyntaxArray `term)
+    | `(!![$x,*]) => pure ⟨.none, x⟩
+    | `(!![$t; $x,*]) => pure ⟨.some t, x⟩
+    | `($t) => pure ⟨.some t, ∅⟩
+
+  @[app_unexpander Vec.nil]
+  def nil_uex : Lean.PrettyPrinter.Unexpander
+    | `($_p) => `(!![])
+
+  @[app_unexpander Vec.append1]
+  def append1_uex : Lean.PrettyPrinter.Unexpander
+    | `($_p $l $r) => do
+      match ← Vec.uex_inner l with
+      | ⟨.none,   rst⟩ => `(!![$(rst.push r),* ])
+      | ⟨.some t, rst⟩ => `(!![$t; $(rst.push r),* ])
+    | _ => throw () -- unhandled
+
+  /-- info: !![ℤ, ℕ, Prop] : Vec Type (Nat.succ 0).succ.succ -/
+  #guard_msgs in
+  #check !![ℤ, ℕ, Prop]
+
+
   theorem drop_append1 {v : Vec α n} {a : α} {i : PFin2 n} :
-      drop (append1 v a) i = v i :=
+      drop !![v; a] i = v i :=
     rfl
 
   theorem drop_append1' {v : Vec α n} {a : α} :
-      drop (append1 v a) = v :=
+      drop !![v; a] = v :=
   by funext x; rfl
 
   theorem last_append1 {v : Vec α n} {a : α} :
-    last (append1 v a) = a
+    last !![v; a] = a
   := rfl
 
   @[simp]
-  theorem append1_drop_last (v : Vec α (n+1)) : append1 (drop v) (last v) = v :=
+  theorem append1_drop_last (v : Vec α (n+1)) : !![drop v; last v] = v :=
     funext $ fun i => by cases i; rfl; rfl
 
 
@@ -197,8 +223,8 @@ namespace Vec
     induction as;
     case nil          => rfl
     case cons a as ih =>
-      simp only [toList, ofList, append1, last, DVec.last, drop_append1', ih]
-      rfl
+      change a :: (ofList as).toList = a :: _
+      rw [ih]
 
   instance : Coe (Vec (Type u) n) (TypeVec.{u} n) where
     coe v i := v i
