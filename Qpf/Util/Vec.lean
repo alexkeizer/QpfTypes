@@ -78,22 +78,14 @@ macro_rules
 
 
 namespace Vec
-  open Lean in
-  def uex_inner : Syntax.Term → PrettyPrinter.UnexpandM (Option Term × TSyntaxArray `term)
-    | `(!![$x,*]) => pure ⟨.none, x⟩
-    | `(!![$t; $x,*]) => pure ⟨.some t, x⟩
-    | `($t) => pure ⟨.some t, ∅⟩
-
   @[app_unexpander Vec.nil]
   def nil_uex : Lean.PrettyPrinter.Unexpander
     | `($_p) => `(!![])
 
   @[app_unexpander Vec.append1]
   def append1_uex : Lean.PrettyPrinter.Unexpander
-    | `($_p $l $r) => do
-      match ← Vec.uex_inner l with
-      | ⟨.none,   rst⟩ => `(!![$(rst.push r),* ])
-      | ⟨.some t, rst⟩ => `(!![$t; $(rst.push r),* ])
+    | `($_p !![$x,*] $r) => `(!![$(x.push r),* ])
+    | `($_p !![$t; $x,*] $r) => `(!![$t; $(x.push r),* ])
     | _ => throw () -- unhandled
 
   /-- info: !![ℤ, ℕ, Prop] : Vec Type (Nat.succ 0).succ.succ -/
