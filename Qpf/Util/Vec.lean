@@ -87,7 +87,6 @@ def append1_uex : Lean.PrettyPrinter.Unexpander
 #guard_msgs in
 #check !![ℤ, ℕ, Prop]
 
-
   theorem drop_append1 {v : Vec α n} {a : α} {i : PFin2 n} :
       drop (v.append1 a) i = v i :=
     rfl
