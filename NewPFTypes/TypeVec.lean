@@ -3,7 +3,6 @@ Copyright (c) 2018 Jeremy Avigad. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Jeremy Avigad, Mario Carneiro, Simon Hudon
 -/
-import Mathlib.Tactic
 
 /-!
 
@@ -33,24 +32,24 @@ throughout, and QPF/quotient-specific definitions removed.
 
 universe u v w x
 
+namespace QpfTypes
+
 /-- n-tuples of types, as a category -/
-@[pp_with_univ]
-def TypeVec (n : ℕ) :=
-  Fin n → Type*
+def TypeVec (n : Nat) :=
+  Fin n → Type _
 
 instance {n} : Inhabited (TypeVec.{u} n) :=
   ⟨fun _ => PUnit⟩
 
 namespace TypeVec
 
-variable {n : ℕ}
+variable {n : Nat}
 
 /-- arrow in the category of `TypeVec` -/
 def Arrow (α : TypeVec.{u} n) (β : TypeVec.{v} n) :=
   ∀ i : Fin n, α i → β i
 
-@[inherit_doc] scoped[MvFunctor] infixl:40 " ⟹ " => TypeVec.Arrow
-open MvFunctor
+@[inherit_doc] scoped infixl:40 " ⟹ " => TypeVec.Arrow
 
 variable {α : TypeVec.{u} n} {β : TypeVec.{v} n} {γ : TypeVec.{w} n} {δ : TypeVec.{x} n} in
 section
@@ -72,7 +71,7 @@ def comp (g : β ⟹ γ) (f : α ⟹ β)
     : α ⟹ γ :=
   fun i x => g i (f i x)
 
-@[inherit_doc] scoped[MvFunctor] infixr:80 " ⊚ " => TypeVec.comp -- type as \oo
+@[inherit_doc] scoped infixr:80 " ⊚ " => TypeVec.comp -- type as \oo
 
 @[simp]
 theorem id_comp (f : α ⟹ β) : id ⊚ f = f :=
@@ -90,7 +89,7 @@ end
 
 /-- Support for extending a `TypeVec` by one element.
   At index `0` (i.e. `Fin2.fz`) returns `β`; at index `i.succ` (i.e. `Fin2.fs i`) returns `α i`. -/
-def append1 (α : TypeVec n) (β : Type*) : TypeVec (n + 1) :=
+def append1 (α : TypeVec n) (β : Type _) : TypeVec (n + 1) :=
   Fin.cases β α
 
 @[inherit_doc] infixl:67 " ::: " => append1
@@ -105,13 +104,13 @@ def last (α : TypeVec.{u} (n + 1)) : Type _ :=
 instance last.inhabited (α : TypeVec (n + 1)) [Inhabited (α 0)] : Inhabited (last α) :=
   ⟨show α 0 from default⟩
 
-theorem drop_append1 {α : TypeVec n} {β : Type*} {i : Fin n} : drop (append1 α β) i = α i := by
+theorem drop_append1 {α : TypeVec n} {β : Type _} {i : Fin n} : drop (append1 α β) i = α i := by
   simp [drop, append1, Fin.cases_succ]
 
-theorem drop_append1' {α : TypeVec n} {β : Type*} : drop (append1 α β) = α :=
+theorem drop_append1' {α : TypeVec n} {β : Type _} : drop (append1 α β) = α :=
   funext fun _ => drop_append1
 
-theorem last_append1 {α : TypeVec n} {β : Type*} : last (append1 α β) = β := by
+theorem last_append1 {α : TypeVec n} {β : Type _} : last (append1 α β) = β := by
   simp [last, append1, Fin.cases_zero]
 
 @[simp]
@@ -137,7 +136,7 @@ def splitFun {α α' : TypeVec (n + 1)} (f : drop α ⟹ drop α') (g : last α 
   Fin.cases g f
 
 /-- append an arrow and a function as well as their respective source and target types / typevecs -/
-def appendFun {α α' : TypeVec n} {β β' : Type*} (f : α ⟹ α') (g : β → β') :
+def appendFun {α α' : TypeVec n} {β β' : Type _} (f : α ⟹ α') (g : β → β') :
     append1 α β ⟹ append1 α' β' :=
   splitFun f g
 
@@ -159,7 +158,7 @@ theorem eq_of_drop_last_eq {α β : TypeVec (n + 1)} {f g : α ⟹ β} (h₀ : d
   refine Fin.cases ?_ ?_ x
   · apply h₁
   · intro j
-    apply congr_fun h₀
+    apply congrFun h₀
 
 @[simp]
 theorem dropFun_splitFun {α α' : TypeVec (n + 1)} (f : drop α ⟹ drop α') (g : last α → last α') :
@@ -169,11 +168,11 @@ theorem dropFun_splitFun {α α' : TypeVec (n + 1)} (f : drop α ⟹ drop α') (
 
 /-- turn an equality into an arrow -/
 def Arrow.mp {α β : TypeVec n} (h : α = β) : α ⟹ β
-  | _ => Eq.mp (congr_fun h _)
+  | _ => Eq.mp (congrFun h _)
 
 /-- turn an equality into an arrow, with reverse direction -/
 def Arrow.mpr {α β : TypeVec n} (h : α = β) : β ⟹ α
-  | _ => Eq.mpr (congr_fun h _)
+  | _ => Eq.mpr (congrFun h _)
 
 /-- decompose a vector into its prefix appended with its last element -/
 def toAppend1DropLast {α : TypeVec (n + 1)} : α ⟹ (drop α ::: last α) :=
@@ -189,11 +188,11 @@ theorem lastFun_splitFun {α α' : TypeVec (n + 1)} (f : drop α ⟹ drop α') (
   simp [lastFun, splitFun, Fin.cases_zero]
 
 @[simp]
-theorem dropFun_appendFun {α α' : TypeVec n} {β β' : Type*} (f : α ⟹ α') (g : β → β') :
+theorem dropFun_appendFun {α α' : TypeVec n} {β β' : Type _} (f : α ⟹ α') (g : β → β') :
     dropFun (f ::: g) = f := rfl
 
 @[simp]
-theorem lastFun_appendFun {α α' : TypeVec n} {β β' : Type*} (f : α ⟹ α') (g : β → β') :
+theorem lastFun_appendFun {α α' : TypeVec n} {β β' : Type _} (f : α ⟹ α') (g : β → β') :
     lastFun (f ::: g) = g := rfl
 
 theorem split_dropFun_lastFun {α α' : TypeVec (n + 1)} (f : α ⟹ α') :
@@ -204,7 +203,7 @@ theorem splitFun_inj {α α' : TypeVec (n + 1)} {f f' : drop α ⟹ drop α'} {g
     (H : splitFun f g = splitFun f' g') : f = f' ∧ g = g' := by
   rw [← dropFun_splitFun f g, H, ← lastFun_splitFun f g, H]; simp
 
-theorem appendFun_inj {α α' : TypeVec n} {β β' : Type*} {f f' : α ⟹ α'} {g g' : β → β'} :
+theorem appendFun_inj {α α' : TypeVec n} {β β' : Type _} {f f' : α ⟹ α'} {g g' : β → β'} :
     (f ::: g : (α ::: β) ⟹ _) = (f' ::: g' : (α ::: β) ⟹ _)
     → f = f' ∧ g = g' :=
   splitFun_inj
@@ -214,19 +213,19 @@ theorem splitFun_comp {α₀ α₁ α₂ : TypeVec (n + 1)} (f₀ : drop α₀ �
     splitFun (f₁ ⊚ f₀) (g₁ ∘ g₀) = splitFun f₁ g₁ ⊚ splitFun f₀ g₀ :=
   eq_of_drop_last_eq rfl rfl
 
-theorem appendFun_comp_splitFun {α γ : TypeVec n} {β δ : Type*} {ε : TypeVec (n + 1)}
+theorem appendFun_comp_splitFun {α γ : TypeVec n} {β δ : Type _} {ε : TypeVec (n + 1)}
     (f₀ : drop ε ⟹ α) (f₁ : α ⟹ γ) (g₀ : last ε → β) (g₁ : β → δ) :
     appendFun f₁ g₁ ⊚ splitFun f₀ g₀ = splitFun (α' := γ.append1 δ) (f₁ ⊚ f₀) (g₁ ∘ g₀) :=
   (splitFun_comp _ _ _ _).symm
 
 theorem appendFun_comp {α₀ α₁ α₂ : TypeVec n}
-    {β₀ β₁ β₂ : Type*}
+    {β₀ β₁ β₂ : Type _}
     (f₀ : α₀ ⟹ α₁) (f₁ : α₁ ⟹ α₂)
     (g₀ : β₀ → β₁) (g₁ : β₁ → β₂) :
     (f₁ ⊚ f₀ ::: g₁ ∘ g₀) = (f₁ ::: g₁) ⊚ (f₀ ::: g₀) :=
   eq_of_drop_last_eq rfl rfl
 
-theorem appendFun_comp' {α₀ α₁ α₂ : TypeVec n} {β₀ β₁ β₂ : Type*}
+theorem appendFun_comp' {α₀ α₁ α₂ : TypeVec n} {β₀ β₁ β₂ : Type _}
     (f₀ : α₀ ⟹ α₁) (f₁ : α₁ ⟹ α₂) (g₀ : β₀ → β₁) (g₁ : β₁ → β₂) :
     (f₁ ::: g₁) ⊚ (f₀ ::: g₀) = (f₁ ⊚ f₀ ::: g₁ ∘ g₀) :=
   eq_of_drop_last_eq rfl rfl
@@ -248,11 +247,11 @@ theorem lastFun_comp {α₀ α₁ α₂ : TypeVec (n + 1)} (f₀ : α₀ ⟹ α�
     lastFun (f₁ ⊚ f₀) = lastFun f₁ ∘ lastFun f₀ :=
   rfl
 
-theorem appendFun_aux {α α' : TypeVec n} {β β' : Type*} (f : (α ::: β) ⟹ (α' ::: β')) :
+theorem appendFun_aux {α α' : TypeVec n} {β β' : Type _} (f : (α ::: β) ⟹ (α' ::: β')) :
     (dropFun f ::: lastFun f) = f :=
   eq_of_drop_last_eq rfl rfl
 
-theorem appendFun_id_id {α : TypeVec n} {β : Type*} :
+theorem appendFun_id_id {α : TypeVec n} {β : Type _} :
     (@TypeVec.id n α ::: @_root_.id β) = TypeVec.id :=
   eq_of_drop_last_eq rfl rfl
 
@@ -260,26 +259,26 @@ instance subsingleton0 : Subsingleton (TypeVec 0) :=
   ⟨fun _ _ => funext fun i => i.elim0⟩
 
 /-- cases distinction for 0-length type vector -/
-protected def casesNil {β : TypeVec 0 → Sort*} (f : β Fin.elim0) : ∀ v, β v :=
+protected def casesNil {β : TypeVec 0 → Sort _} (f : β Fin.elim0) : ∀ v, β v :=
   fun v => cast (by congr; funext i; exact i.elim0) f
 
 /-- cases distinction for (n+1)-length type vector -/
-protected def casesCons (n : ℕ) {β : TypeVec (n + 1) → Sort*}
+protected def casesCons (n : Nat) {β : TypeVec (n + 1) → Sort _}
     (f : ∀ (t) (v : TypeVec n), β (v ::: t)) :
     ∀ v, β v :=
   fun v : TypeVec (n + 1) => cast (by simp) (f v.last v.drop)
 
-protected theorem casesNil_append1 {β : TypeVec 0 → Sort*} (f : β Fin.elim0) :
+protected theorem casesNil_append1 {β : TypeVec 0 → Sort _} (f : β Fin.elim0) :
     TypeVec.casesNil f Fin.elim0 = f :=
   rfl
 
-protected theorem casesCons_append1 (n : ℕ) {β : TypeVec (n + 1) → Sort*}
+protected theorem casesCons_append1 (n : Nat) {β : TypeVec (n + 1) → Sort _}
     (f : ∀ (t) (v : TypeVec n), β (v ::: t)) (v : TypeVec n) (α) :
     TypeVec.casesCons n f (v ::: α) = f α v :=
   rfl
 
 /-- cases distinction for an arrow in the category of 0-length type vectors -/
-def typevecCasesNil₃ {β : ∀ v v' : TypeVec 0, v ⟹ v' → Sort*}
+def typevecCasesNil₃ {β : ∀ v v' : TypeVec 0, v ⟹ v' → Sort _}
     (f : β Fin.elim0 Fin.elim0 nilFun) :
     ∀ v v' fs, β v v' fs := fun v v' fs => by
   refine cast ?_ f
@@ -289,7 +288,7 @@ def typevecCasesNil₃ {β : ∀ v v' : TypeVec 0, v ⟹ v' → Sort*}
   cases eq₁; cases eq₂; cases eq₃; rfl
 
 /-- cases distinction for an arrow in the category of (n+1)-length type vectors -/
-def typevecCasesCons₃ (n : ℕ) {β : ∀ v v' : TypeVec (n + 1), v ⟹ v' → Sort*}
+def typevecCasesCons₃ (n : Nat) {β : ∀ v v' : TypeVec (n + 1), v ⟹ v' → Sort _}
     (F : ∀ (t t') (f : t → t') (v v' : TypeVec n) (fs : v ⟹ v'),
     β (v ::: t) (v' ::: t') (fs ::: f)) :
     ∀ v v' fs, β v v' fs := by
@@ -300,26 +299,26 @@ def typevecCasesCons₃ (n : ℕ) {β : ∀ v v' : TypeVec (n + 1), v ⟹ v' →
   apply F
 
 /-- specialized cases distinction for an arrow in the category of 0-length type vectors -/
-def typevecCasesNil₂ {β : Fin.elim0 ⟹ Fin.elim0 → Sort*} (f : β nilFun) : ∀ f, β f := by
+def typevecCasesNil₂ {β : Fin.elim0 ⟹ Fin.elim0 → Sort _} (f : β nilFun) : ∀ f, β f := by
   intro g
   suffices g = nilFun by rwa [this]
   ext i
   exact i.elim0
 
 /-- specialized cases distinction for an arrow in the category of (n+1)-length type vectors -/
-def typevecCasesCons₂ (n : ℕ) (t t' : Type*) (v v' : TypeVec n)
-    {β : (v ::: t) ⟹ (v' ::: t') → Sort*}
+def typevecCasesCons₂ (n : Nat) (t t' : Type _) (v v' : TypeVec n)
+    {β : (v ::: t) ⟹ (v' ::: t') → Sort _}
     (F : ∀ (f : t → t') (fs : v ⟹ v'), β (fs ::: f)) : ∀ fs, β fs := by
   intro fs
   rw [← split_dropFun_lastFun fs]
   apply F
 
-theorem typevecCasesNil₂_appendFun {β : Fin.elim0 ⟹ Fin.elim0 → Sort*} (f : β nilFun) :
+theorem typevecCasesNil₂_appendFun {β : Fin.elim0 ⟹ Fin.elim0 → Sort _} (f : β nilFun) :
     typevecCasesNil₂ f nilFun = f :=
   rfl
 
-theorem typevecCasesCons₂_appendFun (n : ℕ) (t t' : Type*) (v v' : TypeVec n)
-    {β : (v ::: t) ⟹ (v' ::: t') → Sort*}
+theorem typevecCasesCons₂_appendFun (n : Nat) (t t' : Type _) (v v' : TypeVec n)
+    {β : (v ::: t) ⟹ (v' ::: t') → Sort _}
     (F : ∀ (f : t → t') (fs : v ⟹ v'), β (fs ::: f))
     (f fs) :
     typevecCasesCons₂ n t t' v v' F (fs ::: f) = F f fs :=
@@ -327,7 +326,7 @@ theorem typevecCasesCons₂_appendFun (n : ℕ) (t t' : Type*) (v v' : TypeVec n
 
 -- for lifting predicates and relations
 /-- `PredLast α p x` predicates `p` of the last element of `x : α.append1 β`. -/
-def PredLast (α : TypeVec n) {β : Type*} (p : β → Prop) : ∀ ⦃i⦄, (α.append1 β) i → Prop :=
+def PredLast (α : TypeVec n) {β : Type _} (p : β → Prop) : ∀ ⦃i⦄, (α.append1 β) i → Prop :=
   fun i => Fin.cases (motive := fun i => (α.append1 β) i → Prop) p (fun _ _ => True) i
 
 /-- `RelLast α r x y` says that `p` the last elements of `x y : α.append1 β` are related by `r`
@@ -342,7 +341,7 @@ section Liftp'
 open Nat
 
 /-- `repeat n t` is a `n-length` type vector that contains `n` occurrences of `t` -/
-def «repeat» : ∀ (n : ℕ), Type u → TypeVec n
+def «repeat» : ∀ (n : Nat), Type u → TypeVec n
   | 0, _ => Fin.elim0
   | Nat.succ i, t => append1 («repeat» i t) t
 
@@ -351,7 +350,7 @@ def prod : ∀ {n}, TypeVec.{u} n → TypeVec.{u} n → TypeVec n
   | 0, _, _ => Fin.elim0
   | n + 1, α, β => (@prod n (drop α) (drop β)) ::: (last α × last β)
 
-@[inherit_doc] scoped[MvFunctor] infixl:45 " ⊗ " => TypeVec.prod
+@[inherit_doc] scoped infixl:45 " ⊗ " => TypeVec.prod
 
 /-- `const x α` is an arrow that ignores its source and constructs a `TypeVec` that
 contains nothing but `x` -/
@@ -362,8 +361,6 @@ protected def const {β} (x : β) : ∀ {n} (α : TypeVec n), α ⟹ «repeat» 
       (fun _ => x)
       (fun j => TypeVec.const x (drop α) j)
       i
-
-open Function (uncurry)
 
 theorem const_append1 {β γ} (x : γ) {n} (α : TypeVec n) :
     TypeVec.const x (α ::: β) = appendFun (TypeVec.const x α) fun _ => x := rfl
@@ -379,10 +376,10 @@ theorem const_nil {β} (x : β) (α : TypeVec 0) : TypeVec.const x α = nilFun :
 
 /-- given `F : TypeVec.{u} (n+1) → Type u`, `curry F : Type u → TypeVec.{u} → Type u`,
 i.e. its first argument can be fed in separately from the rest of the vector of arguments -/
-def Curry (F : TypeVec.{u} (n + 1) → Type*) (α : Type u) (β : TypeVec.{u} n) : Type _ :=
+def Curry (F : TypeVec.{u} (n + 1) → Type _) (α : Type u) (β : TypeVec.{u} n) : Type _ :=
   F (β ::: α)
 
-instance Curry.inhabited (F : TypeVec.{u} (n + 1) → Type*) (α : Type u) (β : TypeVec.{u} n)
+instance Curry.inhabited (F : TypeVec.{u} (n + 1) → Type _) (α : Type u) (β : TypeVec.{u} n)
     [I : Inhabited (F <| (β ::: α))] : Inhabited (Curry F α β) :=
   I
 
@@ -449,7 +446,7 @@ protected def prod.map : ∀ {n} {α α' β β' : TypeVec.{u} n}, α ⟹ β → 
       (fun j => @prod.map _ (drop α) (drop α') (drop β) (drop β') (dropFun x) (dropFun y) j)
       i
 
-@[inherit_doc] scoped[MvFunctor] infixl:45 " ⊗' " => TypeVec.prod.map
+@[inherit_doc] scoped infixl:45 " ⊗' " => TypeVec.prod.map
 
 theorem fst_prod_mk {α α' β β' : TypeVec n} (f : α ⟹ β) (g : α' ⟹ β') :
     TypeVec.prod.fst ⊚ (f ⊗' g) = f ⊚ TypeVec.prod.fst := by
@@ -532,6 +529,8 @@ attribute [simp] drop_append1'
 
 end TypeVec
 
+end QpfTypes
+
 /-!
 ## Notes on Fin vs Fin2 API differences
 
@@ -570,5 +569,5 @@ is cleaner than `Fin.succRec`, which is better suited to proofs.
 - `Fin2.cases'` ↔ `Fin.cases` ✓
 - `Fin2.elim0` ↔ `Fin.elim0` ✓
 - Structural induction on `Fin2` ↔ `induction i using Fin.succRecOn` ✓
-- No analog of `Fin2.toNat` needed — `Fin` already stores `.val : ℕ`
+- No analog of `Fin2.toNat` needed — `Fin` already stores `.val : Nat`
 -/
