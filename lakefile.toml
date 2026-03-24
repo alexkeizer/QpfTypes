@@ -1,0 +1,15 @@
+name = "NewPFTypes"
+version = "0.1.0"
+defaultTargets = ["newpftypes"]
+
+[[require]]
+name = "mathlib"
+scope = "leanprover-community"
+version = "git#v4.28.0"
+
+[[lean_lib]]
+name = "NewPFTypes"
+
+[[lean_exe]]
+name = "newpftypes"
+root = "Main"
