@@ -94,12 +94,29 @@ def append1 (α : TypeVec n) (β : Type _) : TypeVec (n + 1) :=
 
 @[inherit_doc] infixl:67 " ::: " => append1
 
+def nil : TypeVec 0 :=
+  Fin.elim0
+
 /-- retain only a `n-length` prefix of the argument -/
 def drop (α : TypeVec.{u} (n + 1)) : TypeVec n := fun i => α i.succ
 
 /-- take the last value of a `(n+1)-length` vector -/
 def last (α : TypeVec.{u} (n + 1)) : Type _ :=
   α 0
+
+/--
+Extend a `TypeVec` with a new element at the _front_ of the list.
+-/
+def cons (α : Type u) (αs : TypeVec.{u} n) : TypeVec (n + 1) :=
+  Fin.lastCases α αs
+@[inherit_doc] infixr:67 " <: " => cons
+
+/-- take the first value of a `(n+1)-length` vector -/
+def head (α : TypeVec.{u} (n + 1)) : Type _ :=
+  α (.last _)
+
+/-- retain only a `n-length` _suffix_ of the argument -/
+def tail (α : TypeVec.{u} (n + 1)) : TypeVec n := fun i => α i.castSucc
 
 instance last.inhabited (α : TypeVec (n + 1)) [Inhabited (α 0)] : Inhabited (last α) :=
   ⟨show α 0 from default⟩
@@ -527,8 +544,53 @@ theorem prod_map_id {α β : TypeVec n} : (@TypeVec.id _ α ⊗' @TypeVec.id _ �
 
 attribute [simp] drop_append1'
 
-end TypeVec
+/-!
+## Lemmas
 
+This file is a bit disorganized,
+but any _new_ lemmas will be added in this section
+-/
+section Lemmas
+
+/-!
+### nil
+-/
+theorem nil_eq (βs : TypeVec 0) : βs = nil := by
+  funext i; exact i.elim0
+
+/-!
+### head / tail
+-/
+section HeadTail
+variable (βs : TypeVec.{u} n) (β : Type u)
+
+@[grind =] theorem head_append1 :
+    (βs ::: β).head = match n with
+      | 0 => β
+      | _+1 => βs.head := by
+  cases n <;> grind [append1, head]
+
+@[grind =] theorem tail_append1 :
+    (βs ::: β).tail = match n with
+      | 0 => nil
+      | _+1 => βs.tail ::: β := by
+  funext i
+  cases n
+  · exact i.elim0
+  · cases i using Fin.cases <;> grind [append1, tail]
+
+@[simp, grind =] theorem head_cons : (β <: βs).head = β := by simp [head, cons]
+@[simp, grind =] theorem tail_cons : (β <: βs).tail = βs := by
+  funext i; simp [tail, cons]
+
+@[simp, grind =] theorem cons_head_tail {βs : TypeVec (n+1)} :
+    βs.head <: βs.tail = βs := by
+  funext i; cases i using Fin.lastCases <;> simp [cons, head, tail]
+
+end HeadTail
+
+end Lemmas
+end TypeVec
 end QpfTypes
 
 /-!
