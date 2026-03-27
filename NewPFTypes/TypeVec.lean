@@ -555,8 +555,12 @@ section Lemmas
 /-!
 ### nil
 -/
-theorem nil_eq (βs : TypeVec 0) : βs = nil := by
+
+theorem eq_nil (βs : TypeVec 0) : βs = nil := by
   funext i; exact i.elim0
+
+instance : Subsingleton (TypeVec 0) where
+  allEq a b := by rw [a.eq_nil, b.eq_nil]
 
 /-!
 ### head / tail
