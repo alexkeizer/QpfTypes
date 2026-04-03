@@ -2,5 +2,7 @@
 -- Import modules here that should be built as part of the library.
 import NewPFTypes.Basic
 import NewPFTypes.TypeVec
+import NewPFTypes.TypeFun
 import NewPFTypes.PFunctor.Univariate.Basic
 import NewPFTypes.PFunctor.Multivariate.Basic
+import NewPFTypes.PFunctor.Multivariate.W
