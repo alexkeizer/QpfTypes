@@ -4,7 +4,6 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Jeremy Avigad, Simon Hudon
 -/
 import NewPFTypes.PFunctor.Multivariate.Basic
-import Mathlib.Control.Functor.Multivariate
 
 /-!
 # The W construction as a multivariate polynomial functor.
@@ -50,7 +49,6 @@ namespace QpfTypes
 namespace MvPFunctor
 
 open TypeVec
-open MvFunctor
 
 variable {n : Nat} (P : MvPFunctor.{u} (n + 1))
 
@@ -124,12 +122,12 @@ def wpMk {α : TypeVec n} (a : P.A) (f : P.last.B a → P.last.W) (f' : P.WPath 
     P.W α :=
   ⟨⟨a, f⟩, f'⟩
 
-def wpRec {α : TypeVec n} {C : Type*}
+def wpRec {α : TypeVec n} {C : Type _}
     (g : ∀ (a : P.A) (f : P.last.B a → P.last.W), P.WPath ⟨a, f⟩ ⟹ α → (P.last.B a → C) → C) :
     ∀ (x : P.last.W) (_ : P.WPath x ⟹ α), C
   | ⟨a, f⟩, f' => g a f f' fun i => wpRec g (f i) (P.wPathDestRight f' i)
 
-theorem wpRec_eq {α : TypeVec n} {C : Type*}
+theorem wpRec_eq {α : TypeVec n} {C : Type _}
     (g : ∀ (a : P.A) (f : P.last.B a → P.last.W), P.WPath ⟨a, f⟩ ⟹ α → (P.last.B a → C) → C)
     (a : P.A) (f : P.last.B a → P.last.W) (f' : P.WPath ⟨a, f⟩ ⟹ α) :
     P.wpRec g ⟨a, f⟩ f' = g a f f' fun i => P.wpRec g (f i) (P.wPathDestRight f' i) := rfl
@@ -156,7 +154,7 @@ def wMk {α : TypeVec n} (a : P.A) (f' : P.drop.B a ⟹ α) (f : P.last.B a → 
   ⟨⟨a, g⟩, g'⟩
 
 /-- Recursor for `W` -/
-def wRec {α : TypeVec n} {C : Type*}
+def wRec {α : TypeVec n} {C : Type _}
     (g : ∀ a : P.A, P.drop.B a ⟹ α → (P.last.B a → P.W α) → (P.last.B a → C) → C) : P.W α → C
   | ⟨a, f'⟩ =>
     let g' (a : P.A) (f : P.last.B a → P.last.W) (h : P.WPath ⟨a, f⟩ ⟹ α)
@@ -165,7 +163,7 @@ def wRec {α : TypeVec n} {C : Type*}
     P.wpRec g' a f'
 
 /-- Defining equation for the recursor of `W` -/
-theorem wRec_eq {α : TypeVec n} {C : Type*}
+theorem wRec_eq {α : TypeVec n} {C : Type _}
     (g : ∀ a : P.A, P.drop.B a ⟹ α → (P.last.B a → P.W α) → (P.last.B a → C) → C) (a : P.A)
     (f' : P.drop.B a ⟹ α) (f : P.last.B a → P.W α) :
     P.wRec g (P.wMk a f' f) = g a f' f fun i => P.wRec g (f i) := by
