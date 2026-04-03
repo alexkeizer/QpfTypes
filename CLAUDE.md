@@ -90,3 +90,107 @@ For **proofs**, use `induction i using Fin.succRecOn` — the motive quantifies 
 - `register_simp_attr` — may already be declared by Mathlib; just remove the line
 - `open MvFunctor` — `MvFunctor` only exists in Mathlib; replace with local namespace strategy above
 - QPF-specific definitions (`Subtype_`, `repeatEq`, `PredLast'`, `RelLast'`, `diagSub`, `ofRepeat`) — intentionally excluded from this project
+
+### Module system and namespace wrapping
+
+When porting Mathlib files, the following structural changes are needed:
+
+1. **Remove Mathlib module system artifacts**:
+   - Remove `module` keyword at the top of the file
+   - Remove `@[expose] public section` declarations
+   - Remove corresponding `end section` if present
+
+2. **Add QpfTypes namespace wrapper**:
+   - Wrap the entire file content in `namespace QpfTypes` / `end QpfTypes`
+   - Keep the original namespace (e.g., `MvPFunctor`) nested inside
+
+3. **Adjust imports**:
+   - Change `public import Mathlib.X.Y.Z` to local project imports like `import NewPFTypes.X.Y.Z`
+   - Remove ALL Mathlib imports (the goal is zero Mathlib dependencies)
+   - If functionality seems to require Mathlib, check if it's available through already-ported local modules or if it can be replaced with explicit function calls
+
+Example transformation:
+```lean
+-- Mathlib version:
+module
+@[expose] public section
+namespace MvPFunctor
+...
+end MvPFunctor
+
+-- Ported version:
+namespace QpfTypes
+namespace MvPFunctor
+...
+end MvPFunctor
+end QpfTypes
+```
+
+### MvFunctor notation: `<$$>` operator
+
+Mathlib's `MvFunctor` typeclass provides the `<$$>` notation for mapping. Since we're eliminating Mathlib dependencies, replace this notation with explicit function calls:
+
+| Mathlib usage | Replacement | Context |
+| ------------- | ----------- | ------- |
+| `g <$$> x` | `P.wp.map g x` | When mapping over `P.wp` objects |
+| `g <$$> x` | `P.map g x` | When mapping over `P` objects |
+| `g <$$> P.wMk a f' f` | `P.wMap g (P.wMk a f' f)` | When using the W-type map |
+| `MvFunctor.map g ∘ f` | `P.wMap g ∘ f` | In function composition |
+| `appendFun g h <$$> x` | `P.map (appendFun g h) x` | Parenthesize the function argument |
+
+**Pattern**: The `<$$>` operator is infix notation for `MvFunctor.map`. When porting:
+- Identify what type `x` has to determine which `.map` function to use
+- Make the call explicit: `Type.map g x` rather than `g <$$> x`
+- If a custom map function exists (like `wMap`), prefer using it for clarity
+
+### Type definitions vs type aliases
+
+Mathlib sometimes defines types as functions with separate typeclass instances. When porting, prefer simpler direct definitions:
+
+**Mathlib pattern**:
+```lean
+def W (α : TypeVec n) : Type _ := P.wp α
+instance mvfunctorW : MvFunctor P.W := by delta MvPFunctor.W; infer_instance
+```
+
+**Ported pattern**:
+```lean
+def W : TypeVec n → Type _ := P.wp.Obj
+-- No instance needed if we're not using the typeclass
+```
+
+**Rationale**: Since we're eliminating Mathlib dependencies, we don't use the `MvFunctor` typeclass. Simplify type definitions and remove instances that exist only to satisfy typeclass requirements. The actual map functionality is available through the polynomial functor's own `.map` method.
+
+### Proof adjustments for transparency
+
+Some definitions that compute definitionally in Mathlib may require explicit unfolding in the ported version:
+
+**Mathlib version**:
+```lean
+theorem wRec_eq ... : P.wRec g (P.wMk a f' f) = ... := rfl
+```
+
+**Ported version**:
+```lean
+theorem wRec_eq ... : P.wRec g (P.wMk a f' f) = ... := by
+  unfold wRec wMk
+  rfl
+```
+
+**When to add `unfold`**: If a proof that was just `rfl` in Mathlib fails to typecheck, try adding `unfold` for the relevant definitions before `rfl`.
+
+### Selective theorem porting
+
+Not all theorems from Mathlib need to be ported. Some are only relevant in the full Mathlib context:
+
+- **Port theorems that**:
+  - Define core properties of the data structure
+  - Are needed for later constructions in this project
+  - Establish basic equivalences and computation rules
+
+- **Skip theorems that**:
+  - Only exist to satisfy Mathlib-specific typeclass requirements
+  - Depend on advanced Mathlib machinery not being ported
+  - Are marked as TODO or noted as "used in one place" that's not being ported
+
+Example: `wDest'_wMk'` was omitted from the W-types port (it depends on `split_dropFun_lastFun` which may not be ported yet).
