@@ -7,6 +7,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 NewPFTypes is a Lean 4 library project to define coinductive types via polynomial functors, with minimal (eventually no) Mathlib dependencies.
 More details about the plan for this project can be found in Plan.md and/or TODO.md
 
+## Finding Mathlib Source Files
+
+When looking up Mathlib source files (e.g. to port them), always search in the **project's own lake packages**:
+
+```text
+.lake/packages/mathlib/Mathlib/...
+```
+
+Do **not** look in other projects' lake packages elsewhere on the filesystem.
+
 ## Build Commands
 
 ```bash

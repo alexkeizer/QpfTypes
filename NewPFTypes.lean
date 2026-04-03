@@ -4,5 +4,7 @@ import NewPFTypes.Basic
 import NewPFTypes.TypeVec
 import NewPFTypes.TypeFun
 import NewPFTypes.PFunctor.Univariate.Basic
+import NewPFTypes.PFunctor.Univariate.M
 import NewPFTypes.PFunctor.Multivariate.Basic
 import NewPFTypes.PFunctor.Multivariate.W
+import NewPFTypes.PFunctor.Multivariate.M
