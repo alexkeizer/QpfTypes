@@ -3,10 +3,10 @@ Copyright (c) 2018 Jeremy Avigad. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Jeremy Avigad, Simon Hudon, Alex Keizer
 -/
-import NewPFTypes.PFunctor.Multivariate.Basic
-import NewPFTypes.PFunctor.Univariate.M
+module
 
--- import Mathlib.Data.PFunctor.Multivariate.M
+public import NewPFTypes.PFunctor.Multivariate.Basic
+public import NewPFTypes.PFunctor.Univariate.M
 
 /-!
 # The M construction as a multivariate polynomial functor.
@@ -44,6 +44,7 @@ that `A` is a possibly infinite tree.
 * Jeremy Avigad, Mario M. Carneiro and Simon Hudon.
   [*Data Types as Quotients of Polynomial Functors*][avigad-carneiro-hudon2019]
 -/
+@[expose] public section
 
 namespace QpfTypes
 namespace MvPFunctor
@@ -157,7 +158,9 @@ def M.dest' {α : TypeVec n} {x : P.last.M} {a : P.A} {f : P.last.B a → P.last
 
 /-- Destructor for `P.M` -/
 def M.dest {α : TypeVec n} (x : P.M α) : P (α ::: P.M α) :=
-  M.dest' P (by rfl) x.snd
+  let a := x.fst.head
+  let f := x.fst.children
+  M.dest' P (a:=a) (f:=f) (by rfl) x.snd
 
 /-! ### Constructor -/
 

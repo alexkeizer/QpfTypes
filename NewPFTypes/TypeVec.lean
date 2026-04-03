@@ -3,6 +3,7 @@ Copyright (c) 2018 Jeremy Avigad. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Jeremy Avigad, Mario Carneiro, Simon Hudon
 -/
+module
 
 /-!
 
@@ -27,8 +28,9 @@ Since e.g. `append1 α.drop α.last` is propositionally equal to `α` but not de
 to it, we need support functions and lemmas to mediate between constructions.
 
 This file is a modified version of `Mathlib.Data.TypeVec`, with `Fin2` replaced by `Fin`
-throughout, and QPF/quotient-specific definitions removed.
+throughout.
 -/
+@[expose] public section
 
 universe u v w x
 

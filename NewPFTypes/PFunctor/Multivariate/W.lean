@@ -3,7 +3,9 @@ Copyright (c) 2018 Jeremy Avigad. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Jeremy Avigad, Simon Hudon
 -/
-import NewPFTypes.PFunctor.Multivariate.Basic
+module
+
+public import NewPFTypes.PFunctor.Multivariate.Basic
 
 /-!
 # The W construction as a multivariate polynomial functor.
@@ -42,13 +44,15 @@ its valid paths to values of `α`
 * Jeremy Avigad, Mario M. Carneiro and Simon Hudon.
   [*Data Types as Quotients of Polynomial Functors*][avigad-carneiro-hudon2019]
 -/
-
-universe u v
+@[expose] public section
 
 namespace QpfTypes
 namespace MvPFunctor
 
 open TypeVec
+
+universe u v
+
 
 variable {n : Nat} (P : MvPFunctor.{u} (n + 1))
 

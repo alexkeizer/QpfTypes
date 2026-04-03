@@ -105,16 +105,11 @@ For **proofs**, use `induction i using Fin.succRecOn` — the motive quantifies 
 
 When porting Mathlib files, the following structural changes are needed:
 
-1. **Remove Mathlib module system artifacts**:
-   - Remove `module` keyword at the top of the file
-   - Remove `@[expose] public section` declarations
-   - Remove corresponding `end section` if present
-
-2. **Add QpfTypes namespace wrapper**:
+1. **Add QpfTypes namespace wrapper**:
    - Wrap the entire file content in `namespace QpfTypes` / `end QpfTypes`
    - Keep the original namespace (e.g., `MvPFunctor`) nested inside
 
-3. **Adjust imports**:
+2. **Adjust imports**:
    - Change `public import Mathlib.X.Y.Z` to local project imports like `import NewPFTypes.X.Y.Z`
    - Remove ALL Mathlib imports (the goal is zero Mathlib dependencies)
    - If functionality seems to require Mathlib, check if it's available through already-ported local modules or if it can be replaced with explicit function calls

@@ -3,7 +3,9 @@ Copyright (c) 2017 Simon Hudon. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Simon Hudon
 -/
-import NewPFTypes.PFunctor.Univariate.Basic
+module
+
+public import NewPFTypes.PFunctor.Univariate.Basic
 
 import Batteries.Logic
 
@@ -13,7 +15,7 @@ import Batteries.Logic
 M types are potentially infinite tree-like structures. They are defined
 as the greatest fixpoint of a polynomial functor.
 -/
-
+@[expose] public section
 namespace QpfTypes
 
 universe uA uB w

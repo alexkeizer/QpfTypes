@@ -1,4 +1,6 @@
-import NewPFTypes.TypeVec
+module
+
+public import NewPFTypes.TypeVec
 
 /-!
 # TypeFun
@@ -13,6 +15,8 @@ heterogeneous result use `TypeFun.{u, v}` directly.
 `TypeFun.curry` and `TypeFun.ofCurried` convert between `TypeFun.{u, u} n` and
 `CurriedTypeFun.{u} n` and are mutually inverse.
 -/
+@[expose] public section
+
 namespace QpfTypes
 
 universe u v

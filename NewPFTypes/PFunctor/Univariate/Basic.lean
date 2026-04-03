@@ -3,12 +3,15 @@ Copyright (c) 2018 Jeremy Avigad. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Jeremy Avigad
 -/
+module
 
 /-!
 # Polynomial Functors
 
 This file defines polynomial functors and the W-type construction as a polynomial functor.
 -/
+@[expose] public section
+
 namespace QpfTypes
 
 universe u v uA uB uA₁ uB₁ uA₂ uB₂ v₁ v₂ v₃
