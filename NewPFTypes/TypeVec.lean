@@ -43,18 +43,18 @@ def TypeVec (n : Nat) :=
 instance {n} : Inhabited (TypeVec.{u} n) :=
   ⟨fun _ => PUnit⟩
 
-namespace TypeVec
-
-variable {n : Nat}
-
 /-- arrow in the category of `TypeVec` -/
-def Arrow (α : TypeVec.{u} n) (β : TypeVec.{v} n) :=
+def TypeVec.Arrow (α : TypeVec.{u} n) (β : TypeVec.{v} n) :=
   ∀ i : Fin n, α i → β i
 
 @[inherit_doc] scoped infixl:40 " ⟹ " => TypeVec.Arrow
 
-variable {α : TypeVec.{u} n} {β : TypeVec.{v} n} {γ : TypeVec.{w} n} {δ : TypeVec.{x} n} in
+variable {n : Nat}
+
+namespace TypeVec
+
 section
+variable {α : TypeVec.{u} n} {β : TypeVec.{v} n} {γ : TypeVec.{w} n} {δ : TypeVec.{x} n}
 
 /-- Extensionality for arrows -/
 @[ext]
@@ -94,7 +94,11 @@ end
 def append1 (α : TypeVec n) (β : Type _) : TypeVec (n + 1) :=
   Fin.cases β α
 
-@[inherit_doc] infixl:67 " ::: " => append1
+end TypeVec
+
+@[inherit_doc] scoped infixl:67 " ::: " => TypeVec.append1
+
+namespace TypeVec
 
 def nil : TypeVec 0 :=
   Fin.elim0
@@ -159,7 +163,11 @@ def appendFun {α α' : TypeVec n} {β β' : Type _} (f : α ⟹ α') (g : β �
     append1 α β ⟹ append1 α' β' :=
   splitFun f g
 
-@[inherit_doc] infixl:0 " ::: " => appendFun
+end TypeVec
+
+@[inherit_doc] scoped infixl:0 " ::: " => TypeVec.appendFun
+
+namespace TypeVec
 
 /-- split off the prefix of an arrow -/
 def dropFun {α β : TypeVec (n + 1)} (f : α ⟹ β) : drop α ⟹ drop β := fun i => f i.succ
@@ -369,6 +377,7 @@ def prod : ∀ {n}, TypeVec.{u} n → TypeVec.{u} n → TypeVec n
   | 0, _, _ => Fin.elim0
   | n + 1, α, β => (@prod n (drop α) (drop β)) ::: (last α × last β)
 
+-- TODO: this ought to be scoped to the parent QpfTypes namespace
 @[inherit_doc] scoped infixl:45 " ⊗ " => TypeVec.prod
 
 /-- `const x α` is an arrow that ignores its source and constructs a `TypeVec` that
@@ -465,6 +474,7 @@ protected def prod.map : ∀ {n} {α α' β β' : TypeVec.{u} n}, α ⟹ β → 
       (fun j => @prod.map _ (drop α) (drop α') (drop β) (drop β') (dropFun x) (dropFun y) j)
       i
 
+-- TODO: this ought to be scoped to the parent QpfTypes namespace
 @[inherit_doc] scoped infixl:45 " ⊗' " => TypeVec.prod.map
 
 theorem fst_prod_mk {α α' β β' : TypeVec n} (f : α ⟹ β) (g : α' ⟹ β') :
