@@ -6,8 +6,6 @@ Authors: Jeremy Avigad, Simon Hudon
 import NewPFTypes.TypeVec
 import NewPFTypes.PFunctor.Univariate.Basic
 
-open QpfTypes QpfTypes.TypeVec
-
 /-!
 # Multivariate polynomial functors
 
@@ -15,6 +13,8 @@ Multivariate polynomial functors map a type vector `α` to the type `Σ a : A, B
 with `A : Type` and `B : A → TypeVec n`. They interact well with Lean's inductive
 definitions because they guarantee that occurrences of `α` are positive.
 -/
+namespace QpfTypes
+open TypeVec
 
 universe u
 
