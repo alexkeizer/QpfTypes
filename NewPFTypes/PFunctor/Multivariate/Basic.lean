@@ -6,6 +6,7 @@ Authors: Jeremy Avigad, Simon Hudon
 module
 
 public import NewPFTypes.TypeVec
+public import NewPFTypes.MvFunctor
 public import NewPFTypes.PFunctor.Univariate.Basic
 
 /-!
@@ -37,13 +38,10 @@ variable {n m : Nat} (P : MvPFunctor.{u} n)
 @[coe]
 def Obj (α : TypeVec.{u} n) : Type u :=
   Σ a : P.A, P.B a ⟹ α
-
 instance : CoeFun (MvPFunctor.{u} n) (fun _ => TypeVec.{u} n → Type u) where
   coe := Obj
 
-/-- Applying `P` to a morphism of `TypeVec` -/
-def map {α β : TypeVec n} (f : α ⟹ β) : P α → P β :=
-  fun ⟨a, g⟩ => ⟨a, f ⊚ g⟩
+/-! ### Inhabitedness -/
 
 instance : Inhabited (MvPFunctor n) :=
   ⟨⟨default, default⟩⟩
@@ -52,16 +50,30 @@ instance Obj.inhabited {α : TypeVec n} [Inhabited P.A] [∀ i, Inhabited (α i)
     Inhabited (P α) :=
   ⟨⟨default, fun _ _ => default⟩⟩
 
+/-! ### Mapping Functions -/
+
+/-- Applying `P` to a morphism of `TypeVec` -/
+instance : MvFunctor P where
+  map f := fun ⟨a, g⟩ => ⟨a, f ⊚ g⟩
+@[grind] abbrev map (f : α ⟹ β) (x : P α) := f <$$> x
+
+section MapLemmas
+
+@[simp, grind =]
 theorem map_eq {α β : TypeVec n} (g : α ⟹ β) (a : P.A) (f : P.B a ⟹ α) :
     P.map g ⟨a, f⟩ = ⟨a, g ⊚ f⟩ :=
   rfl
 
+@[simp, grind =]
 theorem id_map {α : TypeVec n} : ∀ x : P α, P.map TypeVec.id x = x
   | ⟨_, _⟩ => rfl
 
+@[simp, grind =]
 theorem comp_map {α β γ : TypeVec n} (f : α ⟹ β) (g : β ⟹ γ) :
     ∀ x : P α, P.map (g ⊚ f) x = P.map g (P.map f x)
   | ⟨_, _⟩ => rfl
+
+end MapLemmas
 
 /-
 Constant functor.
