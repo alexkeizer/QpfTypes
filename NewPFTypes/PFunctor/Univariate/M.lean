@@ -302,7 +302,7 @@ theorem corec_def {X : Type _} (f : X → F X) (x₀ : X) :
     cases f x₀
     rfl
 
-@[simp]
+@[simp, grind =]
 theorem head_mk (x : F (M F)) : head (M.mk x) = x.1 :=
   Eq.symm <|
     calc
@@ -312,29 +312,27 @@ theorem head_mk (x : F (M F)) : head (M.mk x) = x.1 :=
 theorem dest_corec (g : X → F X) (x : X) : M.dest (M.corec g x) = F.map (M.corec g) (g x) := by
   rw [corec_def, dest_mk]
 
+/-!
+## Bisimulation Principle
+-/
+
+coinductive IsBisim : M F → M F → Prop where
+  | step {x y : M F} {a f f'} :
+        M.dest x = ⟨a, f⟩ → M.dest y = ⟨a, f'⟩
+        → (∀ i, IsBisim (f i) (f' i))
+        → IsBisim x y
+
 /-- Bisimulation principle for M-types -/
-theorem bisim (R : M F → M F → Prop)
-    (h : ∀ x y, R x y → ∃ a f f', M.dest x = ⟨a, f⟩ ∧ M.dest y = ⟨a, f'⟩ ∧
-        ∀ i, R (f i) (f' i)) :
-    ∀ x y, R x y → x = y := by
-  suffices ∀ n x y, R x y → x.approx n = y.approx n by
-    intro x y hRxy
-    ext n
-    exact this n x y hRxy
-  intro n
-  induction n with
-  | zero => intros; exact Subsingleton.elim _ _
-  | succ n ih =>
-    intro x y hRxy
-    obtain ⟨a, f, f', hx, hy, hf⟩ := h x y hRxy
-    have xeq : x = M.mk ⟨a, f⟩ := (mk_dest x).symm.trans (congrArg M.mk hx)
-    have yeq : y = M.mk ⟨a, f'⟩ := (mk_dest y).symm.trans (congrArg M.mk hy)
-    subst xeq; subst yeq
-    show Approx.sMk ⟨a, f⟩ (n + 1) = Approx.sMk ⟨a, f'⟩ (n + 1)
-    simp only [Approx.sMk]
-    congr 1
-    funext i
-    exact ih (f i) (f' i) (hf i)
+@[grind .]
+theorem bisim (x y : M F) : IsBisim x y → x = y := by
+  intro h
+  ext n
+  induction n generalizing x y
+  case zero =>
+    apply Subsingleton.elim
+  case succ n ih =>
+    cases h
+    grind [approx_mk, mk_dest]
 
 end M
 
