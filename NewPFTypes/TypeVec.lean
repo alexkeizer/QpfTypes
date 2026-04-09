@@ -402,6 +402,17 @@ theorem id_eq_nilFun {α : TypeVec 0} : @id _ α = nilFun := by
 theorem const_nil {β} (x : β) (α : TypeVec 0) : TypeVec.const x α = nilFun := by
   ext i : 1; exact i.elim0
 
+/-- Projection from a repeat vector. Since `repeat n α` has `α` at every index,
+this extracts the underlying `α` value. -/
+def ofRepeat {α : Sort _} : ∀ {n : Nat} {i : Fin n}, «repeat» n α i → α
+  | _ + 1, ⟨0, _⟩ => fun x => x
+  | _ + 1, ⟨k + 1, hk⟩ => @ofRepeat α _ ⟨k, Nat.lt_of_succ_lt_succ hk⟩
+
+theorem const_iff_true : ∀ {n} {α : TypeVec n} {i : Fin n} {x p},
+    ofRepeat (TypeVec.const p α i x) ↔ p
+  | _ + 1, _, ⟨0, _⟩, _, _ => Iff.rfl
+  | _ + 1, _, ⟨k + 1, hk⟩, _, _ => const_iff_true (i := ⟨k, Nat.lt_of_succ_lt_succ hk⟩)
+
 /-- given `F : TypeVec.{u} (n+1) → Type u`, `curry F : Type u → TypeVec.{u} → Type u`,
 i.e. its first argument can be fed in separately from the rest of the vector of arguments -/
 def Curry (F : TypeVec.{u} (n + 1) → Type _) (α : Type u) (β : TypeVec.{u} n) : Type _ :=

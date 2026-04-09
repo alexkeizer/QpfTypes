@@ -3,6 +3,7 @@
 module
 
 public import NewPFTypes.TypeVec
+public import NewPFTypes.MvFunctor
 public import NewPFTypes.TypeFun
 public import NewPFTypes.PFunctor.Univariate.Basic
 public import NewPFTypes.PFunctor.Univariate.M
