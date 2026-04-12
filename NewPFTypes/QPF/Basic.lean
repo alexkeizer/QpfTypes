@@ -152,7 +152,9 @@ def IsUniform : Prop :=
 
 /-- does `abs` preserve `liftp`? -/
 def LiftPPreservation : Prop :=
-  ∀ ⦃α : TypeVec n⦄ (p : ∀ ⦃i⦄, α i → Prop) (x : q.P α), LiftP p (abs x) ↔ MvPFunctor.LiftP q.P p x
+  ∀ ⦃α : TypeVec n⦄ (p : ∀ ⦃i⦄, α i → Prop) (x : q.P α), LiftP p (abs x) ↔ LiftP p x
+
+/-! ### ofEquiv -/
 
 /-- Any type function `F` that is (extensionally) equivalent to a QPF, is itself a QPF,
 assuming that the functorial map of `F` behaves similar to `MvFunctor.ofEquiv eqv` -/
@@ -164,15 +166,15 @@ def ofEquiv {F F' : TypeVec.{u} n → Type _} [q : MvQPF F'] [MvFunctor F]
     (map_eq : ∀ {α β} (f : α ⟹ β) (a : F α), f <$$> a = invF (f <$$> toF a) := by intros; rfl) :
     MvQPF F where
   P        := q.P
-  abs      := fun x => invF (q.abs x)
-  repr     := fun x => q.repr (toF x)
+  abs x    := invF (q.abs x)
+  repr x   := q.repr (toF x)
   abs_repr := by simp [q.abs_repr, left_inv]
   abs_map  := by simp [q.abs_map, map_eq, right_inv]
 
 end MvQPF
 
 /-- Every polynomial functor is a (trivial) QPF -/
-instance MvPFunctor.instMvQPFObj {n} (P : MvPFunctor n) : MvQPF P.Obj where
+instance MvPFunctor.instMvQPFObj {n} (P : MvPFunctor n) : MvQPF P where
   map := P.map
   P := P
   abs := id
