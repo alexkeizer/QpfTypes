@@ -1,38 +1,51 @@
 /-
 Copyright (c) 2018 Jeremy Avigad. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Jeremy Avigad, Simon Hudon, Alex Keizer
+Authors: Jeremy Avigad, Mario Carneiro, Simon Hudon, Alex Keizer
 -/
 module
 
 public import NewPFTypes.PFunctor.Multivariate.Basic
+public import NewPFTypes.PFunctor.Univariate.M
 
 /-!
-# The M Type of a Multivariate Polynomial Functor
+# The M construction as a multivariate polynomial functor.
 
-M types are potentially infinite tree-like structures.
-They are defined as the greatest fixpoint of a polynomial functor.
-
+M types are potentially infinite tree-like structures. They are defined
+as the greatest fixpoint of a polynomial functor.
 
 ## Main definitions
 
 * `M.mk`     - constructor
 * `M.dest`   - destructor
 * `M.corec`  - corecursor: useful for formulating infinite, productive computations
+* `M.bisim`  - bisimulation: proof technique to show the equality of infinite objects
 
 ## Implementation notes
 
-The `M` type is defined as a sequence of approximations,
-similar to how Avigad et al describe the _univariate_ M type.
-This deviates quite a bit from how the M type of a _multivariate_ functor is
-constructed in Mathlib (which implements a the multivariate
-construction described by Avigad et al. in that same paper).
+Dual view of M-types:
+
+* `mp`: polynomial functor
+* `M`: greatest fixed point of a polynomial functor
+
+Specifically, we define the polynomial functor `mp` as:
+
+* A := a possibly infinite tree-like structure without information in the nodes
+* B := given the tree-like structure `t`, `B t` is a valid path
+  from the root of `t` to any given node.
+
+As a result `mp α` is made of a dataless tree and a function from
+its valid paths to values of `α`
+
+The difference with the polynomial functor of an initial algebra is
+that `A` is a possibly infinite tree.
 
 ## Reference
 
 * Jeremy Avigad, Mario M. Carneiro and Simon Hudon.
   [*Data Types as Quotients of Polynomial Functors*][avigad-carneiro-hudon2019]
 -/
+
 @[expose] public section
 
 namespace QpfTypes
@@ -44,279 +57,235 @@ universe u
 
 variable {n : Nat} (P : MvPFunctor.{u} (n + 1))
 
-namespace Approx
+/-- A path from the root of a tree to one of its node -/
+inductive M.Path : P.last.M → Fin n → Type u
+  | root (x : P.last.M)
+          (a : P.A)
+          (f : P.last.B a → P.last.M)
+          (h : PFunctor.M.dest x = ⟨a, f⟩)
+          (i : Fin n)
+          (c : P.drop.B a i) : M.Path x i
+  | child (x : P.last.M)
+          (a : P.A)
+          (f : P.last.B a → P.last.M)
+          (h : PFunctor.M.dest x = ⟨a, f⟩)
+          (j : P.last.B a)
+          (i : Fin n)
+          (c : M.Path (f j) i) : M.Path x i
 
-/--
-`CofixA P α k` is a `k`-deep approximation of an M-type element.
-Depth 0 carries no information. Depth `k+1` stores a tag `a : P.A`,
-non-recursive content `f : P.drop.B a ⟹ α`, and a depth-`k` subtree per child.
--/
-inductive CofixA (α : TypeVec.{u} n) : Nat → Type u
-  | continue : CofixA α 0
-  | intro {k} (a : P.A) (f : P.drop.B a ⟹ α) (g : P.last.B a → CofixA α k)
-      : CofixA α (k + 1)
+instance M.Path.inhabited (x : P.last.M) {i} [Inhabited (P.drop.B x.head i)] :
+    Inhabited (M.Path P x i) :=
+  let a := PFunctor.M.head x
+  let f := PFunctor.M.children x
+  ⟨M.Path.root _ a f
+      (PFunctor.M.casesOn' x
+        (r := fun _ => PFunctor.M.dest x = ⟨a, f⟩)
+        <| by
+        intros; simp [a]; rfl)
+      _ default⟩
 
-section Defs
-variable {P}
+/-- Polynomial functor of the M-type of `P`. `A` is a data-less
+possibly infinite tree whereas, for a given `a : A`, `B a` is a valid
+path in tree `a` so that `mp α` is made of a tree and a function
+from its valid paths to the values it contains -/
+def mp : MvPFunctor n where
+  A := P.last.M
+  B := M.Path P
 
-instance {α : TypeVec n} : Subsingleton (CofixA P α 0) :=
-  ⟨by rintro ⟨⟩ ⟨⟩; rfl⟩
+/-- `n`-ary M-type for `P` -/
+def M (α : TypeVec n) : Type _ :=
+  P.mp α
 
-def head' {α : TypeVec n} {k} : CofixA P α (k + 1) → P.A
-  | .intro a _ _ => a
+instance mvfunctorM : MvFunctor P.M := by delta M; infer_instance
+instance : LawfulMvFunctor P.M := by delta M; infer_instance
 
-def content' {α : TypeVec n} {k} : (x : CofixA P α (k + 1)) → P.drop.B (head' x) ⟹ α
-  | .intro _ f _ => f
+instance inhabitedM {α : TypeVec _} [I : Inhabited P.A] [∀ i : Fin n, Inhabited (α i)] :
+    Inhabited (P.M α) :=
+  @Obj.inhabited _ (mp P) _ (@PFunctor.M.inhabited P.last I) _
 
-def children' {α : TypeVec n} {k} : (x : CofixA P α (k + 1)) → P.last.B (head' x) → CofixA P α k
-  | .intro _ _ g => g
+/-- construct through corecursion the shape of an M-type
+without its contents -/
+def M.corecShape {β : Type v} (g₀ : β → P.A) (g₂ : ∀ b : β, P.last.B (g₀ b) → β) :
+    β → P.last.M :=
+  PFunctor.M.corec fun b => ⟨g₀ b, g₂ b⟩
 
-@[simp, grind =]
-theorem approx_eta {α : TypeVec n} {k} (x : CofixA P α (k + 1)) :
-    .intro (head' x) (content' x) (children' x) = x := by
-  cases x; rfl
+/-- Proof of type equality as an arrow -/
+def castDropB {a a' : P.A} (h : a = a') : P.drop.B a ⟹ P.drop.B a' := fun _i b => Eq.recOn h b
 
-def truncate {α : TypeVec n} : ∀ {k}, CofixA P α (k + 1) → CofixA P α k
-  | 0, _                 => .continue
-  | _ + 1, .intro a f g => .intro a f (truncate ∘ g)
+/-- Proof of type equality as a function -/
+def castLastB {a a' : P.A} (h : a = a') : P.last.B a → P.last.B a' := fun b => Eq.recOn h b
 
-end Defs
+/-- Using corecursion, construct the contents of an M-type -/
+def M.corecContents {α : TypeVec.{u} n}
+    {β : Type v}
+    (g₀ : β → P.A)
+    (g₁ : ∀ b : β, P.drop.B (g₀ b) ⟹ α)
+    (g₂ : ∀ b : β, P.last.B (g₀ b) → β)
+    (x : _)
+    (b : β)
+    (h : x = M.corecShape P g₀ g₂ b) :
+    M.Path P x ⟹ α
+  | _, M.Path.root x a f h' i c =>
+    have : a = g₀ b := by
+      rw [h, M.corecShape, PFunctor.M.dest_corec] at h'
+      cases h'
+      rfl
+    g₁ b i (P.castDropB this i c)
+  | _, M.Path.child x a f h' j i c =>
+    have h₀ : a = g₀ b := by
+      rw [h, M.corecShape, PFunctor.M.dest_corec] at h'
+      cases h'
+      rfl
+    have h₁ : f j = M.corecShape P g₀ g₂ (g₂ b (castLastB P h₀ j)) := by
+      rw [h, M.corecShape, PFunctor.M.dest_corec] at h'
+      cases h'
+      rfl
+    M.corecContents g₀ g₁ g₂ (f j) (g₂ b (P.castLastB h₀ j)) h₁ i c
 
-/--
-`Agree x y` holds when `x` and `y` share the same tag, same non-recursive content,
-and each subtree of `x` agrees with the corresponding subtree of `y`.
--/
-inductive Agree {α : TypeVec n} : ∀ {k}, CofixA P α k → CofixA P α (k + 1) → Prop
-  | continu (x : CofixA P α 0) (y : CofixA P α 1) : Agree x y
-  | intro {k} {a : P.A} {f : P.drop.B a ⟹ α}
-      (g  : P.last.B a → CofixA P α k)
-      (g' : P.last.B a → CofixA P α (k + 1))
-      (h  : ∀ i, Agree (g i) (g' i))
-      : Agree (.intro a f g) (.intro a f g')
+/-- Corecursor for M-type of `P` -/
+def M.corec' {α : TypeVec n} {β : Type v} (g₀ : β → P.A) (g₁ : ∀ b : β, P.drop.B (g₀ b) ⟹ α)
+    (g₂ : ∀ b : β, P.last.B (g₀ b) → β) : β → P.M α := fun b =>
+  ⟨M.corecShape P g₀ g₂ b, M.corecContents P g₀ g₁ g₂ _ _ rfl⟩
 
-@[simp, grind .]
-theorem agree_trivial {α : TypeVec n} {x : CofixA P α 0} {y : CofixA P α 1} :
-    Agree P x y := .continu x y
+/-- Corecursor for M-type of `P` -/
+def M.corec {α : TypeVec n} {β : Type u} (g : β → P (α.append1 β)) : β → P.M α :=
+  M.corec' P (fun b => (g b).fst) (fun b => dropFun (g b).snd) fun b => lastFun (g b).snd
 
-@[grind →]
-theorem head_of_agree {α : TypeVec n} {k} {x : CofixA P α (k + 1)} {y : CofixA P α (k + 2)}
-    (h : Agree P x y) : head' x = head' y := by
-  cases h; rfl
+/-- Implementation of destructor for M-type of `P` -/
+def M.pathDestLeft {α : TypeVec n} {x : P.last.M} {a : P.A} {f : P.last.B a → P.last.M}
+    (h : PFunctor.M.dest x = ⟨a, f⟩) (f' : M.Path P x ⟹ α) : P.drop.B a ⟹ α := fun i c =>
+  f' i (M.Path.root x a f h i c)
 
-@[grind →]
-theorem content_of_agree {α : TypeVec n} {k} {x : CofixA P α (k + 1)} {y : CofixA P α (k + 2)}
-    (h : Agree P x y) : content' x ≍ content' y := by
-  cases h; rfl
+/-- Implementation of destructor for M-type of `P` -/
+def M.pathDestRight {α : TypeVec n} {x : P.last.M} {a : P.A} {f : P.last.B a → P.last.M}
+    (h : PFunctor.M.dest x = ⟨a, f⟩) (f' : M.Path P x ⟹ α) :
+    ∀ j : P.last.B a, M.Path P (f j) ⟹ α := fun j i c => f' i (M.Path.child x a f h j i c)
 
-@[grind .]
-theorem children_of_agree {α : TypeVec n} {k} {x : CofixA P α (k + 1)} {y : CofixA P α (k + 2)}
-    {i j} (h₀ : i ≍ j) (h₁ : Agree P x y) :
-    Agree P (children' x i) (children' y j) := by
-  obtain - | ⟨g, g', hagree⟩ := h₁; cases h₀; apply hagree
+/-- Destructor for M-type of `P` -/
+def M.dest' {α : TypeVec n} {x : P.last.M} {a : P.A} {f : P.last.B a → P.last.M}
+    (h : PFunctor.M.dest x = ⟨a, f⟩) (f' : M.Path P x ⟹ α) : P (α.append1 (P.M α)) :=
+  ⟨a, splitFun (M.pathDestLeft P h f') fun x => ⟨f x, M.pathDestRight P h f' x⟩⟩
 
-theorem truncate_eq_of_agree {α : TypeVec n} {k} (x : CofixA P α k) (y : CofixA P α (k + 1))
-    (h : Agree P x y) : truncate y = x := by
-  induction k with
-  | zero     => cases x; cases y; rfl
-  | succ k ih =>
-    obtain - | ⟨g, g', hagree⟩ := h
-    simp only [truncate, Function.comp_def]; congr 1; funext i; exact ih _ _ (hagree i)
+/-- Destructor for M-types -/
+def M.dest {α : TypeVec n} (x : P.M α) : P (α ::: P.M α) :=
+  let ⟨_, _⟩ := PFunctor.M.dest x.fst
+  M.dest' P rfl x.snd
 
-def AllAgree {α : TypeVec n} (x : ∀ k, CofixA P α k) : Prop :=
-  ∀ k, Agree P (x k) (x (k + 1))
+/-- Constructor for M-types -/
+def M.mk {α : TypeVec n} : P (α.append1 (P.M α)) → P.M α :=
+  M.corec _ fun i => (TypeVec.id ::: M.dest P) <$$> i
 
-def sCorec {α : TypeVec.{u} n} {β : Type u} (g : β → P (α ::: β)) :
-    β → ∀ k, CofixA P α k
-  | _, 0      => .continue
-  | b, k + 1 => .intro (g b).fst (dropFun (g b).snd) (fun j => sCorec g (lastFun (g b).snd j) k)
+/-! ### `dest` lemmas -/
+section DestLemmas
 
-theorem agree_corec {α : TypeVec.{u} n} {β : Type u} (g : β → P (α ::: β))
-    (b : β) (k : Nat) : Agree P (sCorec P g b k) (sCorec P g b (k + 1)) := by
-  induction k generalizing b with
-  | zero      => constructor
-  | succ k ih => exact .intro _ _ (fun j => ih _)
+theorem M.dest'_eq_dest' {α : TypeVec n} {x : P.last.M} {a₁ : P.A}
+    {f₁ : P.last.B a₁ → P.last.M} (h₁ : PFunctor.M.dest x = ⟨a₁, f₁⟩) {a₂ : P.A}
+    {f₂ : P.last.B a₂ → P.last.M} (h₂ : PFunctor.M.dest x = ⟨a₂, f₂⟩) (f' : M.Path P x ⟹ α) :
+    M.dest' P h₁ f' = M.dest' P h₂ f' := by cases h₁.symm.trans h₂; rfl
 
-end Approx
+theorem M.dest_eq_dest' {α : TypeVec n} {x : P.last.M} {a : P.A}
+    {f : P.last.B a → P.last.M} (h : PFunctor.M.dest x = ⟨a, f⟩)
+    (f' : M.Path P x ⟹ α) : M.dest P ⟨x, f'⟩ = M.dest' P h f' :=
+  M.dest'_eq_dest' ..
 
-open Approx
+theorem M.dest_corec' {α : TypeVec.{u} n} {β : Type u} (g₀ : β → P.A)
+    (g₁ : ∀ b : β, P.drop.B (g₀ b) ⟹ α) (g₂ : ∀ b : β, P.last.B (g₀ b) → β) (x : β) :
+    M.dest P (M.corec' P g₀ g₁ g₂ x) = ⟨g₀ x, splitFun (g₁ x) (M.corec' P g₀ g₁ g₂ ∘ g₂ x)⟩ := by
+  rfl
 
-structure MIntl (α : TypeVec.{u} n) where
-  approx     : ∀ k, CofixA P α k
-  consistent : AllAgree P approx
-
-/-- The M-type (greatest fixpoint) of `P`, parameterized by `α : TypeVec n` -/
-def M (α : TypeVec.{u} n) : Type u := MIntl P α
-
-namespace Approx
-
-protected def sMk {α : TypeVec n} (x : P (α ::: M P α)) : ∀ k, CofixA P α k
-  | 0      => .continue
-  | k + 1  => .intro x.fst (dropFun x.snd) (fun j => (lastFun x.snd j).approx k)
-
-protected theorem P_mk {α : TypeVec n} (x : P (α ::: M P α)) : AllAgree P (Approx.sMk P x) := by
-  intro k
-  cases k with
-  | zero    => constructor
-  | succ k  => exact .intro _ _ (fun j => (lastFun x.snd j).consistent k)
-
-end Approx
-
-namespace M
-variable {P}
-
-@[ext]
-theorem ext {α : TypeVec n} {x y : M P α} (h : ∀ k, x.approx k = y.approx k) : x = y := by
-  cases x; cases y; congr 1; funext k; exact h k
-
-def head {α : TypeVec n} (x : M P α) : P.A :=
-  head' (x.approx 1)
-
-def content {α : TypeVec n} (x : M P α) : P.drop.B x.head ⟹ α :=
-  content' (x.approx 1)
-
-@[simp, grind =]
-theorem head'_approx {α : TypeVec n} (x : M P α) (k : Nat) :
-    head' (x.approx (k + 1)) = x.head := by
-  induction k with
-  | zero      => rfl
-  | succ k ih => grind [x.consistent (k + 1)]
-
-def children {α : TypeVec n} (x : M P α) (j : P.last.B (x.head)) : M P α where
-  approx k     := children' (x.approx (k + 1)) (cast (by grind) j)
-  consistent k := by grind [x.consistent (k + 1)]
-
-section Lemmas
-
-@[grind =]
-theorem content'_approx {α : TypeVec n} (x : M P α) (k : Nat) :
-    content' (x.approx (k + 1)) ≍ x.content := by
-  induction k with
-  | zero      => rfl
-  | succ k ih => grind [x.consistent (k + 1)]
-
-end Lemmas
-
-/-! ## Constructor, Destructor and Corecursor-/
-
-variable (P) in
-/-- Constructor -/
-def mk {α : TypeVec n} (x : P (α ::: M P α)) : M P α where
-  approx     := Approx.sMk P x
-  consistent := Approx.P_mk P x
-
-/-- Destructor -/
-def dest {α : TypeVec n} (x : M P α) : P (α ::: M P α) :=
-  ⟨x.head, splitFun x.content x.children⟩
-
-variable (P) in
-/-- Corecursor -/
-def corec {α : TypeVec.{u} n} {β : Type u} (g : β → P (α.append1 β)) (b : β) : M P α where
-  approx     := Approx.sCorec P g b
-  consistent := Approx.agree_corec P g b
-
-/-! ### Ctor / dtor / corec Lemmas -/
-section Lemmas
+theorem M.dest_corec {α : TypeVec n} {β : Type u} (g : β → P (α.append1 β)) (x : β) :
+    M.dest P (M.corec P g x) = (TypeVec.id ::: M.corec P g) <$$> g x := by
+  rw [M.corec, M.dest_corec']
+  obtain ⟨a, f⟩ := g x
+  simp only [MvPFunctor.map_eq]
+  congr 1
+  rw [← split_dropFun_lastFun f, appendFun_comp_splitFun]
+  rfl
 
 @[simp, grind =]
-theorem dest_mk {α : TypeVec n} (x : P (α ::: M P α)) :
-    dest (mk P x) = x := by
+theorem M.dest_map {α β : TypeVec n} (g : α ⟹ β) (x : P.M α) :
+    M.dest P (g <$$> x) = (g ::: fun x => g <$$> x) <$$> M.dest P x := by
   obtain ⟨a, f⟩ := x
-  simp only [dest, mk, head, content, Approx.sMk, head', content']
-  congr 1
-  rw [← split_dropFun_lastFun f]; congr 1
-
-@[simp, grind =]
-theorem mk_dest {α : TypeVec n} (x : M P α) : mk P (dest x) = x := by
-  apply ext; intro k
-  induction k with
-  | zero => apply Subsingleton.elim
-  | succ k _ =>
-    rcases hx : x.approx (k + 1) with _ | ⟨a, f, g⟩
-    obtain rfl : a = x.head := by
-      have h : head' (x.approx (k + 1)) = a := by grind [head']
-      grind
-    obtain rfl : f = x.content := by
-      have h : content' (x.approx (k + 1)) ≍ f := by grind [content']
-      grind
-    obtain rfl : g = fun i => (x.children i).approx k := by
-      funext j
-      have h : children' (x.approx (k + 1)) (cast (by grind) j) ≍ g j := by
-        generalize hj : cast _ j = j'
-        replace hj : j ≍ j' := by grind
-        revert hj j'
-        rw [hx, children']
-        grind
-      grind [children]
-    rfl
-
-@[simp, grind =]
-theorem approx_mk {α : TypeVec n} (a : P.A) (f : P.drop.B a ⟹ α)
-    (g : P.last.B a → M P α) (k : Nat) :
-    (mk P ⟨a, splitFun f g⟩).approx (k + 1) = .intro a f (fun j => (g j).approx k) := by
-  simp only [mk, Approx.sMk, dropFun_splitFun, lastFun_splitFun]
-
-/-! ### Corec component lemmas -/
-
-@[simp, grind =]
-theorem head_corec {α : TypeVec.{u} n} {β : Type u} (g : β → P (α.append1 β)) (b : β) :
-    (corec P g b).head = (g b).fst := rfl
-
-@[simp, grind =]
-theorem content_corec {α : TypeVec.{u} n} {β : Type u} (g : β → P (α.append1 β)) (b : β) :
-    (corec P g b).content = dropFun (g b).snd := rfl
-
-@[simp, grind =]
-theorem children_corec {α : TypeVec.{u} n} {β : Type u} (g : β → P (α.append1 β)) (b : β) :
-    (corec P g b).children = fun j => corec P g (lastFun (g b).snd j) := by
+  simp only [MvFunctor.map, M.dest]
+  rcases PFunctor.M.dest a with ⟨a', f'⟩
+  simp only [M.dest', MvPFunctor.map_eq, appendFun_comp_splitFun]
   rfl
 
 @[simp, grind =]
-theorem dest_corec {α : TypeVec.{u} n} {β : Type u} (g : β → P (α.append1 β)) (b : β) :
-    dest (corec P g b) = (id ::: (corec P g)) <$$> (g b) := by
-  simp only [dest, head_corec, content_corec, children_corec]
-  congr 1
-  rw [← split_dropFun_lastFun (g b).snd]
-  simp only [dropFun_splitFun, TypeVec.id_comp, appendFun_comp_splitFun]
-  rfl
+theorem M.map_dest {α β : TypeVec n} (g : (α ::: P.M α) ⟹ (β ::: P.M β)) (x : P.M α)
+    (h : ∀ x : P.M α, lastFun g x = (dropFun g <$$> x : P.M β)) :
+    g <$$> M.dest P x = M.dest P (dropFun g <$$> x) := by
+  rw [M.dest_map]; congr
+  apply eq_of_drop_last_eq (by simp)
+  simp only [lastFun_appendFun]
+  ext1; apply h
 
-end Lemmas
+end DestLemmas
 
 /-! ## Bisimulation -/
 
 /--
 Bisimilarity: `x` and `y` are bisimilar if they share the same head
-and non-recursive content,
-and each pair of corresponding children is again bisimilar.
+and non-recursive content, and each pair of corresponding children is again bisimilar.
 -/
 coinductive IsBisim {α : TypeVec n} : M P α → M P α → Prop where
   | step {x y : M P α} {a : P.A} {f : P.drop.B a ⟹ α} {g g' : P.last.B a → M P α} :
-        dest x = ⟨a, splitFun f g⟩ → dest y = ⟨a, splitFun f g'⟩
+        M.dest P x = ⟨a, splitFun f g⟩ → M.dest P y = ⟨a, splitFun f g'⟩
         → (∀ i, IsBisim (g i) (g' i))
         → IsBisim x y
 
+/-- One-step unfolding of IsBisim: extract the witness data -/
+theorem IsBisim.destruct {α : TypeVec n} {x y : M P α} (h : IsBisim P x y) :
+    ∃ (a : P.A) (f : P.drop.B a ⟹ α) (g g' : P.last.B a → M P α),
+      M.dest P x = ⟨a, splitFun f g⟩ ∧
+      M.dest P y = ⟨a, splitFun f g'⟩ ∧
+      ∀ i, IsBisim P (g i) (g' i) := by
+  cases h with
+  | step e₁ e₂ h' => exact ⟨_, _, _, _, e₁, e₂, h'⟩
+
+/-- Helper lemma for bisimulation proof -/
+private theorem M.bisim_lemma {α : TypeVec n} {a₁ : (mp P).A} {f₁ : (mp P).B a₁ ⟹ α} {a' : P.A}
+    {f' : (P.B a').drop ⟹ α} {f₁' : (P.B a').last → M P α}
+    (e₁ : M.dest P ⟨a₁, f₁⟩ = ⟨a', splitFun f' f₁'⟩) :
+    ∃ (g₁' : _) (e₁' : PFunctor.M.dest a₁ = ⟨a', g₁'⟩),
+      f' = M.pathDestLeft P e₁' f₁ ∧
+        f₁' = fun x : (last P).B a' => ⟨g₁' x, M.pathDestRight P e₁' f₁ x⟩ := by
+  generalize ef : @splitFun n _ (append1 α (M P α)) f' f₁' = ff at e₁
+  let he₁' := PFunctor.M.dest a₁
+  rcases e₁' : he₁' with ⟨a₁', g₁'⟩
+  rw [M.dest_eq_dest' _ e₁'] at e₁
+  cases e₁; exact ⟨_, e₁', splitFun_inj ef⟩
+
 /-- Bisimulation principle: bisimilar M-type elements are equal. -/
-theorem bisim {α : TypeVec n} {x y : M P α} (h : IsBisim x y) : x = y := by
-  apply ext; intro k
-  induction k generalizing x y with
-  | zero => apply Subsingleton.elim
-  | succ k ih =>
-    cases h
-    have : x = mk P x.dest := by grind
-    have : y = mk P y.dest := by grind
-    grind
+theorem M.bisim {α : TypeVec n} {x y : M P α} (h : IsBisim P x y) : x = y := by
+  let R : P.M α → P.M α → Prop := fun x y => IsBisim P x y
+  -- First show the shapes (univariate M-types) are equal
+  obtain ⟨a₁, f₁⟩ := x
+  obtain ⟨a₂, f₂⟩ := y
+  dsimp [mp] at *
+  obtain rfl : a₁ = a₂ := by
+    apply PFunctor.M.bisim
+    apply PFunctor.M.IsBisim.coinduct (fun a₁ a₂ => ∃ x y : P.M α, R x y ∧ x.1 = a₁ ∧ y.1 = a₂)
+    · rintro _ _ ⟨⟨a₁, f₁⟩, ⟨a₂, f₂⟩, r, rfl, rfl⟩
+      obtain ⟨a', f', f₁', f₂', e₁, e₂, h'⟩ := r.destruct
+      rcases M.bisim_lemma P e₁ with ⟨g₁', e₁', rfl, rfl⟩
+      rcases M.bisim_lemma P e₂ with ⟨g₂', e₂', _, rfl⟩
+      exact ⟨_, g₁', g₂', e₁', e₂', fun b => ⟨_, _, h' b, rfl, rfl⟩⟩
+    · exact ⟨⟨a₁, f₁⟩, ⟨a₂, f₂⟩, h, rfl, rfl⟩
+  congr 1
+  -- Now prove the path functions are equal using path induction
+  funext i p
+  induction p with (
+    obtain ⟨a', f', f₁', f₂', e₁, e₂, h''⟩ := h.destruct
+    obtain ⟨g₁', e₁', rfl, rfl⟩ := M.bisim_lemma P e₁
+    obtain ⟨g₂', e₂', e₃, rfl⟩ := M.bisim_lemma P e₂
+    cases h'.symm.trans e₁'
+    cases h'.symm.trans e₂'
+  )
+  | root x a f h' i c =>
+    exact congrFun (congrFun e₃ i) c
+  | child x a f h' j i c IH =>
+    exact IH _ _ (h'' _)
 
-/-! ## Advanced Corec Lemmas -/
-
-@[simp, grind =]
-theorem corec_dest (x : P.M α) : corec P dest x = x := by
-  apply bisim
-  apply IsBisim.coinduct (fun y x => y = corec P dest x)
-  · rintro _ x rfl
-    refine ⟨x.head, x.content, fun i => corec P dest (x.children i), x.children, ?_⟩
-    simp [dest]
-    rfl
-  · grind
-
-end M
 end MvPFunctor
 end QpfTypes

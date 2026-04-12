@@ -73,6 +73,10 @@ theorem comp_map {α β γ : TypeVec n} (f : α ⟹ β) (g : β ⟹ γ) :
     ∀ x : P α, P.map (g ⊚ f) x = P.map g (P.map f x)
   | ⟨_, _⟩ => rfl
 
+instance : LawfulMvFunctor P where
+  id_map := by simp
+  comp_map := by simp
+
 end MapLemmas
 
 /-
