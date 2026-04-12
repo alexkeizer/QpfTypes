@@ -86,21 +86,21 @@ open TypeVec
 universe u
 
 /-- Multivariate quotients of polynomial functors. -/
-class MvQPF {n : Nat} (F : TypeVec.{u} n → Type _) extends MvFunctor F where
+class QPF {n : Nat} (F : TypeVec.{u} n → Type _) extends MvFunctor F where
   P : MvPFunctor.{u} n
   abs : ∀ {α}, P α → F α
   repr : ∀ {α}, F α → P α
   abs_repr : ∀ {α} (x : F α), abs (repr x) = x
   abs_map : ∀ {α β} (f : α ⟹ β) (p : P α), abs (P.map f p) = f <$$> abs p
 
-namespace MvQPF
+namespace QPF
 
-variable {n : Nat} {F : TypeVec.{u} n → Type _} [q : MvQPF F]
+variable {n : Nat} {F : TypeVec.{u} n → Type _} [q : QPF F]
 
 open MvFunctor (LiftP LiftR)
 
 /-!
-### Show that every MvQPF is a lawful MvFunctor.
+### Show that every QPF is a lawful MvFunctor.
 -/
 
 protected theorem id_map {α : TypeVec n} (x : F α) : TypeVec.id <$$> x = x := by
@@ -114,7 +114,7 @@ theorem comp_map {α β γ : TypeVec n} (f : α ⟹ β) (g : β ⟹ γ) (x : F �
   rfl
 
 instance (priority := 100) lawfulMvFunctor : LawfulMvFunctor F where
-  id_map := @MvQPF.id_map n F _
+  id_map := @QPF.id_map n F _
   comp_map := @comp_map n F _
 
 -- Lifting predicates and relations
@@ -158,23 +158,23 @@ def LiftPPreservation : Prop :=
 
 /-- Any type function `F` that is (extensionally) equivalent to a QPF, is itself a QPF,
 assuming that the functorial map of `F` behaves similar to `MvFunctor.ofEquiv eqv` -/
-def ofEquiv {F F' : TypeVec.{u} n → Type _} [q : MvQPF F'] [MvFunctor F]
+def ofEquiv {F F' : TypeVec.{u} n → Type _} [q : QPF F'] [MvFunctor F]
     (toF : ∀ {α}, F α → F' α)
     (invF : ∀ {α}, F' α → F α)
     (left_inv : ∀ {α} (x : F α), invF (toF x) = x)
     (right_inv : ∀ {α} (x : F' α), toF (invF x) = x)
     (map_eq : ∀ {α β} (f : α ⟹ β) (a : F α), f <$$> a = invF (f <$$> toF a) := by intros; rfl) :
-    MvQPF F where
+    QPF F where
   P        := q.P
   abs x    := invF (q.abs x)
   repr x   := q.repr (toF x)
   abs_repr := by simp [q.abs_repr, left_inv]
   abs_map  := by simp [q.abs_map, map_eq, right_inv]
 
-end MvQPF
+end QPF
 
 /-- Every polynomial functor is a (trivial) QPF -/
-instance MvPFunctor.instMvQPFObj {n} (P : MvPFunctor n) : MvQPF P where
+instance MvPFunctor.instQPFObj {n} (P : MvPFunctor n) : QPF P where
   map := P.map
   P := P
   abs := id
