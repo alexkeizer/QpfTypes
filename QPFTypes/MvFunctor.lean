@@ -110,7 +110,7 @@ theorem exists_iff_exists_of_mono {P : F α → Prop} {q : F β → Prop}
     simp only [MvFunctor.map_map, h₀, LawfulMvFunctor.id_map, h₂]
 
 /-- Any type function that is (extensionally) equivalent to a functor, is itself a functor -/
-def ofEquiv {F F' : TypeVec.{u} n → Type _} [MvFunctor F']
+abbrev ofEquiv {F F' : TypeVec.{u} n → Type _} [MvFunctor F']
     (toFun : ∀ {α}, F α → F' α) (invFun : ∀ {α}, F' α → F α) :
     MvFunctor F where
   map f x := invFun <| f <$$> toFun x

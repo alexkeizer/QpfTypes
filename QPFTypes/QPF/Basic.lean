@@ -160,7 +160,7 @@ def LiftPPreservation : Prop :=
 
 /-- Any type function `F` that is (extensionally) equivalent to a QPF, is itself a QPF,
 assuming that the functorial map of `F` behaves similar to `MvFunctor.ofEquiv eqv` -/
-def ofEquiv {F F' : TypeVec.{u} n → Type _} [q : QPF F'] [MvFunctor F]
+abbrev ofEquiv {F F' : TypeVec.{u} n → Type _} [q : QPF F'] [MvFunctor F]
     (toF : ∀ {α}, F α → F' α)
     (invF : ∀ {α}, F' α → F α)
     (left_inv : ∀ {α} (x : F α), invF (toF x) = x)
