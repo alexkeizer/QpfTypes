@@ -41,7 +41,7 @@ See [avigad-carneiro-hudon2019] for more details.
 
 @[expose] public section
 
-namespace QpfTypes
+namespace QPFTypes
 
 universe u
 
@@ -320,4 +320,4 @@ def Fix.drec {β : Fix F α → Type u}
 
 end QPF
 
-end QpfTypes
+end QPFTypes

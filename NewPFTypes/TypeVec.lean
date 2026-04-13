@@ -34,7 +34,7 @@ throughout.
 
 universe u v w x
 
-namespace QpfTypes
+namespace QPFTypes
 
 /-- n-tuples of types, as a category -/
 def TypeVec (n : Nat) :=
@@ -383,7 +383,7 @@ def prod : ∀ {n}, TypeVec.{u} n → TypeVec.{u} n → TypeVec n
   | 0, _, _ => Fin.elim0
   | n + 1, α, β => (@prod n (drop α) (drop β)) ::: (last α × last β)
 
--- TODO: this ought to be scoped to the parent QpfTypes namespace
+-- TODO: this ought to be scoped to the parent QPFTypes namespace
 @[inherit_doc] scoped infixl:45 " ⊗ " => TypeVec.prod
 
 /-- `const x α` is an arrow that ignores its source and constructs a `TypeVec` that
@@ -491,7 +491,7 @@ protected def prod.map : ∀ {n} {α α' β β' : TypeVec.{u} n}, α ⟹ β → 
       (fun j => @prod.map _ (drop α) (drop α') (drop β) (drop β') (dropFun x) (dropFun y) j)
       i
 
--- TODO: this ought to be scoped to the parent QpfTypes namespace
+-- TODO: this ought to be scoped to the parent QPFTypes namespace
 @[inherit_doc] scoped infixl:45 " ⊗' " => TypeVec.prod.map
 
 theorem fst_prod_mk {α α' β β' : TypeVec n} (f : α ⟹ β) (g : α' ⟹ β') :
@@ -624,7 +624,7 @@ end HeadTail
 
 end Lemmas
 end TypeVec
-end QpfTypes
+end QPFTypes
 
 /-!
 ## Notes on Fin vs Fin2 API differences

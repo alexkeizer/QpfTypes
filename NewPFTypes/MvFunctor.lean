@@ -20,7 +20,7 @@ Features:
 
 @[expose] public section
 
-namespace QpfTypes
+namespace QPFTypes
 
 universe u v w
 
@@ -117,4 +117,4 @@ def ofEquiv {F F' : TypeVec.{u} n → Type _} [MvFunctor F']
 
 end MvFunctor
 
-end QpfTypes
+end QPFTypes

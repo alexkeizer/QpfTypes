@@ -16,7 +16,7 @@ M types are potentially infinite tree-like structures. They are defined
 as the greatest fixpoint of a polynomial functor.
 -/
 @[expose] public section
-namespace QpfTypes
+namespace QPFTypes
 
 universe uA uB w
 
@@ -338,4 +338,4 @@ end M
 
 end PFunctor
 
-end QpfTypes
+end QPFTypes

@@ -6,7 +6,7 @@ import NewPFTypes.PFunctor.Multivariate.Basic
 # Multivariate Semantic Polynomial Functor
 
 -/
-namespace QpfTypes
+namespace QPFTypes
 open TypeFun (uncurry)
 
 class MvPF {α} (n : outParam Nat) (F : α) extends TypeFun n α where

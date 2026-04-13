@@ -64,9 +64,9 @@ When porting a file that starts with `import Mathlib.Tactic` or similar, the fol
 
 `scoped[MvFunctor]` (or any external namespace) requires Mathlib. The pattern that works without any imports:
 
-1. Wrap the file content in a local namespace (e.g. `namespace QpfTypes`)
+1. Wrap the file content in a local namespace (e.g. `namespace QPFTypes`)
 2. Use plain `scoped infixl/infixr/notation ...` — this scopes to the current namespace
-3. Users `open QpfTypes` to get the notation
+3. Users `open QPFTypes` to get the notation
 
 Do NOT use `scoped[NS]` syntax — it is not available in Lean 4.28.0 core.
 
@@ -105,8 +105,8 @@ For **proofs**, use `induction i using Fin.succRecOn` — the motive quantifies 
 
 When porting Mathlib files, the following structural changes are needed:
 
-1. **Add QpfTypes namespace wrapper**:
-   - Wrap the entire file content in `namespace QpfTypes` / `end QpfTypes`
+1. **Add QPFTypes namespace wrapper**:
+   - Wrap the entire file content in `namespace QPFTypes` / `end QPFTypes`
    - Keep the original namespace (e.g., `MvPFunctor`) nested inside
 
 2. **Adjust imports**:
@@ -124,11 +124,11 @@ namespace MvPFunctor
 end MvPFunctor
 
 -- Ported version:
-namespace QpfTypes
+namespace QPFTypes
 namespace MvPFunctor
 ...
 end MvPFunctor
-end QpfTypes
+end QPFTypes
 ```
 
 ### MvFunctor notation: `<$$>` operator

@@ -12,7 +12,7 @@ This file defines polynomial functors and the W-type construction as a polynomia
 -/
 @[expose] public section
 
-namespace QpfTypes
+namespace QPFTypes
 
 universe u v uA uB uA₁ uB₁ uA₂ uB₂ v₁ v₂ v₃
 

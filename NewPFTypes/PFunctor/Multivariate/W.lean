@@ -46,7 +46,7 @@ its valid paths to values of `α`
 -/
 @[expose] public section
 
-namespace QpfTypes
+namespace QPFTypes
 namespace MvPFunctor
 
 open TypeVec
@@ -259,4 +259,4 @@ theorem wDest'_wMk' {α : TypeVec n} (x : P (α.append1 (P.W α))) : P.wDest' (P
   obtain ⟨a, f⟩ := x; rw [wMk', wDest'_wMk, split_dropFun_lastFun]
 
 end MvPFunctor
-end QpfTypes
+end QPFTypes

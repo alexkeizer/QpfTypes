@@ -80,7 +80,7 @@ each proves that some operations on functors preserves the QPF structure
 [Jeremy Avigad, Mario M. Carneiro and Simon Hudon, *Data Types as Quotients of Polynomial Functors*][avigad-carneiro-hudon2019]
 -/
 
-namespace QpfTypes
+namespace QPFTypes
 open TypeVec
 
 universe u
@@ -184,4 +184,4 @@ instance MvPFunctor.instQPFObj {n} (P : MvPFunctor n) : QPF P where
   abs_repr := by intros; rfl
   abs_map := by intros; rfl
 
-end QpfTypes
+end QPFTypes

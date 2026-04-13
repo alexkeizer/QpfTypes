@@ -48,7 +48,7 @@ that `A` is a possibly infinite tree.
 
 @[expose] public section
 
-namespace QpfTypes
+namespace QPFTypes
 namespace MvPFunctor
 
 open TypeVec
@@ -288,4 +288,4 @@ theorem M.bisim {α : TypeVec n} {x y : M P α} (h : IsBisim P x y) : x = y := b
     exact IH _ _ (h'' _)
 
 end MvPFunctor
-end QpfTypes
+end QPFTypes

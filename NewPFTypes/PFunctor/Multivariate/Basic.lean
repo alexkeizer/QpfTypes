@@ -18,7 +18,7 @@ definitions because they guarantee that occurrences of `α` are positive.
 -/
 @[expose] public section
 
-namespace QpfTypes
+namespace QPFTypes
 open TypeVec
 
 universe u

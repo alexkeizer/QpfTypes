@@ -17,7 +17,7 @@ heterogeneous result use `TypeFun.{u, v}` directly.
 -/
 @[expose] public section
 
-namespace QpfTypes
+namespace QPFTypes
 
 universe u v
 
@@ -124,4 +124,4 @@ example (α β : Type) :
     (TypeFun.ofCurried (n := 2) Sum) (α <: β <: TypeVec.nil) = Sum α β :=
   rfl
 
-end QpfTypes
+end QPFTypes

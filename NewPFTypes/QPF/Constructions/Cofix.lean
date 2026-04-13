@@ -40,7 +40,7 @@ We define the relation `Mcongr` and take its quotient as the definition of `Cofi
 
 @[expose] public section
 
-namespace QpfTypes
+namespace QPFTypes
 
 universe u
 
@@ -287,4 +287,4 @@ instance qpfCofix : QPF (Cofix F) where
 
 end QPF
 
-end QpfTypes
+end QPFTypes
