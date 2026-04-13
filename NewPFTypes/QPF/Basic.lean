@@ -95,6 +95,8 @@ class QPF {n : Nat} (F : TypeVec.{u} n → Type _) extends MvFunctor F where
 
 namespace QPF
 
+attribute [grind =] abs_map abs_repr
+
 variable {n : Nat} {F : TypeVec.{u} n → Type _} [q : QPF F]
 
 open MvFunctor (LiftP LiftR)
@@ -107,7 +109,7 @@ protected theorem id_map {α : TypeVec n} (x : F α) : TypeVec.id <$$> x = x := 
   rw [← abs_repr x, ← abs_map]
   rfl
 
-@[simp]
+@[simp, grind =, grind =_]
 theorem comp_map {α β γ : TypeVec n} (f : α ⟹ β) (g : β ⟹ γ) (x : F α) :
     (g ⊚ f) <$$> x = g <$$> f <$$> x := by
   rw [← abs_repr x, ← abs_map, ← abs_map, ← abs_map]

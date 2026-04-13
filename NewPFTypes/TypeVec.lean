@@ -69,20 +69,22 @@ instance Arrow.inhabited (α β : TypeVec n) [∀ i, Inhabited (β i)] : Inhabit
 def id {α : TypeVec n} : α ⟹ α := fun _ x => x
 
 /-- arrow composition in the category of `TypeVec` -/
+@[grind]
 def comp (g : β ⟹ γ) (f : α ⟹ β)
     : α ⟹ γ :=
   fun i x => g i (f i x)
 
 @[inherit_doc] scoped infixr:80 " ⊚ " => TypeVec.comp -- type as \oo
 
-@[simp]
+@[simp, grind =]
 theorem id_comp (f : α ⟹ β) : id ⊚ f = f :=
   rfl
 
-@[simp]
+@[simp, grind =]
 theorem comp_id (f : α ⟹ β) : f ⊚ id = f :=
   rfl
 
+@[grind =]
 theorem comp_assoc
     (h : γ ⟹ δ) (g : β ⟹ γ) (f : α ⟹ β) :
     (h ⊚ g) ⊚ f = h ⊚ g ⊚ f :=
@@ -246,6 +248,7 @@ theorem appendFun_comp_splitFun {α γ : TypeVec n} {β δ : Type _} {ε : TypeV
     appendFun f₁ g₁ ⊚ splitFun f₀ g₀ = splitFun (α' := γ.append1 δ) (f₁ ⊚ f₀) (g₁ ∘ g₀) :=
   (splitFun_comp _ _ _ _).symm
 
+@[grind =, grind =_]
 theorem appendFun_comp {α₀ α₁ α₂ : TypeVec n}
     {β₀ β₁ β₂ : Type _}
     (f₀ : α₀ ⟹ α₁) (f₁ : α₁ ⟹ α₂)
@@ -261,6 +264,7 @@ theorem appendFun_comp' {α₀ α₁ α₂ : TypeVec n} {β₀ β₁ β₂ : Typ
 theorem nilFun_comp {α₀ : TypeVec 0} (f₀ : α₀ ⟹ Fin.elim0) : nilFun ⊚ f₀ = f₀ :=
   funext fun i => i.elim0
 
+@[grind =]
 theorem appendFun_comp_id {α : TypeVec n} {β₀ β₁ β₂ : Type u} (g₀ : β₀ → β₁) (g₁ : β₁ → β₂) :
     (@id _ α ::: g₁ ∘ g₀) = (id ::: g₁) ⊚ (id ::: g₀) :=
   eq_of_drop_last_eq rfl rfl
@@ -279,6 +283,7 @@ theorem appendFun_aux {α α' : TypeVec n} {β β' : Type _} (f : (α ::: β) �
     (dropFun f ::: lastFun f) = f :=
   eq_of_drop_last_eq rfl rfl
 
+@[simp, grind =]
 theorem appendFun_id_id {α : TypeVec n} {β : Type _} :
     (@TypeVec.id n α ::: @_root_.id β) = TypeVec.id :=
   eq_of_drop_last_eq rfl rfl

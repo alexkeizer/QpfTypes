@@ -84,7 +84,7 @@ def LiftR' : F α → F α → Prop :=
 
 variable [LawfulMvFunctor F]
 
-@[simp]
+@[simp, grind =]
 theorem id_map (x : F α) : TypeVec.id <$$> x = x :=
   LawfulMvFunctor.id_map x
 
@@ -92,6 +92,7 @@ theorem id_map (x : F α) : TypeVec.id <$$> x = x :=
 theorem id_map' (x : F α) : (fun _i a => a) <$$> x = x :=
   id_map x
 
+@[grind =]
 theorem map_map (g : α ⟹ β) (h : β ⟹ γ) (x : F α) : h <$$> g <$$> x = (h ⊚ g) <$$> x :=
   Eq.symm <| comp_map _ _ _
 
