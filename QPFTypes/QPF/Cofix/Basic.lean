@@ -130,6 +130,7 @@ instance Cofix.mvfunctor : MvFunctor (Cofix F) where map := @Cofix.map _ _ _
 def Cofix.corec {α : TypeVec n} {β : Type u} (g : β → F (α ::: β)) : β → Cofix F α := fun x =>
   Quot.mk _ (corecF g x)
 
+set_option backward.isDefEq.respectTransparency false in
 /-- Destructor for `Cofix F α` -/
 def Cofix.dest {α : TypeVec n} : Cofix F α → F (α ::: (Cofix F α)) :=
   Quot.lift ((id ::: (Quot.mk Mcongr)) <$$> abs ·.dest) <| by
@@ -211,7 +212,7 @@ theorem Cofix.bisim {α : TypeVec n} (r : Cofix F α → Cofix F α → Prop)
   rw [dxeq, dyeq, ← abs_map, ← abs_map, MvPFunctor.map_eq, MvPFunctor.map_eq]
   rw [← split_dropFun_lastFun f₀, ← split_dropFun_lastFun f₁]
   rw [appendFun_comp_splitFun, appendFun_comp_splitFun]
-  rw [id_comp, id_comp]
+  erw [id_comp, id_comp]
   congr 2
   funext i j
   rcases i with _ | i
@@ -271,7 +272,7 @@ theorem Cofix.abs_repr {α} (x : Cofix F α) : Quot.mk Mcongr (Cofix.repr x) = x
     rw [← QPF.comp_map, ← QPF.comp_map, QPF.abs_repr]
     congr 1
     apply eq_of_drop_last_eq
-    · simp
+    · grind
     · simp only [lastFun_comp, lastFun_appendFun]
       funext z
       exact Quot.sound rfl

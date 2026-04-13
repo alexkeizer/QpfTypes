@@ -70,7 +70,8 @@ theorem recF_eq' {α : TypeVec n} {β : Type u} (g : F (α ::: β) → β) (x : 
     recF g x = g (abs (q.P.map (id ::: (recF g)) (q.P.wDest' x))) := by
   apply q.P.w_cases _ x
   intro a f' f
-  rw [recF_eq, q.P.wDest'_wMk, MvPFunctor.map_eq, appendFun_comp_splitFun, TypeVec.id_comp]
+  rw [recF_eq, q.P.wDest'_wMk, MvPFunctor.map_eq, appendFun_comp_splitFun]
+  erw [TypeVec.id_comp]; rfl
 
 /-- Equivalence relation on W-types that represent the same `Fix F`
 value -/
@@ -127,7 +128,7 @@ theorem wrepr_equiv {α : TypeVec n} (x : q.P.W α) : WEquiv (wrepr x) x := by
   apply WEquiv.trans _ (q.P.wMk' (q.P.map (id ::: wrepr) ⟨a, q.P.appendContents f' f⟩))
   · apply wEquiv.abs'
     rw [wrepr_wMk, q.P.wDest'_wMk', q.P.wDest'_wMk', abs_repr]
-  rw [MvPFunctor.map_eq, MvPFunctor.wMk', appendFun_comp_splitFun, id_comp]
+  rw [MvPFunctor.map_eq, MvPFunctor.wMk', appendFun_comp_splitFun]
   apply WEquiv.ind; exact ih
 
 theorem wEquiv_map {α β : TypeVec n} (g : α ⟹ β) (x y : q.P.W α) :
@@ -150,7 +151,7 @@ theorem wEquiv_map {α β : TypeVec n} (g : α ⟹ β) (x y : q.P.W α) :
 def wSetoid (α : TypeVec n) : Setoid (q.P.W α) :=
   ⟨WEquiv, wEquiv.refl, wEquiv.symm _ _, WEquiv.trans _ _ _⟩
 
-attribute [local instance] wSetoid
+attribute [implicit_reducible, local instance] wSetoid
 
 /-- Least fixed point of functor F. The result is a functor with one fewer parameters
 than the input. For `F a b c` a ternary functor, `Fix F` is a binary functor such that
@@ -238,7 +239,8 @@ theorem Fix.ind_rec {β : Type u} (g₁ g₂ : Fix F α → β)
          g₂ ∘ fun x => Quotient.mk (wSetoid α) (f x) := by
     ext x
     exact ih x
-  rw [this]
+  erw [this]
+  rfl
 
 theorem Fix.rec_unique {β : Type u} (g : F (append1 α β) → β) (h : Fix F α → β)
     (hyp : ∀ x, h (Fix.mk x) = g ((id ::: h) <$$> x)) : Fix.rec g = h := by

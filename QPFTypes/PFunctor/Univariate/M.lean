@@ -242,6 +242,7 @@ protected def mk (x : F (M F)) : M F where
 @[simp, grind =]
 theorem dest_mk (x : F (M F)) : dest (M.mk x) = x := rfl
 
+set_option backward.isDefEq.respectTransparency false in
 @[simp, grind =]
 theorem mk_dest (x : M F) : M.mk (dest x) = x := by
   ext n
@@ -260,7 +261,7 @@ theorem mk_dest (x : M F) : M.mk (dest x) = x := by
       congr
       ext a
       dsimp only [children]
-      generalize hh : cast _ a = a''
+      generalize hh : cast _ a = a'' at ⊢
       rw [cast_eq_iff_heq] at hh
       revert a''
       rw [h]

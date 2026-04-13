@@ -601,7 +601,7 @@ variable (βs : TypeVec.{u} n) (β : Type u)
     (βs ::: β).head = match n with
       | 0 => β
       | _+1 => βs.head := by
-  cases n <;> grind [append1, head]
+  cases n <;> grind [append1, head, Fin.last]
 
 @[grind =] theorem tail_append1 :
     (βs ::: β).tail = match n with
@@ -610,7 +610,8 @@ variable (βs : TypeVec.{u} n) (β : Type u)
   funext i
   cases n
   · exact i.elim0
-  · cases i using Fin.cases <;> grind [append1, tail]
+  · cases i using Fin.cases
+    <;> simp [append1, tail]
 
 @[simp, grind =] theorem head_cons : (β <: βs).head = β := by simp [head, cons]
 @[simp, grind =] theorem tail_cons : (β <: βs).tail = βs := by

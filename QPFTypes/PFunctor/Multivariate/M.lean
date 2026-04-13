@@ -97,7 +97,7 @@ def M (α : TypeVec n) : Type _ :=
   P.mp α
 
 instance mvfunctorM : MvFunctor P.M := by delta M; infer_instance
-instance : LawfulMvFunctor P.M := by delta M; infer_instance
+instance : LawfulMvFunctor P.M := inferInstanceAs (LawfulMvFunctor P.mp)
 
 instance inhabitedM {α : TypeVec _} [I : Inhabited P.A] [∀ i : Fin n, Inhabited (α i)] :
     Inhabited (P.M α) :=
@@ -202,6 +202,7 @@ theorem M.dest_corec {α : TypeVec n} {β : Type u} (g : β → P (α.append1 β
   rw [← split_dropFun_lastFun f, appendFun_comp_splitFun]
   rfl
 
+set_option backward.isDefEq.respectTransparency false in
 @[simp, grind =]
 theorem M.dest_map {α β : TypeVec n} (g : α ⟹ β) (x : P.M α) :
     M.dest P (g <$$> x) = (g ::: fun x => g <$$> x) <$$> M.dest P x := by
@@ -211,6 +212,7 @@ theorem M.dest_map {α β : TypeVec n} (g : α ⟹ β) (x : P.M α) :
   simp only [M.dest', MvPFunctor.map_eq, appendFun_comp_splitFun]
   rfl
 
+set_option backward.isDefEq.respectTransparency false in
 @[simp, grind =]
 theorem M.map_dest {α β : TypeVec n} (g : (α ::: P.M α) ⟹ (β ::: P.M β)) (x : P.M α)
     (h : ∀ x : P.M α, lastFun g x = (dropFun g <$$> x : P.M β)) :

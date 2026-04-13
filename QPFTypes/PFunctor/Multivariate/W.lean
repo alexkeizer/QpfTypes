@@ -96,6 +96,7 @@ theorem wPathCasesOn_eta {α : TypeVec n} {a : P.A} {f : P.last.B a → P.last.W
     (h : P.WPath ⟨a, f⟩ ⟹ α) : P.wPathCasesOn (P.wPathDestLeft h) (P.wPathDestRight h) = h := by
   ext i x; cases x <;> rfl
 
+@[grind =]
 theorem comp_wPathCasesOn {α β : TypeVec n} (h : α ⟹ β) {a : P.A} {f : P.last.B a → P.last.W}
     (g' : P.drop.B a ⟹ α) (g : ∀ j : P.last.B a, P.WPath (f j) ⟹ α) :
     h ⊚ P.wPathCasesOn g' g = P.wPathCasesOn (h ⊚ g') fun i => h ⊚ g i := by
@@ -198,7 +199,7 @@ over objects of the W-type `P.W α`.
 
 This is an abbreviation of the map of the underlying polynomial functor `P.wp`
 -/
-def wMap {α β : TypeVec n} (g : α ⟹ β) : P.W α → P.W β := fun x =>
+abbrev wMap {α β : TypeVec n} (g : α ⟹ β) : P.W α → P.W β := fun x =>
   P.wp.map g x
 
 theorem wMk_eq {α : TypeVec n} (a : P.A) (f : P.last.B a → P.last.W) (g' : P.drop.B a ⟹ α)
@@ -222,7 +223,9 @@ theorem w_map_wMk {α β : TypeVec n} (g : α ⟹ β) (a : P.A) (f' : P.drop.B a
   rw [this]
   dsimp
   have h := MvPFunctor.map_eq P.wp g
-  rw [wMk_eq, wMk_eq, wMap, h, comp_wPathCasesOn]
+  rw [wMk_eq, wMk_eq, wMap, h]
+  erw [comp_wPathCasesOn]
+  rfl
 
 -- TODO: this technical theorem is used in one place in constructing the initial algebra.
 -- Can it be avoided?
