@@ -11,4 +11,5 @@ public import NewPFTypes.PFunctor.Multivariate.Basic
 public import NewPFTypes.PFunctor.Multivariate.W
 public import NewPFTypes.PFunctor.Multivariate.M
 public import NewPFTypes.QPF.Basic
+public import NewPFTypes.QPF.Constructions.Fix
 public import NewPFTypes.QPF.Constructions.Cofix

@@ -254,5 +254,9 @@ def wDest' {α : TypeVec.{u} n} : P.W α → P (α.append1 (P.W α)) :=
 
 theorem wDest'_wMk {α : TypeVec n} (a : P.A) (f' : P.drop.B a ⟹ α) (f : P.last.B a → P.W α) :
     P.wDest' (P.wMk a f' f) = ⟨a, splitFun f' f⟩ := by rw [wDest', wRec_eq]
+
+theorem wDest'_wMk' {α : TypeVec n} (x : P (α.append1 (P.W α))) : P.wDest' (P.wMk' x) = x := by
+  obtain ⟨a, f⟩ := x; rw [wMk', wDest'_wMk, split_dropFun_lastFun]
+
 end MvPFunctor
 end QpfTypes
