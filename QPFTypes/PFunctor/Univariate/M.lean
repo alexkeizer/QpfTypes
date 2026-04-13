@@ -5,7 +5,7 @@ Authors: Simon Hudon
 -/
 module
 
-public import NewPFTypes.PFunctor.Univariate.Basic
+public import QPFTypes.PFunctor.Univariate.Basic
 
 import Batteries.Logic
 

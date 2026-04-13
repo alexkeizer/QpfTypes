@@ -5,8 +5,8 @@ Authors: Jeremy Avigad, Mario Carneiro, Simon Hudon, Alex Keizer
 -/
 module
 
-public import NewPFTypes.PFunctor.Multivariate.Basic
-public import NewPFTypes.PFunctor.Univariate.M
+public import QPFTypes.PFunctor.Multivariate.Basic
+public import QPFTypes.PFunctor.Univariate.M
 
 /-!
 # The M construction as a multivariate polynomial functor.

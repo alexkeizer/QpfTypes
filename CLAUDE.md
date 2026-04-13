@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-NewPFTypes is a Lean 4 library project to define coinductive types via polynomial functors, with minimal (eventually no) Mathlib dependencies.
+QPFTypes is a Lean 4 library project to define coinductive types via polynomial functors, with minimal (eventually no) Mathlib dependencies.
 More details about the plan for this project can be found in Plan.md and/or TODO.md
 
 ## Finding Mathlib Source Files
@@ -32,9 +32,9 @@ lake clean
 
 ## Project Structure
 
-- `NewPFTypes.lean` - Root module that imports all library submodules
-- `NewPFTypes/` - Library modules directory (add new modules here)
-- `Main.lean` - Executable entry point (imports NewPFTypes library)
+- `QPFTypes.lean` - Root module that imports all library submodules
+- `QPFTypes/` - Library modules directory (add new modules here)
+- `Main.lean` - Executable entry point (imports QPFTypes library)
 - `lakefile.toml` - Lake build configuration
 
 ## Lean 4 Version
@@ -43,8 +43,8 @@ Uses Lean 4.28.0 (specified in `lean-toolchain`).
 
 ## Adding New Modules
 
-1. Create `NewPFTypes/YourModule.lean`
-2. Add `import NewPFTypes.YourModule` to `NewPFTypes.lean`
+1. Create `QPFTypes/YourModule.lean`
+2. Add `import QPFTypes.YourModule` to `QPFTypes.lean`
 
 ## Porting Mathlib Files (removing Mathlib dependencies)
 
@@ -110,7 +110,7 @@ When porting Mathlib files, the following structural changes are needed:
    - Keep the original namespace (e.g., `MvPFunctor`) nested inside
 
 2. **Adjust imports**:
-   - Change `public import Mathlib.X.Y.Z` to local project imports like `import NewPFTypes.X.Y.Z`
+   - Change `public import Mathlib.X.Y.Z` to local project imports like `import QPFTypes.X.Y.Z`
    - Remove ALL Mathlib imports (the goal is zero Mathlib dependencies)
    - If functionality seems to require Mathlib, check if it's available through already-ported local modules or if it can be replaced with explicit function calls
 

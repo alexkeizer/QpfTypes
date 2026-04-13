@@ -1,6 +1,6 @@
-name = "NewPFTypes"
+name = "QPFTypes"
 version = "0.1.0"
-defaultTargets = ["NewPFTypes"]
+defaultTargets = ["QPFTypes"]
 
 [[require]]
 name = "mathlib"
@@ -8,5 +8,5 @@ scope = "leanprover-community"
 version = "git#v4.28.0"
 
 [[lean_lib]]
-name = "NewPFTypes"
+name = "QPFTypes"
 

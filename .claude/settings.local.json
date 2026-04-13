@@ -2,8 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(lake build:*)",
-      "Bash(grep -rn scoped[ /home/alex/Workspace/PhD/coinductive/NewPFTypes/.lake/packages/batteries/Batteries/)",
-      "Bash(grep -rn scoped[ /home/alex/Workspace/PhD/coinductive/NewPFTypes/.lake/packages/batteries/Batteries/Tactic/)",
+      "Bash(grep -rn scoped[ /home/alex/Workspace/PhD/coinductive/QPFTypes/.lake/packages/batteries/Batteries/)",
+      "Bash(grep -rn scoped[ /home/alex/Workspace/PhD/coinductive/QPFTypes/.lake/packages/batteries/Batteries/Tactic/)",
       "Bash(xargs strings:*)"
     ]
   }
