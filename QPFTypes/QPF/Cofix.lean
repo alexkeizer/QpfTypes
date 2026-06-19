@@ -1,3 +1,3 @@
 module
 
-import QPFTypes.QPF.Cofix.Basic
+public import QPFTypes.QPF.Cofix.Basic

@@ -23,9 +23,6 @@ Do **not** look in other projects' lake packages elsewhere on the filesystem.
 # Build the library
 lake build
 
-# Build and run the executable
-lake exe newpftypes
-
 # Clean build artifacts
 lake clean
 ```
@@ -34,7 +31,6 @@ lake clean
 
 - `QPFTypes.lean` - Root module that imports all library submodules
 - `QPFTypes/` - Library modules directory (add new modules here)
-- `Main.lean` - Executable entry point (imports QPFTypes library)
 - `lakefile.toml` - Lake build configuration
 
 ## Lean 4 Version
