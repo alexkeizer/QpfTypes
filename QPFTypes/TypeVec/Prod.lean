@@ -8,6 +8,25 @@ module
 public import QPFTypes.TypeVec.Basic
 public import QPFTypes.TypeVec.Arrow
 
+/-!
+
+# The product object in the category typevectors
+
+## Features
+
+* `α ⊗ β` - products of n-tuples
+* `α ⊗' β` - products of n-tuples of maps
+
+Also, support functions for operating with n-tuples of types, such as:
+
+* `fst : α ⊗ β ⇒ α` - first projection
+* `snd : α ⊗ β ⇒ α` - second projection
+* `mk f g : α ⊗ β`  - unique constructor
+
+This file is a modified version of `Mathlib.Data.TypeVec`, with `Fin2` replaced by `Fin`
+throughout.
+-/
+
 @[expose] public section
 
 universe u v w x

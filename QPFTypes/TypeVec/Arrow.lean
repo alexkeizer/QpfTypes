@@ -7,6 +7,29 @@ module
 
 public import QPFTypes.TypeVec.Basic
 
+/-!
+
+# The categorical structure of tuples of types
+
+## Features
+
+* `α ⟹ β`    - n-tuples of maps
+* `f ⊚ g`     - composition
+
+Also, support functions for operating with n-tuples of types, such as:
+
+* `appendFun f g` - appends a function g to an n-tuple of functions
+* `dropFun f`     - drops the last function from an n+1-tuple
+* `lastFun f`     - returns the last function of a tuple.
+
+Since e.g. `appendFun α.dropFun α.lastFun` is propositionally equal to `α` but not definitionally equal
+to it, we need support functions and lemmas to mediate between constructions.
+
+This file is a modified version of `Mathlib.Data.TypeVec`, with `Fin2` replaced by `Fin`
+throughout.
+-/
+
+
 @[expose] public section
 
 universe u v w x

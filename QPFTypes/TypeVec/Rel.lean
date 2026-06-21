@@ -8,6 +8,19 @@ module
 public import QPFTypes.TypeVec.Basic
 public import QPFTypes.TypeVec.Arrow
 
+/-!
+
+# Relational lifting over typevectors
+
+## Features
+
+* `PredLast α p` - Lift a predicate to the final value of typevecs
+* `RelLast α r`  - Relates last value of typevecs, equates the rest
+
+This file is a modified version of `Mathlib.Data.TypeVec`, with `Fin2` replaced by `Fin`
+throughout.
+-/
+
 @[expose] public section
 
 universe u v w x
