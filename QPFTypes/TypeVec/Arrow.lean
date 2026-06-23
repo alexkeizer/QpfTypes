@@ -25,8 +25,9 @@ Also, support functions for operating with n-tuples of types, such as:
 Since e.g. `appendFun α.dropFun α.lastFun` is propositionally equal to `α` but not definitionally equal
 to it, we need support functions and lemmas to mediate between constructions.
 
-This file is a modified version of `Mathlib.Data.TypeVec`, with `Fin2` replaced by `Fin`
-throughout.
+This file is a modified version of `Mathlib.Data.TypeVec`, with `Fin2` replaced by `Fin` throughout,
+this is also only a subset of the implemented features,
+the rest are distributed in this directory.
 -/
 
 

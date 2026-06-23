@@ -23,8 +23,9 @@ Also, support functions for operating with n-tuples of types, such as:
 * `snd : α ⊗ β ⇒ α` - second projection
 * `mk f g : α ⊗ β`  - unique constructor
 
-This file is a modified version of `Mathlib.Data.TypeVec`, with `Fin2` replaced by `Fin`
-throughout.
+This file is a modified version of `Mathlib.Data.TypeVec`, with `Fin2` replaced by `Fin` throughout,
+this is also only a subset of the implemented features,
+the rest are distributed in this directory.
 -/
 
 @[expose] public section
