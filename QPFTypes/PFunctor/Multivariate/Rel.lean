@@ -8,12 +8,13 @@ module
 public import QPFTypes.PFunctor.Multivariate.Basic
 
 /-!
-# The composition functor
+# Relational lifting over multivariate polynomial functors
 
-Given an `n`-polynomial `P`, and a `n`-vector of `m`-polynomials `Qᵢ`,
-the composition functor `P.comp Q` is the unique polynomial which,
-when applied to a `m`-typevec `α`, is equivalent to the pointwise composition:
-`(P.comp Q) α ≃ P (Q₁ α) (Q₂ α) ⋯ (Qₙ α)`.
+Often it is useful to enable reasoning about the values stored at each direction of a polynomial functor.
+This module provides two methods for this, LiftP and (LiftR).
+These allow the user to give a family of predicates (correspondingly relations),
+over the values at the directions of a (two) polynomial functor(s).
+
 -/
 @[expose] public section
 
