@@ -16,13 +16,15 @@ M types are potentially infinite tree-like structures. They are defined
 as the greatest fixpoint of a polynomial functor.
 -/
 @[expose] public section
-namespace QPFTypes.PFunctor
+namespace QPFTypes
 
 universe uA uB w
 
 open Nat Function
 
 variable (F : PFunctor.{uA, uB})
+
+namespace PFunctor
 
 namespace Approx
 

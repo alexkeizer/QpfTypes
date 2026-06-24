@@ -8,11 +8,11 @@ module
 public import QPFTypes.PFunctor.Multivariate.Basic
 
 /-!
-# The composition functor
+# Composition of polynomial functors
 
-Given an `n`-polynomial `P`, and a `n`-vector of `m`-polynomials `Qᵢ`,
-the composition functor `P.comp Q` is the unique polynomial which,
-when applied to a `m`-typevec `α`, is equivalent to the pointwise composition:
+Given an `n`-ary polynomial functor `P`, and a `n`-vector of `m`-ary polynomial functors `Qᵢ`,
+their composition `P.comp Q` is the unique polynomial functor which,
+when applied to a vector of `m` types, is equivalent to the pointwise composition:
 `(P.comp Q) α ≃ P (Q₁ α) (Q₂ α) ⋯ (Qₙ α)`.
 -/
 @[expose] public section

@@ -8,14 +8,14 @@ module
 public import QPFTypes.PFunctor.Multivariate.Basic
 
 /-!
-# The constant multivariate polynomial functor.
+# The constant polynomial functor.
 
-The constant multivariate polynomial functor takes a (A : Type u),
-and produces a polynomial functor where this is the only position,
-and all directions are empty.
+The constant multivariate polynomial functor takes a `(A : Type u)`,
+and produces a polynomial functor where this is the head,
+and all children are empty.
 
-This means it is equivalent to the source type A.
-This equivalence is inhabited by comp.mk _ and comp.get.
+This means `const n A` is equivalent to the source type A.
+This equivalence is inhabited by `const.mk n` and `const.get`.
 -/
 @[expose] public section
 

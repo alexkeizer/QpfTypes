@@ -11,10 +11,9 @@ public import QPFTypes.PFunctor.Multivariate.Basic
 # Relational lifting over multivariate polynomial functors
 
 Often it is useful to enable reasoning about the values stored at each direction of a polynomial functor.
-This module provides two methods for this, LiftP and (LiftR).
-These allow the user to give a family of predicates (correspondingly relations),
-over the values at the directions of a (two) polynomial functor(s).
-
+This module provides two methods for this, LiftP and LiftR.
+These allow the user to give a family of predicates (respectively relations),
+over the values contained in an element of the result of a polynomial functor.
 -/
 @[expose] public section
 
