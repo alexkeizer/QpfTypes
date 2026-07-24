@@ -236,7 +236,6 @@ theorem Cofix.dest_corec {α : TypeVec n} {β : Type u} (g : β → F (α ::: β
 @[simp, grind =]
 theorem Cofix.mk_dest {α : TypeVec n} (x : Cofix F α) : Cofix.mk (Cofix.dest x) = x := by
   apply Cofix.bisim_rel (fun x y : Cofix F α => x = Cofix.mk (Cofix.dest y)) _ _ _ rfl
-  dsimp
   intro x y heq
   rw [heq, Cofix.mk, Cofix.dest_corec]
   rw [← QPF.comp_map, ← appendFun_comp, id_comp]

@@ -21,6 +21,7 @@ namespace QPFTypes
 
 universe u v
 
+set_option linter.checkUnivs false in
 /-- An uncurried `n`-ary type function: arguments in `Type u`, result in `Type v`. -/
 abbrev TypeFun (n : Nat) : Type (max (u + 1) (v + 1)) :=
   TypeVec.{u} n → Type v
@@ -69,6 +70,7 @@ end TypeFun
 
 /-! ## AsTypeFun typeclass -/
 
+set_option linter.checkUnivs false in
 /-- `AsTypeFun n α` witnesses an equivalence between `α` and `TypeFun.{u, v} n`. -/
 class AsTypeFun (n : outParam Nat) (α : Type _) where
   /-- Interpret `α` as a `TypeFun n`. -/

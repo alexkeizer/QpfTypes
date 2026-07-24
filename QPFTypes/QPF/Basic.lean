@@ -143,7 +143,7 @@ theorem liftR_iff {α : TypeVec n} (r : ∀ ⦃i⦄, α i → α i → Prop) (x 
     · intro i j; exact (f i j).property
   · rintro ⟨a, f₀, f₁, xeq, yeq, h⟩
     refine ⟨abs ⟨a, fun i j => ⟨(f₀ i j, f₁ i j), h i j⟩⟩, ?_, ?_⟩
-    · dsimp; rw [xeq, ← abs_map]; rfl
+    · rw [xeq, ← abs_map]; rfl
     · rw [yeq, ← abs_map]; rfl
 
 /-- A qpf is said to be uniform if every polynomial functor
